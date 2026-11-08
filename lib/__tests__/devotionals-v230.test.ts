@@ -5,6 +5,8 @@
 // beside Stories. The registry-driven contract and the paragraph
 // window math are unchanged — the math is exercised here on synthetic
 // paragraphs, since the narrations carry no transcript yet.
+// v474 amendment: Deuteronomy 1–34 joined the registry, so the length
+// pin below counts the Genesis entries it was always about.
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -28,7 +30,8 @@ describe('v230 registry (as grown by v293)', () => {
     // No transcript exists for the narrations — no invented words.
     expect(d!.paragraphs).toEqual([]);
     expect(getDevotional('Exodus', 1)).toBeNull();
-    expect(devotionalRegistry().length).toBe(50);
+    // v474: registry also holds Deuteronomy — pin the Genesis count.
+    expect(devotionalRegistry().filter((d) => d.book === 'Genesis').length).toBe(50);
   });
 });
 

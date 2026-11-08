@@ -68,10 +68,11 @@ const EXPECTED: [number, string, number][] = [
 ];
 
 describe('v293 registry — all of Genesis, PROGRESS titles', () => {
-  it('holds exactly 50 entries, every Genesis chapter 1–50 exactly once', () => {
-    const reg = devotionalRegistry();
+  it('holds exactly 50 Genesis entries, every chapter 1–50 exactly once', () => {
+    // v474 amendment: the registry also holds Deuteronomy 1–34 now;
+    // this pin was always about the Genesis entries.
+    const reg = devotionalRegistry().filter((d) => d.book === 'Genesis');
     expect(reg.length).toBe(50);
-    expect(reg.every((d) => d.book === 'Genesis')).toBe(true);
     expect(reg.map((d) => d.chapter).sort((a, b) => a - b)).toEqual(EXPECTED.map(([n]) => n));
   });
 

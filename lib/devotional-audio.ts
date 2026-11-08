@@ -1,4 +1,4 @@
-// ─── Devotional audio assets (v230 → v293: all of Genesis) ─────────────────
+// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy) ────
 // The require() calls for bundled devotional audio live here — and ONLY
 // here — so lib/devotionals.ts (the registry + math) stays import-pure
 // for tests. One line per narration, keyed exactly like the registry.
@@ -58,6 +58,40 @@ const AUDIO: Record<string, number> = {
   [devotionalKey('Genesis', 48)]: require('@/assets/audio/devotional-genesis-48.m4a'),
   [devotionalKey('Genesis', 49)]: require('@/assets/audio/devotional-genesis-49.m4a'),
   [devotionalKey('Genesis', 50)]: require('@/assets/audio/devotional-genesis-50.m4a'),
+  [devotionalKey('Deuteronomy', 1)]: require('@/assets/audio/devotional-deuteronomy-1.m4a'),
+  [devotionalKey('Deuteronomy', 2)]: require('@/assets/audio/devotional-deuteronomy-2.m4a'),
+  [devotionalKey('Deuteronomy', 3)]: require('@/assets/audio/devotional-deuteronomy-3.m4a'),
+  [devotionalKey('Deuteronomy', 4)]: require('@/assets/audio/devotional-deuteronomy-4.m4a'),
+  [devotionalKey('Deuteronomy', 5)]: require('@/assets/audio/devotional-deuteronomy-5.m4a'),
+  [devotionalKey('Deuteronomy', 6)]: require('@/assets/audio/devotional-deuteronomy-6.m4a'),
+  [devotionalKey('Deuteronomy', 7)]: require('@/assets/audio/devotional-deuteronomy-7.m4a'),
+  [devotionalKey('Deuteronomy', 8)]: require('@/assets/audio/devotional-deuteronomy-8.m4a'),
+  [devotionalKey('Deuteronomy', 9)]: require('@/assets/audio/devotional-deuteronomy-9.m4a'),
+  [devotionalKey('Deuteronomy', 10)]: require('@/assets/audio/devotional-deuteronomy-10.m4a'),
+  [devotionalKey('Deuteronomy', 11)]: require('@/assets/audio/devotional-deuteronomy-11.m4a'),
+  [devotionalKey('Deuteronomy', 12)]: require('@/assets/audio/devotional-deuteronomy-12.m4a'),
+  [devotionalKey('Deuteronomy', 13)]: require('@/assets/audio/devotional-deuteronomy-13.m4a'),
+  [devotionalKey('Deuteronomy', 14)]: require('@/assets/audio/devotional-deuteronomy-14.m4a'),
+  [devotionalKey('Deuteronomy', 15)]: require('@/assets/audio/devotional-deuteronomy-15.m4a'),
+  [devotionalKey('Deuteronomy', 16)]: require('@/assets/audio/devotional-deuteronomy-16.m4a'),
+  [devotionalKey('Deuteronomy', 17)]: require('@/assets/audio/devotional-deuteronomy-17.m4a'),
+  [devotionalKey('Deuteronomy', 18)]: require('@/assets/audio/devotional-deuteronomy-18.m4a'),
+  [devotionalKey('Deuteronomy', 19)]: require('@/assets/audio/devotional-deuteronomy-19.m4a'),
+  [devotionalKey('Deuteronomy', 20)]: require('@/assets/audio/devotional-deuteronomy-20.m4a'),
+  [devotionalKey('Deuteronomy', 21)]: require('@/assets/audio/devotional-deuteronomy-21.m4a'),
+  [devotionalKey('Deuteronomy', 22)]: require('@/assets/audio/devotional-deuteronomy-22.m4a'),
+  [devotionalKey('Deuteronomy', 23)]: require('@/assets/audio/devotional-deuteronomy-23.m4a'),
+  [devotionalKey('Deuteronomy', 24)]: require('@/assets/audio/devotional-deuteronomy-24.m4a'),
+  [devotionalKey('Deuteronomy', 25)]: require('@/assets/audio/devotional-deuteronomy-25.m4a'),
+  [devotionalKey('Deuteronomy', 26)]: require('@/assets/audio/devotional-deuteronomy-26.m4a'),
+  [devotionalKey('Deuteronomy', 27)]: require('@/assets/audio/devotional-deuteronomy-27.m4a'),
+  [devotionalKey('Deuteronomy', 28)]: require('@/assets/audio/devotional-deuteronomy-28.m4a'),
+  [devotionalKey('Deuteronomy', 29)]: require('@/assets/audio/devotional-deuteronomy-29.m4a'),
+  [devotionalKey('Deuteronomy', 30)]: require('@/assets/audio/devotional-deuteronomy-30.m4a'),
+  [devotionalKey('Deuteronomy', 31)]: require('@/assets/audio/devotional-deuteronomy-31.m4a'),
+  [devotionalKey('Deuteronomy', 32)]: require('@/assets/audio/devotional-deuteronomy-32.m4a'),
+  [devotionalKey('Deuteronomy', 33)]: require('@/assets/audio/devotional-deuteronomy-33.m4a'),
+  [devotionalKey('Deuteronomy', 34)]: require('@/assets/audio/devotional-deuteronomy-34.m4a'),
 };
 
 /** The bundled audio module for a chapter's devotional, or null. */

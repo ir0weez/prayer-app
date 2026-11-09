@@ -437,10 +437,15 @@ describe('v222 WS2 — the studio pack door', () => {
     expect(own.authorName).toBeUndefined();
   });
 
+  // v480 superseded the dedicated row title this pin originally
+  // named: the Studio Pack door and the backup restore are ONE
+  // "Import" row now, dispatched by handleImport's format sniff.
+  // (Updated in v480 — the door still lives in Settings → DATA and
+  // studio files still parse through the same full-file door.)
   it('the import door lives in Settings → DATA, and the export carries the bubble section', () => {
     const src = readFileSync(join(process.cwd(), 'app', '(tabs)', 'index.tsx'), 'utf8');
-    expect(src).toContain('Import Studio Pack');
-    expect(src).toContain('handleImportStudioPack');
+    expect(src).toContain('title: "Import", sub: "Restore a backup or apply a Studio Pack"');
+    expect(src).toContain('handleImport');
     expect(src).toContain('parseStudioFile');
     // v408: the payload builder moved verbatim into
     // lib/bible-v205/export-payload.ts (shared by the Export Data

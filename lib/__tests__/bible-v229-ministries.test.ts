@@ -299,7 +299,7 @@ describe('surfaces — the backup and the DATA rows carry ministries', () => {
   // single Import Studio Pack row now, and the counts land in the one
   // combined summary. (Updated in v231 — bible-v231-onedoor.test.ts
   // pins the one-door wiring in full.)
-  it('the one door applies ministries and names them in its subtitle', () => {
+  it('the one door applies ministries through the unified Import row', () => {
     expect(src).toContain('applyStudioMinistriesPack');
     expect(src).toContain('counts.ministriesAdded = result.summary.added');
     expect(src).not.toContain('Import Ministries Pack');
@@ -308,7 +308,11 @@ describe('surfaces — the backup and the DATA rows carry ministries', () => {
     // are untouched — the row's SUBTITLE copy now follows the
     // approved Settings drawing ("Notes, people & schedule from the
     // Studio") instead of the v229-era sentence.
-    expect(src).toContain('title: "Import Studio Pack", sub: "Notes, people & schedule from the Studio"');
+    // v480 re-pin: the row itself is the unified Import row now —
+    // one door for backups and packs alike, so the subtitle names
+    // the two kinds of file instead of enumerating pack contents.
+    // The door, its apply, and the combined summary are untouched.
+    expect(src).toContain('title: "Import", sub: "Restore a backup or apply a Studio Pack"');
     expect(src).toContain('formatStudioImportSummary');
   });
 });

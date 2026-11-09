@@ -345,30 +345,47 @@ describe('Drive parity — the planner consumes the same full-file plan', () => 
 describe('surfaces — Settings keeps exactly one studio door', () => {
   const src = readFileSync(join(process.cwd(), 'app', '(tabs)', 'index.tsx'), 'utf8');
 
-  it('one Import Studio Pack row; the People and Ministries rows are gone', () => {
-    expect(src.match(/"Import Studio Pack"/g)).toHaveLength(1);
+  // v480: the one door grew to cover the backup restore too — the
+  // separate "Import data" row is gone, and the single row is the
+  // unified "Import" row dispatched by handleImport. (Updated in
+  // v480 — the one-door discipline this file pins is unchanged;
+  // backup-restore-v480.test.ts pins the unified wiring in full.)
+  it('one Import row; the separate backup, pack, People and Ministries rows are gone', () => {
+    expect(src.match(/title: "Import", sub: "Restore a backup or apply a Studio Pack"/g)).toHaveLength(1);
+    expect(src).not.toContain('title: "Import data"');
+    expect(src).not.toContain('title: "Import Studio Pack"');
     expect(src).not.toContain('"Import People Pack"');
     expect(src).not.toContain('"Import Ministries Pack"');
+    expect(src).not.toContain('handleImportData');
+    expect(src).not.toContain('handleImportStudioPack');
     expect(src).not.toContain('handleImportPeoplePack');
     expect(src).not.toContain('handleImportMinistriesPack');
   });
 
   it('the one row runs the full-file door and speaks the combined summary', () => {
-    expect(src).toContain('handleImportStudioPack');
+    expect(src).toContain('handleImport');
     expect(src).toContain('parseStudioFileFull');
     expect(src).toContain('formatStudioImportSummary(plan, counts)');
     // v315 re-pin: the "one file can carry them all" subtitle copy
     // was replaced by the approved Settings drawing's shorter line;
     // the door it described is the same one, wired the same way.
-    expect(src).toContain('sub: "Notes, people & schedule from the Studio"');
+    // v480 re-pin: the subtitle is the unified door's line now.
+    expect(src).toContain('sub: "Restore a backup or apply a Studio Pack"');
   });
 
-  it('Import Data — the legacy whole-backup restore — stands untouched beside it', () => {
+  it('the whole-backup restore stands inside the same door, its flow untouched', () => {
     // v315 re-pin: the drawing sentence-cases the row ("Import
     // data") and folds export into the Backup row's Export pill —
     // both flows keep their exact handlers.
-    expect(src).toContain('"Import data"');
-    expect(src).toContain('handleImportData');
+    // v480 re-pin: the restore no longer stands BESIDE the pack
+    // door — it is the same door's other half. handleImport sniffs
+    // the backup format and dispatches to restoreBackup, whose
+    // validation, destructive confirm, and restore flow are the
+    // legacy ones verbatim (v480 fixed only doRestore's writes).
+    expect(src).not.toContain('handleImportData');
+    expect(src).toContain('const restoreBackup = async (parsed: Record<string, unknown>) => {');
+    expect(src).toContain('(parsed as { format?: unknown }).format === "prayercircle-backup"');
+    expect(src).toContain('Alert.alert("Restore backup?", "This will replace the data currently stored on this device."');
     expect(src).toContain('onPress={handleExportData}');
   });
 });

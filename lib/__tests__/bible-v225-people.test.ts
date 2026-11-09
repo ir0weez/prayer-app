@@ -510,10 +510,15 @@ describe('v225 — the DATA screen wiring (source pins)', () => {
   // the same applyStudioPeoplePack merge. (Updated in v231 — the row
   // and its handler are gone by design; bible-v231-onedoor.test.ts
   // pins the one-door wiring in full.)
+  // v480 folded that row and the backup restore into ONE "Import"
+  // row: people ride handleImport's pack branch now, through the same
+  // merge. (Updated in v480 — handleImportStudioPack is gone by
+  // design; backup-restore-v480.test.ts pins the unified door.)
   it('people ride the one door: no dedicated row, the merge still wired', () => {
     expect(src).not.toContain('Import People Pack');
     expect(src).not.toContain('handleImportPeoplePack');
-    expect(src).toContain('handleImportStudioPack');
+    expect(src).not.toContain('handleImportStudioPack');
+    expect(src).toContain('handleImport');
     expect(src).toContain('parseStudioFileFull');
     expect(src).toContain('applyStudioPeoplePack');
     expect(src).toContain('counts.peopleUpdated = peopleResult.summary.peopleUpdated');

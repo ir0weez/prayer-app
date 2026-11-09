@@ -380,7 +380,9 @@ describe('Settings wiring (source pins)', () => {
     const cardAt = src.indexOf('groupLabel("DATA & BACKUP")');
     const backupAt = src.indexOf('>Backup</Text>', cardAt);
     const rowAt = src.indexOf('>Nightly auto-export<', cardAt);
-    const importAt = src.indexOf('title: "Import data"', cardAt);
+    // v480 re-pin: the landmark row is the unified Import row now —
+    // it keeps the same seat under the auto-export switch.
+    const importAt = src.indexOf('title: "Import", sub: "Restore a backup or apply a Studio Pack"', cardAt);
     expect(backupAt).toBeGreaterThan(-1);
     expect(rowAt).toBeGreaterThan(backupAt);
     expect(importAt).toBeGreaterThan(rowAt);

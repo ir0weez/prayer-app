@@ -327,8 +327,11 @@ describe("v315 settings screen — the drawing's structure, every control wired"
     expect(settingsSlice).toContain("Last export: ${new Date(lastExportAt).toLocaleDateString(");
     expect(settingsSlice).toContain('"Not exported yet"');
     expect(settingsSlice).toContain("onPress={handleExportData}");
-    expect(settingsSlice).toContain('title: "Import data"');
-    expect(settingsSlice).toContain('title: "Import Studio Pack"');
+    // v480 re-pin: the two import rows are ONE "Import" row now —
+    // the unified door restores a backup or applies a Studio Pack.
+    expect(settingsSlice).toContain('title: "Import", sub: "Restore a backup or apply a Studio Pack"');
+    expect(settingsSlice).not.toContain('title: "Import data"');
+    expect(settingsSlice).not.toContain('title: "Import Studio Pack"');
     expect(settingsSlice).toContain('title: "Stamp Collection"');
     expect(settingsSlice).toContain("setDriveExpanded((prev) => !prev)");
     expect(settingsSlice).toContain(">Linked</Text>");

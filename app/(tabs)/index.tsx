@@ -65,6 +65,7 @@ import { ScheduleTab } from "@/components/schedule-tab";
 import { StampCollectionModal } from "@/components/reached-stamp-row";
 import { PrayerJournalTab } from "@/components/prayer-journal-tab";
 import { restorePhotoBackup } from "@/lib/photo-backup";
+import { partitionBackupStorage } from "@/lib/backup-restore";
 import {
   cancelPersonReminderNotifications,
   cancelScheduledEventNotifications,
@@ -215,6 +216,7 @@ import {
   saveStudioImports,
   type StudioApplyCounts,
   type StudioFilePlan,
+  type StudioImportsMap,
   type StudioSectionFailure,
 } from "@/lib/bible-v205/studio-import";
 import { storeEmailDigestForwardOnly } from "@/lib/email-digest";
@@ -4469,48 +4471,47 @@ export default function HomeScreen() {
     );
   };
 
-  const handleImportData = async () => {
+  // v480 — ONE import door (Jonathan: "can we just make all imports
+  // through one door then? That way we don't have two different import
+  // styles?"). DATA & BACKUP carried two rows — "Import data" (a
+  // backup restore) and "Import Studio Pack" (the v222 door) — each
+  // with its own picker, its own parse, its own failure alerts. They
+  // are one row and one handler now: pick the file once, parse it
+  // once, and sniff what it IS. A backup (format
+  // "prayercircle-backup") walks the restore below; anything else
+  // walks the Studio Pack apply. Both branches keep their internals
+  // exactly — this is a door merge, not an apply rewrite. The
+  // Drive-folder door (checkDriveFolder) is separate and untouched.
+  const handleImport = async () => {
+    let raw: string | null;
     try {
-      let raw: string | null = null;
-      if (Platform.OS === "web") {
-        raw = await new Promise<string | null>((resolve, reject) => {
-          const input = document.createElement("input");
-          input.type = "file";
-          input.accept = ".json,application/json";
-          input.style.display = "none";
-          input.onchange = () => {
-            const file = input.files?.[0];
-            input.remove();
-            if (!file) {
-              resolve(null);
-              return;
-            }
-            const reader = new FileReader();
-            reader.onload = () => {
-              if (typeof reader.result === "string") resolve(reader.result);
-              else reject(new Error("The selected backup could not be read as text."));
-            };
-            reader.onerror = () => reject(reader.error ?? new Error("The selected backup could not be read."));
-            reader.readAsText(file);
-          };
-          input.onerror = () => {
-            input.remove();
-            reject(new Error("The browser could not open the file picker."));
-          };
-          document.body.appendChild(input);
-          input.click();
-        });
-      } else {
-        const result = await DocumentPicker.getDocumentAsync({ type: "application/json", copyToCacheDirectory: true, multiple: false });
-        if (result.canceled || !result.assets?.[0]?.uri) return;
-        raw = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
-      }
-      if (raw === null) return;
-      const parsed: unknown = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object" || (parsed as { format?: unknown }).format !== "prayercircle-backup") {
-        notifyAlert("Invalid backup", "Choose a PrayerCircle JSON backup file.");
-        return;
-      }
+      raw = await pickImportText();
+    } catch (error) {
+      console.error("PrayerCircle import failed", error);
+      notifyAlert("Import failed", "PrayerCircle could not read that file.");
+      return;
+    }
+    if (raw === null) return;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      notifyAlert("Import failed", "That file is not valid JSON.");
+      return;
+    }
+    if (parsed && typeof parsed === "object" && (parsed as { format?: unknown }).format === "prayercircle-backup") {
+      await restoreBackup(parsed as Record<string, unknown>);
+    } else {
+      await applyStudioPackFile(parsed);
+    }
+  };
+
+  // The restore half of the one door: the standing validation, the
+  // standing destructive confirm, and the v480-fixed doRestore
+  // (partition → photo restore → the library through saveStudioImports
+  // → batched multiSet, with an honest partial alert).
+  const restoreBackup = async (parsed: Record<string, unknown>) => {
+    try {
       const storageValue = (parsed as { storage?: unknown }).storage;
       if (!storageValue || typeof storageValue !== "object" || Array.isArray(storageValue)) {
         notifyAlert("Invalid backup", "This backup does not contain valid app data.");
@@ -4524,9 +4525,33 @@ export default function HomeScreen() {
       const doRestore = async () => {
         try {
           const photos = (parsed as { photos?: unknown }).photos;
-          const restoredStorage = await restorePhotoBackup(Object.fromEntries(entries) as Record<string, string | null>, photos);
+          // v480: partition FIRST. The backup's storage carries the
+          // imported-chapters library in three layouts (monolith,
+          // index, per-chapter chunks — see lib/backup-restore.ts);
+          // multiSetting them verbatim resurrects a ~4.4MB single
+          // value into the database the v433 file store emptied, the
+          // write dies against the ~6MB ceiling, and every real
+          // backup failed to restore. The library returns through
+          // its own saver below; only the small stores ride multiSet.
+          const partition = partitionBackupStorage(entries as [string, string | null][]);
+          const restoredStorage = await restorePhotoBackup(Object.fromEntries(partition.storageEntries), photos);
           const restoredEntries = Object.entries(restoredStorage);
-          await AsyncStorage.multiSet(restoredEntries.filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+          // The imports write carries its own guard: a library that
+          // cannot be written must not take the rest of the restore
+          // down with it — and must never be reported as restored
+          // (the v430/v431 rule: say what did not save).
+          let importsError: unknown = null;
+          if (partition.imports !== null) {
+            try {
+              await saveStudioImports(partition.imports as StudioImportsMap);
+            } catch (error) {
+              importsError = error;
+            }
+          }
+          const stringEntries = restoredEntries.filter((entry): entry is [string, string] => typeof entry[1] === "string");
+          for (let batchStart = 0; batchStart < stringEntries.length; batchStart += 100) {
+            await AsyncStorage.multiSet(stringEntries.slice(batchStart, batchStart + 100));
+          }
           const imported = Object.fromEntries(restoredEntries);
           const readJson = <T,>(key: string, fallback: T): T => {
             try { return imported[key] ? JSON.parse(imported[key] as string) as T : fallback; } catch { return fallback; }
@@ -4537,8 +4562,12 @@ export default function HomeScreen() {
           setStreakRecord(readJson(PRAYER_STREAK_STORAGE_KEY, { streak: 0, lastCompletedDate: null }));
           setProfile(readJson(PROFILE_STORAGE_KEY, DEFAULT_PROFILE));
           setSettings(readJson(APP_SETTINGS_STORAGE_KEY, settings));
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          notifyAlert("Backup restored", "Your PrayerCircle data has been restored. Reopen the Schedule tab to refresh imported schedule or worship data.");
+          if (importsError !== null) {
+            notifyAlert("Backup partly restored", `Your PrayerCircle data has been restored, but the imported commentary library could not be written: ${importsError instanceof Error ? importsError.message : String(importsError)} Your chapters are safe in the backup file — try the restore again.`);
+          } else {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            notifyAlert("Backup restored", "Your PrayerCircle data has been restored. Reopen the Schedule tab to refresh imported schedule or worship data.");
+          }
         } catch (error) {
           console.error("PrayerCircle import failed", error);
           notifyAlert("Restore failed", "PrayerCircle could not restore that backup.");
@@ -4560,18 +4589,10 @@ export default function HomeScreen() {
     }
   };
 
-  // v222 — the DATA import door for the Commentary Studio. Mirrors the
-  // backup import's file handling (web file input / native document
-  // picker), then applies a validated studio file. The parse (v231:
-  // parseStudioFileFull) validates EVERYTHING first, so a malformed
-  // file changes nothing: no partial application, ever. Notes replace
-  // that chapter's imported commentary entries only — the marks layer
-  // is a different store and is never touched (the v417 mark-changes
-  // section below is the one named exception). Chapter states walk
-  // transitionChapterStatus, the same door as tapping in the app.
-  // Schedule events land as planned items, deduped by
-  // (date, start, title); whiteSpace is advisory and is never stored.
-  const pickStudioPackText = async (): Promise<string | null> => {
+  // The one door's file reading (web file input / native document
+  // picker). The two old doors each carried a copy of this; v480
+  // keeps one.
+  const pickImportText = async (): Promise<string | null> => {
     if (Platform.OS === "web") {
       return new Promise<string | null>((resolve, reject) => {
         const input = document.createElement("input");
@@ -4588,9 +4609,9 @@ export default function HomeScreen() {
           const reader = new FileReader();
           reader.onload = () => {
             if (typeof reader.result === "string") resolve(reader.result);
-            else reject(new Error("The selected studio pack could not be read as text."));
+            else reject(new Error("The selected file could not be read as text."));
           };
-          reader.onerror = () => reject(reader.error ?? new Error("The selected studio pack could not be read."));
+          reader.onerror = () => reject(reader.error ?? new Error("The selected file could not be read."));
           reader.readAsText(file);
         };
         input.onerror = () => {
@@ -4606,6 +4627,17 @@ export default function HomeScreen() {
     return FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.UTF8 });
   };
 
+  // v222 — the DATA import door for the Commentary Studio. Mirrors the
+  // backup import's file handling (web file input / native document
+  // picker), then applies a validated studio file. The parse (v231:
+  // parseStudioFileFull) validates EVERYTHING first, so a malformed
+  // file changes nothing: no partial application, ever. Notes replace
+  // that chapter's imported commentary entries only — the marks layer
+  // is a different store and is never touched (the v417 mark-changes
+  // section below is the one named exception). Chapter states walk
+  // transitionChapterStatus, the same door as tapping in the app.
+  // Schedule events land as planned items, deduped by
+  // (date, start, title); whiteSpace is advisory and is never stored.
   // v231 — "One Door": this single row takes ANY studio file. Earlier
   // builds grew a dedicated row per pack kind (Studio / People /
   // Ministries) because parseStudioFile returns one kind per file;
@@ -4645,22 +4677,17 @@ export default function HomeScreen() {
   // honest: schedule counts split by kind with dedupe matches named,
   // and schedule rows with invalid minutes are repaired at validation
   // (timed → 60, all day → 0) and counted, never silently refused.
-  const handleImportStudioPack = async () => {
+  // v480: this apply is the pack half of the ONE import door —
+  // handleImport above picks and parses the file once, and routes
+  // anything that is not a backup here.
+  const applyStudioPackFile = async (parsed: unknown) => {
     try {
-      const raw = await pickStudioPackText();
-      if (raw === null) return;
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        notifyAlert("Import failed", "That file is not valid JSON.");
-        return;
-      }
       let plan: StudioFilePlan;
       try {
         plan = parseStudioFileFull(parsed);
       } catch (error) {
-        notifyAlert("Not a studio pack", error instanceof Error ? error.message : "That file is not a Commentary Studio pack.");
+        console.error("PrayerCircle studio import parse failed", error);
+        notifyAlert("Import failed", "That file is not a PrayerCircle backup or a Studio Pack.");
         return;
       }
 
@@ -5518,8 +5545,7 @@ export default function HomeScreen() {
             </View>
             <M3Switch value={autoExportRecord?.enabled ?? true} onValueChange={handleAutoExportToggle} />
           </View>
-          {navRow({ icon: "file-upload", title: "Import data", sub: "Restore a PrayerCircle backup", onPress: handleImportData })}
-          {navRow({ icon: "note-add", title: "Import Studio Pack", sub: "Notes, people & schedule from the Studio", onPress: handleImportStudioPack })}
+          {navRow({ icon: "file-upload", title: "Import", sub: "Restore a backup or apply a Studio Pack", onPress: handleImport })}
           {navRow({ icon: "collections-bookmark", title: "Stamp Collection", sub: "Stamps by month & personal bests", onPress: () => setShowStampCollection(true) })}
           <Pressable onPress={() => setDriveExpanded((prev) => !prev)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 1, borderTopColor: sm.line }, pressed && { opacity: 0.7 }]}>
             {tile("folder-shared")}

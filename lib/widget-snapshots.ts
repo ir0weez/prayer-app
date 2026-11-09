@@ -1202,6 +1202,10 @@ export function buildStudySnapshot(
 // clock, the Up Next pattern: the "now" temp by day,
 // tomorrow's high/low from 18:00, nothing at all when the
 // snapshot is stale or covers neither date.
+// v479 — the pack's hourly curve rides verbatim too, when
+// the snapshot carries one, and the renderer's daytime face
+// prefers the curve's point for the current hour (the one
+// lookup in lib/weather-snapshot.ts, mirrored in Kotlin).
 //
 // Evening: the snapshot carries the day whole (dayItems, the
 // Up Next shape) plus tomorrow's first timed item, so the
@@ -1297,11 +1301,16 @@ export interface BreakdownFast {
  * `now` is null when the pack carried only forecast days. The
  * builder judges nothing here — the renderer reads the
  * section against the device clock and the weather's own
- * staleness rule, exactly as it reads the day whole. */
+ * staleness rule, exactly as it reads the day whole.
+ * v479 — `hourly` rides the same way when the store's
+ * snapshot carries the curve: verbatim, and ABSENT (never an
+ * empty list) when it does not, so a pre-curve pack's
+ * snapshot stays byte-identical to v478's. */
 export interface BreakdownWeather {
   preparedAt: string;
   now: { date: string; tempF: number; condition: string } | null;
   days: { date: string; highF: number; lowF: number; condition: string }[];
+  hourly?: { at: string; tempF: number; condition: string }[];
 }
 
 export type DailyBreakdownWidgetSnapshot =
@@ -1488,6 +1497,18 @@ export function buildDailyBreakdownSnapshot(
           lowF: day.lowF,
           condition: day.condition,
         })),
+        // v479: the curve, verbatim, only when the store's
+        // snapshot carries one (the key itself stays absent
+        // otherwise — see the interface note).
+        ...(weather.hourly
+          ? {
+              hourly: weather.hourly.map((entry) => ({
+                at: entry.at,
+                tempF: entry.tempF,
+                condition: entry.condition,
+              })),
+            }
+          : {}),
       }
     : null;
 

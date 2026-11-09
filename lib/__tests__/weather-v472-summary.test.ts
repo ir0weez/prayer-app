@@ -125,7 +125,12 @@ describe("v472 the summary prose: the fast clause is out, the temperature is in"
   });
 
   it("schedule-tab composes the clause from the weather snapshot for the viewed day — and wires no fast line", () => {
-    expect(scheduleTab).toContain("weatherLine={weatherSummaryClause(weatherSnapshot, selectedDate)}");
+    // RE-BASED in v479: the call hands the Schedule clock in
+    // as a third argument (the hourly curve's device moment);
+    // the composition pinned below is unchanged.
+    expect(scheduleTab).toContain("weatherLine={weatherSummaryClause(weatherSnapshot, selectedDate, {");
+    expect(scheduleTab).toContain("date: formatDateLocal(clockNow),");
+    expect(scheduleTab).toContain("hour: clockNow.getHours(),");
     expect(scheduleTab).not.toContain("fastLine={");
     expect(scheduleTab).not.toContain("getFastCalendarDays");
     expect(scheduleTab).not.toContain("calculateFastStreak");

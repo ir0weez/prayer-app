@@ -78,7 +78,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { EmailDigest } from '@/lib/email-digest';
 import type { GasPriceSnapshot } from '@/lib/gas-prices';
 import type { NewsBriefingSnapshot, NewsBriefingItem } from '@/lib/news-briefing';
-import type { WeatherSnapshot } from '@/lib/weather-snapshot';
+import type { WeatherHourlyEntry, WeatherSnapshot } from '@/lib/weather-snapshot';
 import { NEWS_AREAS, type NewsArea } from '@/lib/news';
 import { CHAPTER_COUNTS, chapterCountFor, getChapterData } from './index';
 import {
@@ -1404,6 +1404,16 @@ export function validateNewsBriefingSection(value: unknown, fallbackPreparedAt =
  * it would clear the weather already waiting for the summary.
  * preparedAt must read as a time: the apply is forward-only
  * on that stamp.
+ *
+ * v479 — the section may also carry "hourly": the day's curve,
+ * [{ at: "YYYY-MM-DDTHH:00", tempF: <int>, condition }] for
+ * the pack's today and tomorrow. It is OPTIONAL — its absence
+ * (every pack before v479) validates exactly as before. Its
+ * entries are judged one by one, never as a bloc: a bad "at"
+ * format, an hour off the clock, a non-integer temperature or
+ * a non-string condition drops THAT entry alone, and a list
+ * left with no usable entry is simply a section with no
+ * curve — never a reason to refuse weather that stands.
  */
 export function validateWeatherSection(value: unknown, fallbackPreparedAt = ''): WeatherSnapshot {
   if (!isRecord(value)) fail('The weather section is not an object.');
@@ -1463,8 +1473,33 @@ export function validateWeatherSection(value: unknown, fallbackPreparedAt = ''):
       days.push({ date, highF, lowF, condition: leafCondition(entry, `day ${i}`) });
     });
   }
+  // v479: the optional hourly curve — entries judged singly
+  // (see the header note): anything malformed drops alone,
+  // and an all-malformed list is a section with no curve.
+  const HOURLY_AT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:00$/;
+  const hourly: WeatherHourlyEntry[] = [];
+  if (value.hourly !== undefined) {
+    if (!Array.isArray(value.hourly)) fail('The weather hourly list is not a list.');
+    value.hourly.forEach((entry) => {
+      if (!isRecord(entry)) return;
+      const at = typeof entry.at === 'string' ? entry.at.trim() : '';
+      if (!HOURLY_AT_RE.test(at)) return;
+      const hour = Number(at.slice(11, 13));
+      if (!Number.isInteger(hour) || hour < 0 || hour > 23) return;
+      const tempF = entry.tempF;
+      if (typeof tempF !== 'number' || !Number.isInteger(tempF)) return;
+      if (entry.condition !== undefined && typeof entry.condition !== 'string') return;
+      hourly.push({
+        at,
+        tempF,
+        condition: typeof entry.condition === 'string' ? entry.condition.trim() : '',
+      });
+    });
+  }
   if (now === null && days.length === 0) fail('The weather section carries no weather.');
-  return { preparedAt, location, now, days };
+  const snapshot: WeatherSnapshot = { preparedAt, location, now, days };
+  if (hourly.length > 0) snapshot.hourly = hourly;
+  return snapshot;
 }
 
 export function parseStudioFileFull(parsed: unknown): StudioFilePlan {

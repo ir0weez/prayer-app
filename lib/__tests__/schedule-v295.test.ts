@@ -199,7 +199,13 @@ describe("v295 summary — the saturated panel, complete", () => {
     // temperature clause from the weather snapshot.
     expect(scheduleTab).not.toContain("calculateFastStreak(activeFast, selectedDate)");
     expect(scheduleTab).not.toContain("getFastCalendarDays(activeFast)");
-    expect(scheduleTab).toContain("weatherLine={weatherSummaryClause(weatherSnapshot, selectedDate)}");
+    // RE-BASED in v479: the clause call now hands the Schedule
+    // clock in as a third argument (the hourly curve's device
+    // moment); the two-argument composition it pins is
+    // unchanged inside weatherSummaryClause.
+    expect(scheduleTab).toContain("weatherLine={weatherSummaryClause(weatherSnapshot, selectedDate, {");
+    expect(scheduleTab).toContain("date: formatDateLocal(clockNow),");
+    expect(scheduleTab).toContain("hour: clockNow.getHours(),");
   });
 });
 

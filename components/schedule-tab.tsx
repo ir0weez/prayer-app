@@ -14029,7 +14029,15 @@ export function ScheduleTab({
         // breakdown row). Composed from the morning pack's
         // weather snapshot; null — the prose just ends — when
         // the snapshot covers nothing for the viewed day.
-        weatherLine={weatherSummaryClause(weatherSnapshot, selectedDate)}
+        // v479: the Schedule clock rides along — when the
+        // viewed day is the device's today and the snapshot
+        // carries the hourly curve, the clause speaks the
+        // curve's point for the current hour instead of the
+        // pack morning's frozen "now".
+        weatherLine={weatherSummaryClause(weatherSnapshot, selectedDate, {
+          date: formatDateLocal(clockNow),
+          hour: clockNow.getHours(),
+        })}
       />
     );
   })()}

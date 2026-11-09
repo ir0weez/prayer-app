@@ -3551,6 +3551,46 @@ object WidgetRenderer {
     }
   }
 
+  /** v479: the hourly curve's point for one local date and
+   * hour — the mirror of lib/weather-snapshot.ts's
+   * weatherCurvePoint, line for line: among the curve's
+   * entries whose date part equals `dateIso` and whose hour
+   * is at or before `hour`, the one with the greatest hour
+   * speaks, and only while it is at most 3 hours old — past
+   * that the morning is talking about the afternoon and the
+   * curve has nothing to say. The point's condition falls
+   * back to the day's own (handed in as `dayCondition`) when
+   * the entry's is blank. Returns the point's temp and its
+   * resolved condition, or null. The date and hour are read
+   * off the "at" string ("YYYY-MM-DDTHH:00"), never parsed
+   * as a Date — the producer's format is the contract. */
+  private fun breakdownCurvePoint(
+    weather: JSONObject,
+    dateIso: String,
+    hour: Int,
+    dayCondition: String,
+  ): Pair<Double, String>? {
+    val hourly = weather.optJSONArray("hourly") ?: return null
+    var bestHour = -1
+    var bestTemp = 0.0
+    var bestCondition = ""
+    for (i in 0 until hourly.length()) {
+      val entry = hourly.optJSONObject(i) ?: continue
+      val at = entry.optString("at")
+      if (at.length < 13) continue
+      if (at.substring(0, 10) != dateIso) continue
+      val entryHour = at.substring(11, 13).toIntOrNull() ?: continue
+      if (entryHour > hour) continue
+      if (entryHour > bestHour) {
+        bestHour = entryHour
+        bestTemp = entry.optDouble("tempF")
+        bestCondition = entry.optString("condition").trim()
+      }
+    }
+    if (bestHour < 0 || hour - bestHour > 3) return null
+    return bestTemp to if (bestCondition.isNotBlank()) bestCondition else dayCondition
+  }
+
   /** v478: the weather header's face, decided HERE from the
    * device clock — the snapshot carries the weather whole
    * (preparedAt / now / days, verbatim from the store) and
@@ -3570,7 +3610,20 @@ object WidgetRenderer {
    *    / {low}° · {condition}", from the days entry for the
    *    device's tomorrow.
    * A blank condition drops its segment rather than leaving
-   * a dangling separator. */
+   * a dangling separator.
+   *
+   * v479 — the daytime order gains a first speaker: when
+   * the snapshot carries the hourly curve, its point for
+   * the device's current hour (breakdownCurvePoint) faces
+   * before the "now" is even consulted — the curve stepping
+   * through the day is the whole point, and the pack
+   * morning's single reading is what it replaces. A fresh
+   * point likewise outranks a stale "now": the high/low
+   * fallback below is reached only when there is no curve
+   * point AND the "now" is not today's. The evening face,
+   * the staleness gate and every other v478 rule stand
+   * exactly as they were; a snapshot without a curve walks
+   * the v478 order whole. */
   private fun breakdownWeatherFace(weather: JSONObject?, nowMin: Int): DbWeatherFace? {
     if (weather == null) return null
     val preparedMs = weatherPreparedMs(weather.optString("preparedAt")) ?: return null
@@ -3596,6 +3649,20 @@ object WidgetRenderer {
     if (nowMin >= 18 * 60) {
       val tomorrow = dayFor(deviceTomorrowIso()) ?: return null
       return dayFace("Tomorrow", tomorrow)
+    }
+    // v479: the curve's point for the current hour speaks
+    // first in the daytime (see the header note) — the same
+    // "{temp}° · {condition}" dress as the "now" face below.
+    val curve = breakdownCurvePoint(
+      weather,
+      deviceDateIso(),
+      nowMin / 60,
+      dayFor(deviceDateIso())?.optString("condition")?.trim() ?: "",
+    )
+    if (curve != null) {
+      val parts = mutableListOf("${Math.round(curve.first)}°")
+      if (curve.second.isNotBlank()) parts.add(curve.second)
+      return DbWeatherFace(parts.joinToString(" · "), weatherGlyphKind(curve.second))
     }
     val now = weather.optJSONObject("now")
     if (now != null && now.optString("date") == deviceDateIso()) {

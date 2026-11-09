@@ -126,8 +126,12 @@ describe("v272 — the household card gives the name its space back", () => {
   });
 
   it("the family name shrinks to fit instead of truncating", () => {
-    const nameAt = familyCard.indexOf("{familyName}</Text>");
-    const nameLine = familyCard.slice(familyCard.lastIndexOf("<Text", nameAt), nameAt);
+    // v481 re-pin: the name renders through FamilyPourText (the
+    // pour flips its colour as the fill covers the card) — the
+    // shrink-to-fit discipline rides the same props on the new
+    // element, asserted the same way.
+    const nameAt = familyCard.indexOf("{familyName}</FamilyPourText>");
+    const nameLine = familyCard.slice(familyCard.lastIndexOf("<FamilyPourText", nameAt), nameAt);
     expect(nameLine).toContain("numberOfLines={1}");
     expect(nameLine).toContain("adjustsFontSizeToFit");
     expect(nameLine).toContain("minimumFontScale={0.7}");

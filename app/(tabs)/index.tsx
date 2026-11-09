@@ -9,7 +9,7 @@ import * as Sharing from "expo-sharing";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused } from "@react-navigation/native";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useThemeContext, normalizeAppearancePreference, type AppearancePreference } from "@/lib/theme-provider";
 import { APP_ICONS, getAppIconDef, isIconUnlocked, loadSelectedAppIconId, saveSelectedAppIconId } from "@/lib/app-icons";
 import { setAppIcon as setNativeAppIcon, getAppIcon as getNativeAppIcon, isAppIconSwitchingAvailable } from "@/modules/expo-app-icon/src/index";
@@ -100,6 +100,7 @@ import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
 import { StackedAvatar } from "@/components/stacked-avatar";
 import { StatusModal } from "@/components/status-modal";
 import { EmergencyPrayerPill } from "@/components/emergency-prayer-pill";
+import { FamilyGroupUnit, FamilyPourContext, FamilyPourFill, FamilyPourText } from "@/components/family-pour";
 import {
   isNativePrayerTimerAvailable,
   startEmergencyNotification,
@@ -747,27 +748,58 @@ function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: st
       useNativeDriver: true,
     }).start();
   }, [expanded, spin]);
+  const rotate = spin.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+  // v481: as the pour's fill covers the card, the chevron's circle
+  // turns translucent white with a white glyph (the mockup's closed
+  // state) — a twin circle crossfading over the standing one on the
+  // pour's own value, read from the group unit's context. Outside a
+  // unit there is no pour and the chevron is exactly its old self.
+  const pourContext = useContext(FamilyPourContext);
+  const flipStyle = useAnimatedStyle(() => ({
+    opacity: pourContext ? interpolate(pourContext.headerFillFrac.value, [0.55, 1], [0, 1], Extrapolation.CLAMP) : 0,
+  }));
   return (
-    <Animated.View
-      style={{
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        backgroundColor: wash,
-        alignItems: "center",
-        justifyContent: "center",
-        transform: [
-          {
-            rotate: spin.interpolate({
-              inputRange: [0, 1],
-              outputRange: ["0deg", "180deg"],
-            }),
-          },
-        ],
-      }}
-    >
-      <MaterialIcons name="expand-more" size={17} color={color} />
-    </Animated.View>
+    <View style={{ width: 30, height: 30 }}>
+      <Animated.View
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: 15,
+          backgroundColor: wash,
+          alignItems: "center",
+          justifyContent: "center",
+          transform: [{ rotate }],
+        }}
+      >
+        <MaterialIcons name="expand-more" size={17} color={color} />
+      </Animated.View>
+      {pourContext ? (
+        <ReAnimated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: "absolute",
+              left: 0,
+              top: 0,
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              backgroundColor: "rgba(255,255,255,0.22)",
+              alignItems: "center",
+              justifyContent: "center",
+            },
+            flipStyle,
+          ]}
+        >
+          <Animated.View style={{ transform: [{ rotate }] }}>
+            <MaterialIcons name="expand-more" size={17} color="#FFFFFF" />
+          </Animated.View>
+        </ReAnimated.View>
+      ) : null}
+    </View>
   );
 }
 
@@ -2790,6 +2822,11 @@ export default function HomeScreen() {
       // sub-line's words, as drawn.
       return (
         <View key={familyId} style={{ backgroundColor: pmf.card, borderRadius: 24, marginHorizontal: 12, marginTop: ROSTER_HOUSEHOLD_GAP, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2, overflow: "hidden" }}>
+          {/* v481: the pour's fill inside the card — the group's own
+              accent rising from the card's bottom edge, under the
+              head row (components/family-pour.tsx owns the motion;
+              the unit wrapping this card supplies the value). */}
+          <FamilyPourFill color={familyRelationship.accent} />
           <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 14, paddingVertical: 12 }, pressed && { opacity: 0.85 }]}>
             <View style={{ flexDirection: "row", flex: 0 }}>
               {stackMembers.map((member, stackIdx) => (
@@ -2805,10 +2842,10 @@ export default function HomeScreen() {
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: 15.5, fontWeight: "800", color: pmf.ink, flexShrink: 1 }}>{familyName}</Text>
+                <FamilyPourText variant="name" fromColor={pmf.ink} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: 15.5, fontWeight: "800", flexShrink: 1 }}>{familyName}</FamilyPourText>
                 {isFamilyComplete && <VerifiedBadge />}
               </View>
-              <Text style={{ fontSize: 12, fontWeight: "600", color: pmf.inkSoft, marginTop: 1 }}>{meta}</Text>
+              <FamilyPourText variant="meta" fromColor={pmf.inkSoft} style={{ fontSize: 12, fontWeight: "600", marginTop: 1 }}>{meta}</FamilyPourText>
             </View>
             {/* v272: the countdown leaves the head row — the little
                 draining pill rides in the trailing zone, stacked
@@ -4096,7 +4133,19 @@ export default function HomeScreen() {
   const renderPeopleFamilyRow = (item: Extract<(typeof peopleRows)[number], { kind: "family" }>) => {
     const familyId = item.familyMembers[0]?.familyId || "";
     const isExpanded = expandedFamilyId === familyId;
-    return <View>{renderFamilyCard(item.familyMembers, undefined, isExpanded)}{isExpanded && renderExpandedFamily(item.familyMembers, item.section)}</View>;
+    // v481: the row's card + panel ride inside the group unit,
+    // which owns the pour (components/family-pour.tsx) — the
+    // expanded identity still flips here in the same render, and
+    // the unit keeps a closing group's members mounted for the
+    // fold from its own cached copy of the panel element.
+    return (
+      <FamilyGroupUnit
+        expanded={isExpanded}
+        accent={relationshipColors[item.section.title].accent}
+        header={renderFamilyCard(item.familyMembers, undefined, isExpanded)}
+        panel={isExpanded && renderExpandedFamily(item.familyMembers, item.section)}
+      />
+    );
   };
 
   // v267: FlatList's renderItem. Each cell's content is produced

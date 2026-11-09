@@ -197,7 +197,15 @@ describe("v255 source pins — front door (index.tsx)", () => {
     const family = index.slice(index.indexOf("const renderFamilyCard"), index.indexOf("const renderPersonCard"));
     const classic = family.slice(family.indexOf("if (!isSkinned)"), family.indexOf("<ReAnimated.View key={familyId}"));
     expect(classic).toContain("of ${familyMembers.length} prayed today`");
-    expect(classic).toContain("color: pmf.inkSoft, marginTop: 1 }}>{meta}</Text>");
+    // v481 re-pin: the meta renders through FamilyPourText (the
+    // pour flips its colour as the fill covers the card) — still
+    // the full text with no line cap, now sourced from pmf.inkSoft
+    // as its from-colour.
+    expect(classic).toContain('variant="meta" fromColor={pmf.inkSoft}');
+    expect(classic).toContain(">{meta}</FamilyPourText>");
+    const metaAt = classic.indexOf(">{meta}</FamilyPourText>");
+    const metaLine = classic.slice(classic.lastIndexOf("<FamilyPourText", metaAt), metaAt);
+    expect(metaLine).not.toContain("numberOfLines");
     expect(classic).not.toContain("getReachProgressRatio(freshestDays)");
     expect(classic).not.toContain("formatDaysSinceLastPrayer(freshestDays)");
   });

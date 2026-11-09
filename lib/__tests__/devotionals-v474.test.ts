@@ -60,8 +60,11 @@ describe('v474 registry — all of Deuteronomy, PROGRESS titles', () => {
     expect(reg.map((d) => d.chapter).sort((a, b) => a - b)).toEqual(EXPECTED.map(([n]) => n));
   });
 
-  it('the whole registry is now 84 — Genesis 50 + Deuteronomy 34', () => {
-    expect(devotionalRegistry().length).toBe(84);
+  // v475 amendment: Joshua 1–24 joined the registry, so the whole-
+  // registry total moved to the v475 test (now 108). This test keeps
+  // the Deuteronomy count pinned; the total lives in v475.
+  it('the Deuteronomy slice is still exactly 34, Genesis still 50', () => {
+    expect(devotionalRegistry().filter((d) => d.book === 'Deuteronomy').length).toBe(34);
     expect(devotionalRegistry().filter((d) => d.book === 'Genesis').length).toBe(50);
   });
 

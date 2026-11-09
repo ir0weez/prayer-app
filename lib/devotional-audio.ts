@@ -1,4 +1,4 @@
-// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy) ────
+// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua) ────
 // The require() calls for bundled devotional audio live here — and ONLY
 // here — so lib/devotionals.ts (the registry + math) stays import-pure
 // for tests. One line per narration, keyed exactly like the registry.
@@ -92,6 +92,30 @@ const AUDIO: Record<string, number> = {
   [devotionalKey('Deuteronomy', 32)]: require('@/assets/audio/devotional-deuteronomy-32.m4a'),
   [devotionalKey('Deuteronomy', 33)]: require('@/assets/audio/devotional-deuteronomy-33.m4a'),
   [devotionalKey('Deuteronomy', 34)]: require('@/assets/audio/devotional-deuteronomy-34.m4a'),
+  [devotionalKey('Joshua', 1)]: require('@/assets/audio/devotional-joshua-1.m4a'),
+  [devotionalKey('Joshua', 2)]: require('@/assets/audio/devotional-joshua-2.m4a'),
+  [devotionalKey('Joshua', 3)]: require('@/assets/audio/devotional-joshua-3.m4a'),
+  [devotionalKey('Joshua', 4)]: require('@/assets/audio/devotional-joshua-4.m4a'),
+  [devotionalKey('Joshua', 5)]: require('@/assets/audio/devotional-joshua-5.m4a'),
+  [devotionalKey('Joshua', 6)]: require('@/assets/audio/devotional-joshua-6.m4a'),
+  [devotionalKey('Joshua', 7)]: require('@/assets/audio/devotional-joshua-7.m4a'),
+  [devotionalKey('Joshua', 8)]: require('@/assets/audio/devotional-joshua-8.m4a'),
+  [devotionalKey('Joshua', 9)]: require('@/assets/audio/devotional-joshua-9.m4a'),
+  [devotionalKey('Joshua', 10)]: require('@/assets/audio/devotional-joshua-10.m4a'),
+  [devotionalKey('Joshua', 11)]: require('@/assets/audio/devotional-joshua-11.m4a'),
+  [devotionalKey('Joshua', 12)]: require('@/assets/audio/devotional-joshua-12.m4a'),
+  [devotionalKey('Joshua', 13)]: require('@/assets/audio/devotional-joshua-13.m4a'),
+  [devotionalKey('Joshua', 14)]: require('@/assets/audio/devotional-joshua-14.m4a'),
+  [devotionalKey('Joshua', 15)]: require('@/assets/audio/devotional-joshua-15.m4a'),
+  [devotionalKey('Joshua', 16)]: require('@/assets/audio/devotional-joshua-16.m4a'),
+  [devotionalKey('Joshua', 17)]: require('@/assets/audio/devotional-joshua-17.m4a'),
+  [devotionalKey('Joshua', 18)]: require('@/assets/audio/devotional-joshua-18.m4a'),
+  [devotionalKey('Joshua', 19)]: require('@/assets/audio/devotional-joshua-19.m4a'),
+  [devotionalKey('Joshua', 20)]: require('@/assets/audio/devotional-joshua-20.m4a'),
+  [devotionalKey('Joshua', 21)]: require('@/assets/audio/devotional-joshua-21.m4a'),
+  [devotionalKey('Joshua', 22)]: require('@/assets/audio/devotional-joshua-22.m4a'),
+  [devotionalKey('Joshua', 23)]: require('@/assets/audio/devotional-joshua-23.m4a'),
+  [devotionalKey('Joshua', 24)]: require('@/assets/audio/devotional-joshua-24.m4a'),
 };
 
 /** The bundled audio module for a chapter's devotional, or null. */

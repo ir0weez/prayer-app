@@ -207,12 +207,17 @@ export const READ_MODE_KEY = 'prayercircle.bible.v205.readmode.v1';
  * frame, before the header's own onLayout lands the true height.
  */
 export function estimateChapterHeaderHeight(insetsTop: number): number {
-  // topbar (insets + 8 pad + ~37 row + 4 pad = 49) + the slim meta
-  // row (8 pad + 32 segmented control + 8 pad = 48) + the 4px
-  // progress thread + the 1px rule ≈ insets + 102. (v304: the
-  // progress card's ~62 and the old mode row's ~52 collapse into
-  // the 48 meta row + 4 thread — 62px given back to the reading.)
-  return insetsTop + 102;
+  // topbar (insets + 8 pad + ~37 row + 4 pad = 49) + the v477
+  // segmented control's own row (8 pad + 39 control + 6 pad = 53)
+  // + the verse row (8 pad + ~30 verse actions + 8 pad = 46) +
+  // the 4px progress thread + the 1px rule ≈ insets + 153.
+  // (v304: the progress card's ~62 and the old mode row's ~52
+  // collapsed into one 48 meta row + 4 thread. v477: Concept 1
+  // gives the segmented control its own row and moves the verse
+  // actions into the range row — the header grows back by the
+  // second row, ~51, and the measured onLayout still corrects
+  // the spacer to the true height on device.)
+  return insetsTop + 153;
 }
 
 /** Where a scrollToY landing stops, relative to the header's
@@ -403,6 +408,9 @@ export function ChapterPageView(props: ChapterPageProps) {
   // settle, ahead of the verses' own async load in practice.
   const [collapseReady, setCollapseReady] = useState(false);
   const [sheet, setSheet] = useState<null | 'verses' | 'search'>(null);
+  // v477: the top bar's overflow (⋮) menu — the chapter PDF's new
+  // home under Concept 1 ("One bar, one card, one row").
+  const [menuOpen, setMenuOpen] = useState(false);
   // v405: native selection owns its own gestures now — there is
   // no drag state, no standing-selection registry, and NO SCROLL
   // LOCK anywhere on this page (the v361/v381 lock machinery is
@@ -1227,61 +1235,66 @@ export function ChapterPageView(props: ChapterPageProps) {
           <Text style={[styles.topTitle, { color: palette.ink }]} numberOfLines={1}>
             {book} · {chapterLabel(chapter)}
           </Text>
-          <View style={styles.topActions}>
-            <View style={[styles.keptPill, { backgroundColor: palette.noteTagBg }]}>
-              <Text style={{ color: palette.rasp, fontSize: 13 }}>♥</Text>
-              <Text style={[styles.keptPillText, { color: palette.raspDeep }]}>{keptTotal} kept</Text>
+          {/* v477 (Concept 1, "One bar, one card, one row"): the
+              bar carries plain icon buttons only — no filled
+              containers. The kept count and the verse grid move
+              down to the verse row; the v404 PDF door moves into
+              the overflow menu below. The v313 read pill stays
+              where it was: a passive status chip, not one of the
+              bar's action buttons. */}
+          {readDate ? (
+            <View
+              testID="chapter-header-read-pill"
+              style={[styles.keptPill, { backgroundColor: palette.raspDeep }]}
+              accessibilityLabel={`Chapter read ${formatReadDate(readDate)}`}
+            >
+              <MaterialIcons name="bookmark" size={14} color="#FFFFFF" />
+              <Text style={[styles.keptPillText, { color: '#FFFFFF' }]}>Read</Text>
             </View>
-            {/* v313: the drawing's read pill — when the chapter
-                carries a read mark, the topbar says so in the read
-                channel's dress (deep fill, white words). */}
-            {readDate ? (
-              <View
-                testID="chapter-header-read-pill"
-                style={[styles.keptPill, { backgroundColor: palette.raspDeep }]}
-                accessibilityLabel={`Chapter read ${formatReadDate(readDate)}`}
-              >
-                <MaterialIcons name="bookmark" size={14} color="#FFFFFF" />
-                <Text style={[styles.keptPillText, { color: '#FFFFFF' }]}>Read</Text>
-              </View>
-            ) : null}
+          ) : null}
+          <Pressable
+            onPress={() => setSheet('search')}
+            hitSlop={8}
+            style={styles.topIconBtn}
+            accessibilityLabel="Search this chapter"
+          >
+            <MaterialIcons name="search" size={21} color={palette.ink} />
+          </Pressable>
+          <Pressable
+            onPress={() => setMenuOpen(true)}
+            hitSlop={8}
+            style={styles.topIconBtn}
+            accessibilityLabel="More actions"
+          >
+            <MaterialIcons name="more-vert" size={21} color={palette.ink} />
+          </Pressable>
+        </View>
+        {/* v477 (Concept 1): the mode control stands on its OWN
+            row now — the same segmented pill, stretched across
+            the row, wired to chooseReadMode exactly as before.
+            (v304 had it sharing the range's row; the Concept 1
+            drawing gives each its own line.) */}
+        <View style={styles.segRow}>
+          <View style={[styles.modeSeg, { borderColor: palette.line }]}>
             <Pressable
-              onPress={() => setSheet('verses')}
-              hitSlop={8}
-              style={[styles.iconBtn, { backgroundColor: palette.raspTint }]}
-              accessibilityLabel="Verse index"
+              style={[styles.modeBtn, styles.modeBtnGrow, !readOnly ? { backgroundColor: palette.band } : null]}
+              onPress={() => chooseReadMode(false)}
             >
-              <MaterialIcons name="grid-view" size={19} color={palette.raspDeep} />
+              <Text style={[styles.modeBtnText, { color: !readOnly ? palette.raspDeep : palette.inkSoft }]}>With notes</Text>
             </Pressable>
             <Pressable
-              onPress={() => setSheet('search')}
-              hitSlop={8}
-              style={[styles.iconBtn, { backgroundColor: palette.raspTint }]}
-              accessibilityLabel="Search this chapter"
+              style={[styles.modeBtn, styles.modeBtnGrow, readOnly ? { backgroundColor: palette.band } : null]}
+              onPress={() => chooseReadMode(true)}
             >
-              <MaterialIcons name="search" size={20} color={palette.raspDeep} />
-            </Pressable>
-            {/* v404: the chapter PDF door — a quiet pill in the
-                header cluster (his seat pick, Nov 1: "a little
-                button in the app's chapter"). Busy while the PDF
-                builds; the share sheet is the delivery. */}
-            <Pressable
-              onPress={handleExportPdf}
-              disabled={pdfBusy}
-              hitSlop={8}
-              style={[styles.pdfBtn, { backgroundColor: palette.raspTint, opacity: pdfBusy ? 0.55 : 1 }]}
-              accessibilityLabel={`Export ${book} chapter ${chapter} as a PDF`}
-            >
-              <MaterialIcons name="picture-as-pdf" size={17} color={palette.raspDeep} />
-              <Text style={[styles.pdfBtnText, { color: palette.raspDeep }]}>{pdfBusy ? 'PDF…' : 'PDF'}</Text>
+              <Text style={[styles.modeBtnText, { color: readOnly ? palette.raspDeep : palette.inkSoft }]}>Read only</Text>
             </Pressable>
           </View>
         </View>
-        {/* v304: ONE slim row under the title bar. The progress
-            card's verse-range label sits at its left (compact,
-            muted); the mode control — the same tonal segmented
-            pill, slimmed — at its right. The progress card itself
-            is gone; its fill lives on as the thread below. */}
+        {/* v477: the verse row — the scroll range label keeps the
+            left; the two quiet text buttons the top bar gave up
+            sit at its right: Verses (the old grid button's sheet,
+            the floating Verses pill's replacement) and the kept
+            count (display-only, as the old pill was). */}
         <View style={styles.metaRow}>
           <ScrollHeadLabel
             palette={palette}
@@ -1290,19 +1303,18 @@ export function ChapterPageView(props: ChapterPageProps) {
             subscribe={subscribeScrollStats}
             getSnapshot={getScrollStats}
           />
-          <View style={[styles.modeSeg, { borderColor: palette.line }]}>
-            <Pressable
-              style={[styles.modeBtn, !readOnly ? { backgroundColor: palette.band } : null]}
-              onPress={() => chooseReadMode(false)}
-            >
-              <Text style={[styles.modeBtnText, { color: !readOnly ? palette.raspDeep : palette.inkSoft }]}>With notes</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.modeBtn, readOnly ? { backgroundColor: palette.band } : null]}
-              onPress={() => chooseReadMode(true)}
-            >
-              <Text style={[styles.modeBtnText, { color: readOnly ? palette.raspDeep : palette.inkSoft }]}>Read only</Text>
-            </Pressable>
+          <Pressable
+            onPress={() => setSheet('verses')}
+            hitSlop={8}
+            style={styles.verseAct}
+            accessibilityLabel="Verse index"
+          >
+            <MaterialIcons name="grid-view" size={16} color={palette.raspDeep} />
+            <Text style={[styles.verseActText, { color: palette.raspDeep }]}>Verses</Text>
+          </Pressable>
+          <View style={styles.verseAct} accessibilityLabel={`${keptTotal} verses kept`}>
+            <MaterialIcons name="favorite" size={15} color={palette.rasp} />
+            <Text style={[styles.verseActText, { color: palette.inkSoft }]}>{keptTotal} kept</Text>
           </View>
         </View>
         {/* v304: the progress thread — the card's scroll-fraction
@@ -1381,7 +1393,15 @@ export function ChapterPageView(props: ChapterPageProps) {
             navigates. v234: the strip's two marks wear the same two
             family labels as the book panel — COMMENTARY for the
             notes-written line, STUDY for the read line — so the two
-            tracks never blur into one another here either. ── */}
+            tracks never blur into one another here either.
+            v477 (Concept 1): on a RESTUDY chapter the strip stands
+            down — the ReStudy surface card below is the same status
+            said once, with its doors; the strip + card pair was the
+            duplication in his screenshot. The card's own render
+            condition (status === 'restudy') gates this, so the two
+            can never disagree. Every other state keeps the strip:
+            it is their only status surface. ── */}
+        {status !== 'restudy' ? (
         <View style={[styles.strip, { backgroundColor: palette.raspTint }, palette.cardDress]}>
           <View style={styles.stripMain}>
             {display?.headline === 'read' ? (
@@ -1418,6 +1438,7 @@ export function ChapterPageView(props: ChapterPageProps) {
             <Text style={[styles.stripLink, { color: palette.raspDeep }]}>Queue ›</Text>
           </Pressable>
         </View>
+        ) : null}
 
         {/* ── cover ── */}
         <View style={styles.cover}>
@@ -1460,7 +1481,13 @@ export function ChapterPageView(props: ChapterPageProps) {
         {/* v313: the drawing's doorway — the doors themselves, no
             explanatory paragraph above or below them (his standing
             no-captions rule; the drawing shows the two pills alone).
-            Both doors wear the drawing's secondary-container dress. */}
+            Both doors wear the drawing's secondary-container dress.
+            v477 (Concept 1): ONE even row of three tonal buttons at
+            equal widths — Stories (its label shortens per the
+            drawing), Devotional (primary-container tonal now, not
+            the solid fill; still registry-conditional), Contents.
+            The wrap that scattered Contents onto its own centred
+            line is gone. Handlers untouched. */}
         <View style={styles.doorway}>
           <View style={styles.doorBtns}>
             <Pressable
@@ -1471,19 +1498,19 @@ export function ChapterPageView(props: ChapterPageProps) {
               }}
             >
               <MaterialIcons name="list" size={18} color={palette.raspDeep} />
-              <Text style={[styles.doorBtnText, { color: palette.raspDeep }]}>Read as Stories</Text>
+              <Text style={[styles.doorBtnText, { color: palette.raspDeep }]}>Stories</Text>
             </Pressable>
             {/* v293: the Devotional door — right beside Stories at the
                 chapter's top, and ONLY when the devotional registry
                 carries this chapter (purely registry-driven). */}
             {props.onListen && devotional ? (
               <Pressable
-                style={[styles.doorBtn, { backgroundColor: palette.rasp }, palette.btnDress]}
+                style={[styles.doorBtn, { backgroundColor: palette.primCont }, palette.btnDress]}
                 onPress={props.onListen}
                 accessibilityLabel={`Devotional — ${devotional.title}`}
               >
-                <MaterialIcons name="play-arrow" size={18} color="#FFFFFF" />
-                <Text style={styles.doorBtnTextLight}>Devotional</Text>
+                <MaterialIcons name="play-arrow" size={18} color={palette.raspDeep} />
+                <Text style={[styles.doorBtnText, { color: palette.raspDeep }]}>Devotional</Text>
               </Pressable>
             ) : null}
             <Pressable
@@ -1762,13 +1789,9 @@ export function ChapterPageView(props: ChapterPageProps) {
           solid and the verses end at its edge, as they did
           before v334. ── */}
 
-      {/* ── Verses FAB ── */}
-      {!sheet ? (
-        <Pressable style={[styles.fab, { backgroundColor: palette.primCont, shadowColor: palette.rasp, bottom: 24 + (props.tabBarHeight ?? 0) }]} onPress={() => setSheet('verses')}>
-          <MaterialIcons name="grid-view" size={16} color={palette.raspDeep} />
-          <Text style={[styles.fabText, { color: palette.raspDeep }]}>Verses</Text>
-        </Pressable>
-      ) : null}
+      {/* ── v477: the floating Verses FAB is GONE (Concept 1) —
+          its sheet now opens from the verse row's Verses text
+          button in the header, the same setSheet('verses') call. */}
 
       <IndexSheet
         visible={sheet !== null}
@@ -1783,6 +1806,32 @@ export function ChapterPageView(props: ChapterPageProps) {
         onClose={() => setSheet(null)}
         onLand={landOnVerse}
       />
+
+      {/* ── v477: the top bar's overflow menu — anchored under the
+          ⋮ button, one item: the chapter PDF (the v404 door, moved
+          out of the bar; handleExportPdf itself untouched). The
+          scrim closes it; choosing the item closes it first. ── */}
+      {menuOpen ? (
+        <>
+          <Pressable style={styles.menuScrim} onPress={() => setMenuOpen(false)} accessibilityLabel="Close menu" />
+          <View style={[styles.menuCard, { backgroundColor: palette.paper2, borderColor: palette.line, top: topInset + 56 }]}>
+            <Pressable
+              style={styles.menuItem}
+              disabled={pdfBusy}
+              onPress={() => {
+                setMenuOpen(false);
+                handleExportPdf();
+              }}
+              accessibilityLabel={`Export ${book} chapter ${chapter} as a PDF`}
+            >
+              <MaterialIcons name="picture-as-pdf" size={18} color={palette.raspDeep} />
+              <Text style={[styles.menuItemText, { color: palette.ink, opacity: pdfBusy ? 0.55 : 1 }]}>
+                {pdfBusy ? 'Building PDF…' : 'Chapter PDF'}
+              </Text>
+            </Pressable>
+          </View>
+        </>
+      ) : null}
 
     </View>
   );
@@ -2854,29 +2903,39 @@ const styles = StyleSheet.create({
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4 },
   topBtn: { padding: 2 },
   topTitle: { fontSize: 18, fontWeight: '700', letterSpacing: -0.2, flex: 1 },
-  topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  // v313: the drawing's app-bar squares — 40px, radius 12, tonal
-  // (colors inline).
-  iconBtn: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  // v477: the bar's plain icon buttons — a 40px round touch
+  // target with NO fill (the v313 tonal app-bar squares and the
+  // v404 PDF pill retired with the filled cluster they dressed).
+  topIconBtn: { width: 40, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   keptPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12 },
   keptPillText: { fontSize: 12.5, fontWeight: '700' },
-  // v404: the header's PDF pill — the kept pill's dress, icon + word.
-  pdfBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 11 },
-  pdfBtnText: { fontSize: 12.5, fontWeight: '700' },
+  // v477: the overflow menu — a plain card anchored under the ⋮
+  // button (its top is set inline from the safe-area inset), and
+  // the full-screen scrim that closes it.
+  menuScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 39 },
+  menuCard: { position: 'absolute', right: 12, zIndex: 40, elevation: 12, borderWidth: 1, borderRadius: 14, paddingVertical: 6, minWidth: 188 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 14 },
+  menuItemText: { fontSize: 14, fontWeight: '600' },
   // v304: the card's chrome is gone — the progress is a 4px thread
   // spanning the header's full width at its bottom edge (track and
   // fill colors inline, as the card's were); the shimmer survives.
   progThread: { height: 4, overflow: 'hidden', position: 'relative' },
   progThreadFill: { height: 4 },
   progShimmer: { position: 'absolute', top: 0, bottom: 0, width: '45%', backgroundColor: 'rgba(255,255,255,0.45)' },
-  // v304: the slim row the range label and the mode control share —
-  // the label left and muted at 11.5, the control right.
+  // v477: the segmented control's own row (the control itself —
+  // modeSeg/modeBtn below — keeps its v313 dress; the row only
+  // seats it full-width under the bar).
+  segRow: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
+  modeBtnGrow: { flex: 1, alignItems: 'center' },
+  // v304: the slim row — v477: the range label at its left, the
+  // verse row's two quiet text buttons at its right.
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
   metaRange: { flex: 1, fontSize: 12, fontWeight: '600' },
+  verseAct: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6, paddingHorizontal: 4 },
+  verseActText: { fontSize: 12.5, fontWeight: '600' },
   // v313: the drawing's segmented control — an OUTLINE track, the
   // chosen half in secondary-container dress (colors inline).
   modeSeg: { flexDirection: 'row', borderRadius: 999, borderWidth: 1, padding: 3, gap: 2 },
-  doorBtnTextLight: { color: '#FFFFFF', fontSize: 13.5, fontWeight: '700' },
   modeBtn: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
   modeBtnText: { fontSize: 12.5, fontWeight: '600' },
   page: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 8 },
@@ -2901,11 +2960,13 @@ const styles = StyleSheet.create({
   surfBtn: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center' },
   surfBtnPrimary: { borderWidth: 0 },
   surfBtnPrimaryText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
-  doorway: { alignItems: 'center', marginTop: 14, paddingHorizontal: 6 },
+  doorway: { marginTop: 14, paddingHorizontal: 16 },
   // v313: the drawing's doors — secondary-container pills at
-  // 10/15 padding, 13.5/600 (colors inline).
-  doorBtns: { flexDirection: 'row', gap: 9, justifyContent: 'center', flexWrap: 'wrap' },
-  doorBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 15 },
+  // 10/15 padding, 13.5/600 (colors inline). v477: one even row —
+  // no wrap, no centring; each door takes an equal share (flex 1)
+  // and centres its own contents.
+  doorBtns: { flexDirection: 'row', gap: 8 },
+  doorBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 8 },
   doorBtnText: { fontSize: 13.5, fontWeight: '600' },
   block: { marginTop: 30 },
   label: { fontSize: 10.5, letterSpacing: 2.2, textTransform: 'uppercase', fontWeight: '800', marginBottom: 12 },
@@ -3034,10 +3095,5 @@ const styles = StyleSheet.create({
   chapterNav: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 18, gap: 10 },
   navBtn: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16 },
   navOff: { opacity: 0.35 },
-  // v248: the FAB's shadow color is the palette accent (inline) —
-  // the fixed deep-raspberry shadow died with the fixed palette.
-  // v313: the drawing's FAB — a 16px-radius primary-container
-  // chip, not a filled pill (fill + glyph colors inline).
-  fab: { position: 'absolute', right: 18, bottom: 24, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 19, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 6 },
-  fabText: { fontWeight: '600', fontSize: 14.5 },
+  // v477: the Verses FAB styles are gone with the FAB itself.
 });

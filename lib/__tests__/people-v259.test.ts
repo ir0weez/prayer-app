@@ -210,7 +210,12 @@ describe("v259 source pins — clearance", () => {
     // composer's seat check lends it room (seatSpacer), so an
     // unfurled composer's action row clears the Verses pill.
     expect(chapterPage).toContain("Math.max(96, (props.tabBarHeight ?? 0) + 24, seatSpacer)");
-    expect(chapterPage).toContain("bottom: 24 + (props.tabBarHeight ?? 0)");
+    // RE-BASED in v477 (Concept 1, "One bar, one card, one row"):
+    // the floating Verses FAB is REMOVED — its verse sheet opens
+    // from the header verse row's Verses text button — so the
+    // FAB's tab-bar-lifted bottom is gone with it. The foot
+    // spacer's floor above is untouched.
+    expect(chapterPage).not.toContain("bottom: 24 + (props.tabBarHeight ?? 0)");
     expect(chapterPage).toContain("bottomInset={props.tabBarHeight}");
     expect(stories).toContain("bottomInset?: number");
     expect(stories).toContain("paddingBottom: props.bottomInset ?? 0");

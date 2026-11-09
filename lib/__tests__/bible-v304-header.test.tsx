@@ -21,6 +21,19 @@
 //      search), and the v251 measured-header contract holds at the
 //      new part-sum: estimate 102 (was 164) — 62px back to reading.
 //
+// v477 AMENDMENT (Concept 1, "One bar, one card, one row" — his
+// pick from chapter-header-material-concepts-v1.html): the header
+// is re-presented again. The title row keeps only plain icon
+// buttons (back, search, overflow ⋮) plus the passive read pill;
+// the kept count and verse grid move into the verse row beside
+// the range; the segmented control takes its OWN row (point (4)
+// above is superseded — the control no longer shares the range's
+// row, though its dress strings below still pin); the PDF moves
+// into the overflow menu; the estimate's part-sum is 153. The
+// pins below that the new drawing supersedes are RE-BASED in
+// place; the rest of the v304 contract (thread, range, toggle
+// wiring, measured spacer) stands exactly as written.
+//
 // Harness limit (the v241/v247/v249/v251 precedent): react-dom/
 // server over react-native-web runs no effects and no layout, so
 // the mode preference never flips the SSR render and the header's
@@ -304,8 +317,13 @@ describe('v304 — the title row and the measured clearance are untouched', () =
   });
 
   it('the estimate is the new part-sum — 62px shorter than the card stack', () => {
-    expect(estimateChapterHeaderHeight(0)).toBe(102);
-    expect(estimateChapterHeaderHeight(24)).toBe(126);
+    // RE-BASED in v477 (Concept 1): the segmented control takes
+    // its own row and the verse actions join the range row, so
+    // the part-sum grows 102 → 153 — still under the old card
+    // stack's 164, and the measured header still corrects the
+    // spacer to the true height on device.
+    expect(estimateChapterHeaderHeight(0)).toBe(153);
+    expect(estimateChapterHeaderHeight(24)).toBe(177);
     expect(estimateChapterHeaderHeight(0)).toBeLessThan(164);
     // The measured machinery still sizes the spacer.
     expect(page).toContain('<View pointerEvents="none" style={{ height: headerH }} />');
@@ -333,7 +351,9 @@ describe('v304 — rendered first paint', () => {
   });
 
   it('the content spacer opens at the new estimated height (rig inset 24 → 126)', () => {
-    expect(html).toContain('height:126px');
+    // RE-BASED in v477: the estimate is 153 now (see above), so
+    // the rig's first paint opens at 153 + 24 = 177.
+    expect(html).toContain('height:177px');
     expect(html).not.toContain('height:188px');
   });
 });

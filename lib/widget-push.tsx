@@ -54,6 +54,7 @@ import {
   type ScheduleMinistry,
   type ScheduleTodo,
 } from "@/lib/schedule-data";
+import { loadWeatherSnapshot, type WeatherSnapshot } from "@/lib/weather-snapshot";
 import {
   buildAllWidgetSnapshots,
   serializeWidgetSnapshots,
@@ -82,6 +83,9 @@ export interface LoadedWidgetStores {
   ministries: ScheduleMinistry[];
   studyState: StudyState;
   imports: StudioImportsMap;
+  /** v478: the weather store (prayercircle.weather.v1) — the
+   * Daily Breakdown header's feed; null when none stands. */
+  weather: WeatherSnapshot | null;
 }
 
 function parseArray<T>(raw: string | null): T[] {
@@ -100,7 +104,7 @@ function parseArray<T>(raw: string | null): T[] {
 export async function loadWidgetStores(
   overrides?: { people?: Person[]; fasts?: PersonalFast[] },
 ): Promise<LoadedWidgetStores> {
-  const [peopleRaw, fastsRaw, xpRaw, eventsRaw, todosRaw, ministriesRaw, studyState, imports] =
+  const [peopleRaw, fastsRaw, xpRaw, eventsRaw, todosRaw, ministriesRaw, studyState, imports, weather] =
     await Promise.all([
       overrides?.people ? Promise.resolve(null) : AsyncStorage.getItem(PEOPLE_STORAGE_KEY),
       overrides?.fasts ? Promise.resolve(null) : AsyncStorage.getItem(FASTS_STORAGE_KEY),
@@ -110,6 +114,9 @@ export async function loadWidgetStores(
       AsyncStorage.getItem(SCHEDULE_MINISTRIES_KEY),
       loadStudyState().catch(() => seedStudyState()),
       loadStudioImports().catch(() => ({}) as StudioImportsMap),
+      // v478: the weather store, read through its own tolerant
+      // parser (anything malformed reads as no snapshot).
+      loadWeatherSnapshot().catch(() => null),
     ]);
 
   let people: Person[] = overrides?.people ?? [];
@@ -143,6 +150,7 @@ export async function loadWidgetStores(
     ministries: parseArray<ScheduleMinistry>(ministriesRaw),
     studyState,
     imports,
+    weather,
   };
 }
 
@@ -160,6 +168,7 @@ export const EMPTY_WIDGET_STORES: LoadedWidgetStores = {
   ministries: [],
   studyState: seedStudyState(),
   imports: {},
+  weather: null,
 };
 
 export function snapshotsFromStores(stores: LoadedWidgetStores, now = new Date()): AllWidgetSnapshots {
@@ -174,6 +183,7 @@ export function snapshotsFromStores(stores: LoadedWidgetStores, now = new Date()
     imports: stores.imports,
     resolveChapter: (book, chapter) => resolveChapterData(book, chapter, stores.imports),
     now,
+    weather: stores.weather,
   });
 }
 

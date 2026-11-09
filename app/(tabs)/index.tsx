@@ -4920,6 +4920,15 @@ export default function HomeScreen() {
         }
       }
 
+      // v478 — a weather section that actually landed refreshes
+      // the widgets NOW: the Daily Breakdown's header reads the
+      // store this import just wrote (the push layer loads it
+      // into the snapshot), and nothing in this screen's state
+      // changes for a weather-only pack — without this, the
+      // header would wait for the next foreground/background
+      // cycle despite the data already standing in the store.
+      if (counts.weather > 0) void refreshAndPushWidgets();
+
       // v430 — the report follows what actually happened. Nothing
       // failed: the standing summary, unchanged. Some sections
       // failed: the same summary of what landed, then a plain line
@@ -4979,6 +4988,14 @@ export default function HomeScreen() {
     try {
       const summary = await checkDriveFolder();
       await refreshDriveState();
+      // v478 — anything the check applied can feed a widget:
+      // the weather header reads the store the Drive door may
+      // just have written, and schedule applies land in the
+      // same stores the builders read. Push fresh snapshots
+      // now rather than waiting for the next app-state cycle
+      // (the push dedupes unchanged sets, so a check that
+      // changed nothing widget-shaped costs nothing).
+      if (summary.applied > 0) void refreshAndPushWidgets();
       if (summary.peopleApplied > 0) {
         // A people pack merged into the stores during the check —
         // refresh this screen's people/journal so the desk's work is

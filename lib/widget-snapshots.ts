@@ -25,6 +25,10 @@
 //               pray + reach + the day whole (collectDayItems)
 //               + fast, with tomorrow's first item carried for
 //               the renderer's evening turn
+//               v478: + the morning pack's weather snapshot
+//               carried through verbatim (preparedAt / now /
+//               days) for the renderer's At a Glance-style
+//               header — the feed the card waited on (v472)
 //
 // A chapter's first-verse line comes from the resolved chapter data's
 // embedded KJV verses (V205ChapterData.verses — present only where
@@ -77,6 +81,7 @@ import {
   type ScheduleTodo,
 } from "./schedule-data";
 import { buildUpNextGroup, upNextMinutes, type UpNextCandidate, type UpNextItem } from "./up-next";
+import type { WeatherSnapshot } from "./weather-snapshot";
 import type { WidgetPalette } from "./widget-palette";
 import { maxHeartsForLevel, normalizeXPState } from "./xp-engine";
 
@@ -1185,6 +1190,19 @@ export function buildStudySnapshot(
 // behind — the row order leaves its seat between the schedule
 // and the fast for when it does.
 //
+// v478 — the weather header's data. The feed the paragraph
+// above waited on landed in v472 (the morning pack's weather
+// section, lib/weather-snapshot.ts — the store the Daily
+// Summary's clause reads), and the header is what it feeds:
+// not the garden row (its seat between schedule and fast
+// stays empty — a weather snapshot is not a garden feed),
+// but a line at the card's very top, At a Glance style. The
+// snapshot carries the weather VERBATIM — preparedAt, now,
+// days — and the renderer decides the face from the device
+// clock, the Up Next pattern: the "now" temp by day,
+// tomorrow's high/low from 18:00, nothing at all when the
+// snapshot is stale or covers neither date.
+//
 // Evening: the snapshot carries the day whole (dayItems, the
 // Up Next shape) plus tomorrow's first timed item, so the
 // renderer can turn the card on the system's own refresh —
@@ -1274,6 +1292,18 @@ export interface BreakdownFast {
   name: string;
 }
 
+/** v478 — the Daily Breakdown's weather section: the morning
+ * pack's snapshot (lib/weather-snapshot.ts), carried verbatim.
+ * `now` is null when the pack carried only forecast days. The
+ * builder judges nothing here — the renderer reads the
+ * section against the device clock and the weather's own
+ * staleness rule, exactly as it reads the day whole. */
+export interface BreakdownWeather {
+  preparedAt: string;
+  now: { date: string; tempF: number; condition: string } | null;
+  days: { date: string; highF: number; lowF: number; condition: string }[];
+}
+
 export type DailyBreakdownWidgetSnapshot =
   | { state: "none" }
   | {
@@ -1288,6 +1318,12 @@ export type DailyBreakdownWidgetSnapshot =
       /** Null when no fast is active (the Your Fast quiet grain:
        * the row drops from the list). */
       fast: BreakdownFast | null;
+      /** v478: the weather section for the header — null when
+       * no weather snapshot stands in the store (the header is
+       * absent then, never a placeholder). Weather alone never
+       * stands the day: a snapshot with no rows keeps the
+       * quiet face, header and all. */
+      weather: BreakdownWeather | null;
     };
 
 export function buildDailyBreakdownSnapshot(
@@ -1298,6 +1334,10 @@ export function buildDailyBreakdownSnapshot(
   fasts: PersonalFast[],
   studyState: StudyState,
   now: Date,
+  /** v478: the weather store's snapshot, loaded by the push
+   * layer from prayercircle.weather.v1 — null when none
+   * stands. Carried through verbatim for the header. */
+  weather: WeatherSnapshot | null = null,
 ): DailyBreakdownWidgetSnapshot {
   const todayIso = formatDateLocal(now);
   const tomorrowIso = formatDateLocal(
@@ -1432,10 +1472,29 @@ export function buildDailyBreakdownSnapshot(
         }
       : null;
 
+  // ── Weather: the morning pack's snapshot, verbatim (v478). ──
+  // The same values the store holds — the header's face is the
+  // renderer's call, made from the device clock; nothing here
+  // is rounded, reworded or judged.
+  const weatherSection: BreakdownWeather | null = weather
+    ? {
+        preparedAt: weather.preparedAt,
+        now: weather.now
+          ? { date: weather.now.date, tempF: weather.now.tempF, condition: weather.now.condition }
+          : null,
+        days: weather.days.map((day) => ({
+          date: day.date,
+          highF: day.highF,
+          lowF: day.lowF,
+          condition: day.condition,
+        })),
+      }
+    : null;
+
   if (!pray && !reach && !fast && dayItems.length === 0 && !schedule.tomorrowFirst) {
     return { state: "none" };
   }
-  return { state: "day", dateIso: todayIso, pray, reach, schedule, fast };
+  return { state: "day", dateIso: todayIso, pray, reach, schedule, fast, weather: weatherSection };
 }
 
 // ─── The whole set ──────────────────────────────────────────────────────────
@@ -1464,6 +1523,10 @@ export interface WidgetSnapshotInputs {
   imports: StudioImportsMap;
   resolveChapter: (book: string, chapter: number) => V205ChapterData | null;
   now: Date;
+  /** v478: the weather store's snapshot — the push layer fills
+   * it from prayercircle.weather.v1; tests may omit it (the
+   * breakdown then carries no weather section). */
+  weather?: WeatherSnapshot | null;
 }
 
 export function buildAllWidgetSnapshots(input: WidgetSnapshotInputs): AllWidgetSnapshots {
@@ -1487,6 +1550,7 @@ export function buildAllWidgetSnapshots(input: WidgetSnapshotInputs): AllWidgetS
       input.fasts,
       input.studyState,
       input.now,
+      input.weather ?? null,
     ),
   };
 }

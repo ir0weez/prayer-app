@@ -18,8 +18,10 @@ import android.os.Build
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
+import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 import kotlin.math.roundToLong
 import org.json.JSONArray
 import org.json.JSONObject
@@ -3422,6 +3424,22 @@ object WidgetRenderer {
   // byte-for-byte. The rail and the Tomorrow row stand only
   // on today's own snapshot and never under the evening turn
   // (the schedule row already IS tomorrow then).
+  //
+  // v478 (the weather header): the card gains a header at its
+  // very top, above PRAY — the morning pack's weather, At a
+  // Glance style, the way his home screen's Google line reads:
+  // the current temp by day, tomorrow's high/low from 18:00.
+  // The feed is v472's store (prayercircle.weather.v1), carried
+  // through the snapshot verbatim; the face is decided HERE
+  // from the device clock (breakdownWeatherFace), with the
+  // weather's own staleness rule — over 48 hours old, or
+  // covering neither needed date, the header is absent whole.
+  // The header stands outside the row walk: its cost
+  // (DB_WEATHER_COST) is reserved off the budget before the
+  // first row is tried, and the rows seat whole or not at all
+  // in their standing order against what remains. It is not
+  // the garden row — that seat, between SCHEDULE and FAST,
+  // stays empty; a weather snapshot is not a garden feed.
 
   private val DB_SLOTS = intArrayOf(R.id.db_face_slot_1, R.id.db_face_slot_2, R.id.db_face_slot_3)
   private val DB_RINGS = intArrayOf(R.id.db_ring_1, R.id.db_ring_2, R.id.db_ring_3)
@@ -3435,6 +3453,12 @@ object WidgetRenderer {
    * wording riding `sub`. */
   private data class DbRailElement(val isGap: Boolean, val title: String, val sub: String, val isNow: Boolean)
 
+  /** v478: one weather face — the composed line and the
+   * glyph kind that stands beside it (weatherGlyphKind's
+   * vocabulary: sun / partly / cloud / rain / storm / snow /
+   * fog). */
+  private data class DbWeatherFace(val text: String, val glyph: String)
+
   /** v470: the rail's slot cap and its honest costs, measured
    * from widget_daily_breakdown.xml the v457 way — a stop is
    * its content padding (3 + 3) + the 13.5sp title's line
@@ -3444,6 +3468,17 @@ object WidgetRenderer {
   private val DB_RAIL_SLOTS = 7
   private val DB_RAIL_STOP_COST = 42
   private val DB_RAIL_GAP_COST = 30
+
+  /** v478: the weather header's honest cost, measured from
+   * widget_daily_breakdown.xml the v457 way — its top
+   * padding (2) + the 22dp glyph's line (22) + its bottom
+   * padding (8) = 32. Reserved off the budget before the
+   * row walk whenever a weather face stands. */
+  private val DB_WEATHER_COST = 32
+
+  /** v478: a weather snapshot older than this never faces —
+   * 48 hours, in milliseconds. */
+  private val DB_WEATHER_MAX_AGE_MS = 48L * 3600L * 1000L
 
   /** A breakdown day item's effective window end — the v455
    *  convention: the baked endMinutes when it runs past the
@@ -3466,6 +3501,111 @@ object WidgetRenderer {
       if (breakdownWinEnd(item) > nowMin) return false
     }
     return true
+  }
+
+  /** v478: a pack preparedAt (ISO-8601) as epoch milliseconds,
+   * or null when no known shape reads it. The producer writes
+   * UTC stamps, with or without millis; offset stamps read
+   * too. A stamp no shape parses is not a stamp the header
+   * may trust — the face falls to absent, never to a guess. */
+  private fun weatherPreparedMs(preparedAt: String): Long? {
+    val shapes = arrayOf(
+      "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+      "yyyy-MM-dd'T'HH:mm:ssXXX",
+      "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+      "yyyy-MM-dd'T'HH:mm:ss'Z'",
+    )
+    for (shape in shapes) {
+      try {
+        val format = SimpleDateFormat(shape, Locale.US)
+        format.isLenient = false
+        if (shape.endsWith("'Z'")) format.timeZone = TimeZone.getTimeZone("UTC")
+        val parsed = format.parse(preparedAt)
+        if (parsed != null) return parsed.time
+      } catch (e: Exception) {
+        // Not this shape — try the next.
+      }
+    }
+    return null
+  }
+
+  /** v478: the glyph a condition wears, read off its own
+   * words (case-insensitive keyword map — the producer's
+   * conditions are plain weather words: "Sunny", "Partly
+   * cloudy", "Light rain"). The order is the meaning:
+   * thunder outranks the rain it rides, partly outranks the
+   * plain cloud it names, and anything unmapped falls back
+   * to the cloud. A drawn glyph (weatherGlyphBitmap), never
+   * a pictograph character. */
+  private fun weatherGlyphKind(condition: String): String {
+    val text = condition.lowercase(Locale.US)
+    return when {
+      text.contains("thunder") || text.contains("storm") -> "storm"
+      text.contains("snow") -> "snow"
+      text.contains("rain") || text.contains("drizzle") || text.contains("shower") -> "rain"
+      text.contains("partly") -> "partly"
+      text.contains("fog") || text.contains("haze") || text.contains("mist") -> "fog"
+      text.contains("clear") || text.contains("sun") -> "sun"
+      text.contains("cloud") || text.contains("overcast") -> "cloud"
+      else -> "cloud"
+    }
+  }
+
+  /** v478: the weather header's face, decided HERE from the
+   * device clock — the snapshot carries the weather whole
+   * (preparedAt / now / days, verbatim from the store) and
+   * the renderer reads it against now, the Up Next pattern:
+   *  - a snapshot more than 48 hours old never faces, and
+   *    neither does one whose dates cover neither the date
+   *    the face needs;
+   *  - before 18:00, the snapshot's own "now" for today
+   *    faces: "{temp}° · {condition}";
+   *  - before 18:00 with a stale or missing "now" but a
+   *    forecast covering today, today's high/low faces
+   *    instead, named for what it is — "Today · {high}° /
+   *    {low}° · {condition}". A "now" temp is never shown
+   *    for the wrong day;
+   *  - from 18:00 the card turns to tomorrow, the way At a
+   *    Glance does on his home screen: "Tomorrow · {high}°
+   *    / {low}° · {condition}", from the days entry for the
+   *    device's tomorrow.
+   * A blank condition drops its segment rather than leaving
+   * a dangling separator. */
+  private fun breakdownWeatherFace(weather: JSONObject?, nowMin: Int): DbWeatherFace? {
+    if (weather == null) return null
+    val preparedMs = weatherPreparedMs(weather.optString("preparedAt")) ?: return null
+    if (System.currentTimeMillis() - preparedMs > DB_WEATHER_MAX_AGE_MS) return null
+    val days = weather.optJSONArray("days")
+    fun dayFor(dateIso: String): JSONObject? {
+      if (days == null) return null
+      for (i in 0 until days.length()) {
+        val day = days.optJSONObject(i) ?: continue
+        if (day.optString("date") == dateIso) return day
+      }
+      return null
+    }
+    fun dayFace(label: String, day: JSONObject): DbWeatherFace {
+      val condition = day.optString("condition").trim()
+      val parts = mutableListOf(
+        label,
+        "${Math.round(day.optDouble("highF"))}° / ${Math.round(day.optDouble("lowF"))}°",
+      )
+      if (condition.isNotBlank()) parts.add(condition)
+      return DbWeatherFace(parts.joinToString(" · "), weatherGlyphKind(condition))
+    }
+    if (nowMin >= 18 * 60) {
+      val tomorrow = dayFor(deviceTomorrowIso()) ?: return null
+      return dayFace("Tomorrow", tomorrow)
+    }
+    val now = weather.optJSONObject("now")
+    if (now != null && now.optString("date") == deviceDateIso()) {
+      val condition = now.optString("condition").trim()
+      val parts = mutableListOf("${Math.round(now.optDouble("tempF"))}°")
+      if (condition.isNotBlank()) parts.add(condition)
+      return DbWeatherFace(parts.joinToString(" · "), weatherGlyphKind(condition))
+    }
+    val today = dayFor(deviceDateIso()) ?: return null
+    return dayFace("Today", today)
   }
 
   private fun renderDailyBreakdown(context: Context, snap: JSONObject?, scheme: String?, pal: WidgetPalette, minHeightDp: Int): RemoteViews {
@@ -3491,6 +3631,20 @@ object WidgetRenderer {
     // schedule row already IS tomorrow, and a stale snapshot
     // never grows the row (or the rail).
     val tomorrowStands = schedule != null && fresh && !evening
+    // v478: the weather header's face — decided from the
+    // device clock against the weather section alone
+    // (breakdownWeatherFace). It is independent of the
+    // evening turn and of the schedule's freshness: the
+    // weather's own dates and stamp are its whole authority.
+    // Its colours are the palette's (the glyph in primary,
+    // the line in ink), like every glyph and line on the card.
+    val weatherFace = breakdownWeatherFace(snap.optJSONObject("weather"), nowMin)
+    views.setViewVisibility(R.id.db_weather, if (weatherFace != null) View.VISIBLE else View.GONE)
+    if (weatherFace != null) {
+      views.setImageViewBitmap(R.id.db_weather_glyph, weatherGlyphBitmap(weatherFace.glyph, pal.primary))
+      views.setTextViewText(R.id.db_weather_text, weatherFace.text)
+      views.setTextColor(R.id.db_weather_text, pal.ink)
+    }
     // v470: the schedule row's composed lines are HELD, not
     // written, until the seating walk has run — while a rail
     // stop stands, the header's dress switch (below) replaces
@@ -3702,6 +3856,12 @@ object WidgetRenderer {
     if (fast != null) present.add("fast")
     if (tomorrowStands) present.add("tomorrow")
     var remaining = minHeightDp - 36
+    // v478: the weather header's cost is reserved FIRST,
+    // before any row is tried — the rows then seat whole or
+    // not at all, in their standing order, against what
+    // remains (at the provider's 210dp floor the reservation
+    // still leaves 210 − 36 − 32 = 142, and PRAY seats).
+    if (weatherFace != null) remaining -= DB_WEATHER_COST
     val seated = mutableSetOf<String>()
     var stopped = false
     for (key in present) {
@@ -4031,6 +4191,99 @@ object WidgetRenderer {
     canvas.drawLine(48f, 48f, 48f, 27f, paint)
     canvas.drawLine(48f, 48f, 63f, 59f, paint)
     clockCache = color to bitmap
+    return bitmap
+  }
+
+  private var weatherGlyphCache: Pair<String, Bitmap>? = null
+
+  /** v478: the weather header's condition glyphs — canvas
+   * shapes on the factories' 96 grid, drawn in-process like
+   * every shipped glyph (the v439 rule: bitmaps only across
+   * to the launcher), cached per kind + colour. One shared
+   * sun and one shared cloud do all the work: `partly`
+   * stands the sun behind the cloud's shoulder, and rain,
+   * storm, snow and fog hang their weather under the cloud.
+   * The colour is the caller's — the palette's primary. */
+  private fun weatherGlyphBitmap(kind: String, color: Int): Bitmap {
+    val key = "$kind:$color"
+    weatherGlyphCache?.let { if (it.first == key) return it.second }
+    val size = 96
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.FILL
+      this.color = color
+    }
+    val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.STROKE
+      this.color = color
+      strokeCap = Paint.Cap.ROUND
+      strokeWidth = 6f
+    }
+    fun sun(cx: Float, cy: Float, r: Float) {
+      canvas.drawCircle(cx, cy, r, fill)
+      for (i in 0 until 8) {
+        val angle = Math.toRadians(i * 45.0)
+        val inner = r + 5
+        val outer = r + 13
+        canvas.drawLine(
+          cx + (Math.cos(angle) * inner).toFloat(),
+          cy + (Math.sin(angle) * inner).toFloat(),
+          cx + (Math.cos(angle) * outer).toFloat(),
+          cy + (Math.sin(angle) * outer).toFloat(),
+          stroke,
+        )
+      }
+    }
+    fun cloud(cx: Float, cy: Float, scale: Float) {
+      // One silhouette from overlapping fills of one colour:
+      // two humps standing on a rounded base.
+      canvas.drawCircle(cx - 17 * scale, cy + 4 * scale, 13 * scale, fill)
+      canvas.drawCircle(cx + 2 * scale, cy - 5 * scale, 17 * scale, fill)
+      canvas.drawCircle(cx + 19 * scale, cy + 4 * scale, 12 * scale, fill)
+      val base = RectF(cx - 30 * scale, cy - 2 * scale, cx + 31 * scale, cy + 17 * scale)
+      canvas.drawRoundRect(base, 9 * scale, 9 * scale, fill)
+    }
+    when (kind) {
+      "sun" -> sun(48f, 48f, 17f)
+      "partly" -> {
+        sun(35f, 33f, 12f)
+        cloud(56f, 58f, 0.82f)
+      }
+      "rain" -> {
+        cloud(48f, 36f, 0.95f)
+        for (x in floatArrayOf(32f, 48f, 64f)) {
+          canvas.drawLine(x, 64f, x - 5f, 78f, stroke)
+        }
+      }
+      "storm" -> {
+        cloud(48f, 34f, 0.95f)
+        val bolt = Path().apply {
+          moveTo(52f, 58f)
+          lineTo(38f, 80f)
+          lineTo(47f, 80f)
+          lineTo(42f, 94f)
+          lineTo(62f, 70f)
+          lineTo(52f, 70f)
+          close()
+        }
+        canvas.drawPath(bolt, fill)
+      }
+      "snow" -> {
+        cloud(48f, 36f, 0.95f)
+        for (x in floatArrayOf(32f, 48f, 64f)) {
+          canvas.drawCircle(x, 70f, 4.5f, fill)
+        }
+      }
+      "fog" -> {
+        cloud(48f, 32f, 0.9f)
+        for (y in floatArrayOf(62f, 74f, 86f)) {
+          canvas.drawLine(28f, y, 68f, y, stroke)
+        }
+      }
+      else -> cloud(48f, 48f, 1.1f)
+    }
+    weatherGlyphCache = key to bitmap
     return bitmap
   }
 

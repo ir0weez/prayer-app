@@ -33,6 +33,12 @@
   below FAST, past a fourth hairline, the TOMORROW row
   (db_row_tomorrow): a moon glyph in a tonal square, the
   fast row's own dress.
+
+  v478: the WEATHER HEADER (db_weather) — the list's first
+  element, above PRAY, detailed at its own seat below. The
+  garden row's seat between SCHEDULE and FAST stays empty;
+  the header is fed by the morning pack's weather snapshot
+  (the v472 store), not by a garden feed.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
   android:id="@+id/db_root"
@@ -88,6 +94,44 @@
     android:paddingTop="10dp"
     android:paddingBottom="10dp"
     android:visibility="gone">
+
+    <!-- WEATHER HEADER (v478): the list's first element, above
+         PRAY — a drawn condition glyph (22dp) and one line of
+         text, At a Glance style: the morning pack's weather,
+         the current temp by day, tomorrow's high/low from
+         18:00, GONE whole when the snapshot is stale or
+         covers neither date. It stands OUTSIDE the row walk:
+         the renderer reserves its cost (DB_WEATHER_COST 32 =
+         2 top padding + 22 content + 8 bottom padding)
+         before the rows seat. -->
+    <LinearLayout
+      android:id="@+id/db_weather"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:gravity="center_vertical"
+      android:paddingTop="2dp"
+      android:paddingBottom="8dp"
+      android:visibility="gone">
+
+      <ImageView
+        android:id="@+id/db_weather_glyph"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:contentDescription="@null" />
+
+      <TextView
+        android:id="@+id/db_weather_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="10dp"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#1D1B20" />
+    </LinearLayout>
 
     <!-- PRAY: the face stack, then title + sub, then the door chevron. -->
     <LinearLayout

@@ -142,7 +142,10 @@ describe("v481 — one value per card, owned by the unit", () => {
     expect(unit).toContain("heldPanelRef");
     expect(unit).toContain("if (panel) heldPanelRef.current = panel;");
     expect(unit).toContain("runOnJS(setPanelHeld)(false)");
-    expect(unit).toContain("{heldPanelRef.current}");
+    // v482 re-pin: the render prefers the current panel element and
+    // falls back to the cached one only for the fold; the cache is
+    // written in an effect, never during render.
+    expect(unit).toContain("{panel ?? heldPanelRef.current}");
   });
 });
 

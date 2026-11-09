@@ -36,6 +36,16 @@
 //  · The panel's content measures itself from inside the window
 //    (the v262 queue tray's seat): it is never height-constrained,
 //    so no measurement can clamp it.
+//  · v482 HOTFIX (launch crash): familyPourFront carries the
+//    'worklet' directive, and that directive is LOAD-BEARING.
+//    Without it the worklets plugin left the function a plain JS
+//    closure capture inside the useDerivedValue worklet below —
+//    and a plain function cannot run on the UI thread, so the
+//    derived front could never be produced, every household row
+//    faulted on its first frame, and the app died on launch
+//    (the People tab is the opening tab). The v482 tests pin the
+//    directive, the geometry's finite-input guards, and the rule
+//    that no ref is written during render in the unit.
 
 import {
   createContext,
@@ -97,13 +107,25 @@ export type FamilyPourFront = {
  * read as folding INTO the colour rather than sliding away from it.
  */
 export function familyPourFront(pour: number, headerHeight: number, panelHeight: number): FamilyPourFront {
-  const clamped = Math.min(1, Math.max(0, pour));
-  const total = headerHeight + panelHeight;
+  // v482: the 'worklet' directive is what lets this run inside the
+  // useDerivedValue / useAnimatedStyle worklets that call it — see
+  // the header note. Do not remove it.
+  "worklet";
+  // Fail-safe at the geometry boundary: no input state — unmeasured
+  // (0), negative, NaN, infinite — may produce a value Android's
+  // layout could choke on. Non-finite inputs fall back to the
+  // measured-nothing state, whose frame is exactly the static card:
+  // pour 1 stands filled, pour 0 stands open, window 0.
+  const safePour = typeof pour === "number" && Number.isFinite(pour) ? pour : 0;
+  const safeHeader = typeof headerHeight === "number" && Number.isFinite(headerHeight) ? Math.max(0, headerHeight) : 0;
+  const safePanel = typeof panelHeight === "number" && Number.isFinite(panelHeight) ? Math.max(0, panelHeight) : 0;
+  const clamped = Math.min(1, Math.max(0, safePour));
+  const total = safeHeader + safePanel;
   const front = clamped * total;
-  const panelWindowHeight = (1 - clamped) * panelHeight;
+  const panelWindowHeight = (1 - clamped) * safePanel;
   const panelFillHeight = Math.min(Math.max(front, 0), panelWindowHeight);
-  const headerFillPx = Math.min(Math.max(front - panelWindowHeight, 0), headerHeight);
-  const headerFillFrac = headerHeight > 0 ? headerFillPx / headerHeight : clamped;
+  const headerFillPx = Math.min(Math.max(front - panelWindowHeight, 0), safeHeader);
+  const headerFillFrac = safeHeader > 0 ? headerFillPx / safeHeader : clamped;
   return { panelWindowHeight, panelFillHeight, headerFillFrac };
 }
 
@@ -132,11 +154,19 @@ export function FamilyGroupUnit({
   const panelHeight = useSharedValue(0);
   const [panelHeld, setPanelHeld] = useState(expanded);
   const heldPanelRef = useRef<ReactNode>(null);
-  if (panel) heldPanelRef.current = panel;
   const expandedRef = useRef(expanded);
-  expandedRef.current = expanded;
+
+  // v482: no ref is written during render. The panel cache is a
+  // one-render bridge kept in an effect: the render below always
+  // prefers the CURRENT panel element and falls back to the last
+  // committed one only while a close is folding (when the screen
+  // has already stopped passing it).
+  useEffect(() => {
+    if (panel) heldPanelRef.current = panel;
+  }, [panel]);
 
   useEffect(() => {
+    expandedRef.current = expanded;
     if (expanded) {
       setPanelHeld(true);
       pour.value = withTiming(0, { duration: FAMILY_POUR_DURATION_MS, easing: FAMILY_POUR_EASING });
@@ -159,7 +189,10 @@ export function FamilyGroupUnit({
   // flows at its natural height, and the next close measures it
   // fresh from the layout reports below.
   const windowStyle = useAnimatedStyle(() => {
-    if (pour.value === 0) return { height: undefined };
+    // v482: at rest open the height key is ABSENT (an empty style),
+    // never an undefined height value — Reanimated 4 must not be
+    // handed one to apply on the UI thread.
+    if (pour.value === 0) return {};
     return { height: front.value.panelWindowHeight };
   });
   const panelFillStyle = useAnimatedStyle(() => ({
@@ -183,7 +216,7 @@ export function FamilyGroupUnit({
                 panelHeight.value = event.nativeEvent.layout.height;
               }}
             >
-              {heldPanelRef.current}
+              {panel ?? heldPanelRef.current}
             </View>
             <ReAnimated.View
               pointerEvents="none"

@@ -1,4 +1,4 @@
-// ─── Devotionals registry (v230 pilot → v293: Genesis → v474: Deuteronomy → v475: Joshua) ─
+// ─── Devotionals registry (v230 pilot → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth) ─
 //
 // Each entry is a short spoken devotional for one chapter: a NotebookLM
 // narration of Jonathan's own written commentary for that chapter — his
@@ -903,6 +903,40 @@ const REGISTRY: Devotional[] = [
     title: "Joshua's Final Warning to Israel",
     audioFile: 'devotional-joshua-24.m4a',
     durationSec: 106,
+    paragraphs: [],
+  },
+  // ── Ruth (v476) — same NotebookLM recipe as Genesis/Deuteronomy/
+  // Joshua; titles and durations per the PROGRESS.md record. ──
+  {
+    book: 'Ruth',
+    chapter: 1,
+    title: "God's Grace in Naomi's Bitterness",
+    audioFile: 'devotional-ruth-1.m4a',
+    durationSec: 120,
+    paragraphs: [],
+  },
+  {
+    book: 'Ruth',
+    chapter: 2,
+    title: 'How Boaz Previews Jesus in Ruth',
+    audioFile: 'devotional-ruth-2.m4a',
+    durationSec: 105,
+    paragraphs: [],
+  },
+  {
+    book: 'Ruth',
+    chapter: 3,
+    title: "Ruth's Midnight Proposal to Boaz",
+    audioFile: 'devotional-ruth-3.m4a',
+    durationSec: 95,
+    paragraphs: [],
+  },
+  {
+    book: 'Ruth',
+    chapter: 4,
+    title: 'The Sandal Exchange That Redeemed Ruth',
+    audioFile: 'devotional-ruth-4.m4a',
+    durationSec: 86,
     paragraphs: [],
   },
 ];

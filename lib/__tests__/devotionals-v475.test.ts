@@ -57,8 +57,11 @@ describe('v475 registry — all of Joshua, PROGRESS titles', () => {
     expect(reg.map((d) => d.chapter).sort((a, b) => a - b)).toEqual(EXPECTED.map(([n]) => n));
   });
 
-  it('the whole registry is now 108 — Genesis 50 + Deuteronomy 34 + Joshua 24', () => {
-    expect(devotionalRegistry().length).toBe(108);
+  // v476 amendment: Ruth 1–4 joined the registry, so the whole-
+  // registry total moved to the v476 test (now 112). This test keeps
+  // the Joshua count pinned; the total lives in v476.
+  it('the Joshua slice is still exactly 24, Genesis still 50, Deuteronomy still 34', () => {
+    expect(devotionalRegistry().filter((d) => d.book === 'Joshua').length).toBe(24);
     expect(devotionalRegistry().filter((d) => d.book === 'Genesis').length).toBe(50);
     expect(devotionalRegistry().filter((d) => d.book === 'Deuteronomy').length).toBe(34);
   });

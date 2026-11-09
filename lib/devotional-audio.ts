@@ -1,4 +1,4 @@
-// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua) ────
+// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth) ────
 // The require() calls for bundled devotional audio live here — and ONLY
 // here — so lib/devotionals.ts (the registry + math) stays import-pure
 // for tests. One line per narration, keyed exactly like the registry.
@@ -116,6 +116,10 @@ const AUDIO: Record<string, number> = {
   [devotionalKey('Joshua', 22)]: require('@/assets/audio/devotional-joshua-22.m4a'),
   [devotionalKey('Joshua', 23)]: require('@/assets/audio/devotional-joshua-23.m4a'),
   [devotionalKey('Joshua', 24)]: require('@/assets/audio/devotional-joshua-24.m4a'),
+  [devotionalKey('Ruth', 1)]: require('@/assets/audio/devotional-ruth-1.m4a'),
+  [devotionalKey('Ruth', 2)]: require('@/assets/audio/devotional-ruth-2.m4a'),
+  [devotionalKey('Ruth', 3)]: require('@/assets/audio/devotional-ruth-3.m4a'),
+  [devotionalKey('Ruth', 4)]: require('@/assets/audio/devotional-ruth-4.m4a'),
 };
 
 /** The bundled audio module for a chapter's devotional, or null. */

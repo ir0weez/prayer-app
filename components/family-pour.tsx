@@ -114,6 +114,25 @@
 //    the chevron from v483 are untouched; people-v486-pour
 //    .test.tsx pins the geometry at q 0.3/0.5/0.7 and the tree
 //    order, failing on the v485 law first.
+//  · v487 (device, Jonathan's rulings Nov 9 22:42–22:43): the
+//    motion stands, but v486's progress placement was the
+//    mockup's internal layout, not his ask — "that wavy line is
+//    now always there... I didn't ask for that... It can just
+//    appear when the group is open" — and its height on every
+//    closed card made the groups feel "huge... bigger than they
+//    used to be". The progress block is back at the TOP of the
+//    Classic panel (the composition's renderExpandedFamily),
+//    rendered plain, folding with the window and covered by the
+//    rising fill like the member rows. So the law's inputs mean
+//    what they meant before v486: headerHeight is the header
+//    card ALONE, panelHeight is the FULL panel, progress block
+//    included — nothing in this file's geometry changes, only
+//    what the composition measures into it. The panel paddingTop
+//    reverts 2 → 20 with the block, and inter-group spacing was
+//    measured against v480 and never changed (gap 9, panel
+//    −14/10), so none is touched. people-v486-pour.test.tsx
+//    re-pins the placement and the geometry at H = 62 (header
+//    only), P = 360 (progress included).
 
 import {
   createContext,
@@ -148,10 +167,10 @@ const FAMILY_POUR_EASING = Easing.bezier(0.2, 0, 0, 1);
 type FamilyPourContextValue = {
   /** 1 = the closed card stands full of the accent; 0 = drained open. */
   pour: SharedValue<number>;
-  /** How far the fill has risen through the FACE block (header +
-   * progress), 0..1 — v486: the face is the mockup's .ghead +
-   * .prog together, and this is the fraction of THAT height the
-   * fill has climbed. */
+  /** How far the fill has risen through the FACE block (the
+   * header card alone since v487 — the progress block rides in
+   * the panel again), 0..1 — this is the fraction of the
+   * header's height the fill has climbed. */
   faceFillFrac: SharedValue<number>;
 };
 
@@ -168,7 +187,7 @@ export type FamilyPourGeometry = {
    * height as it folds. */
   fillHeight: number;
   /** How far the fill has climbed into the FACE block
-   * (header + progress), 0..1. */
+   * (the header card alone since v487), 0..1. */
   faceFillFrac: number;
 };
 
@@ -327,13 +346,14 @@ export function FamilyGroupUnit({
     <View style={{ position: "relative", flexDirection: "column-reverse" }}>
       <FamilyPourContext.Provider value={{ pour, faceFillFrac }}>
         {/* v486: the unit's tree is the mockup's paint order —
-            .mwrap, then .fill, then .ghead/.prog — laid out by a
+            .mwrap, then .fill, then .ghead — laid out by a
             column-reverse root: the window is the first in-flow
             child, so it displays BELOW the face block that follows
             it, while the tree order (which is RN's paint order)
-            keeps the face above the fill. The window holds ONLY
-            the member panel (rows + Mark as Complete) — no colour
-            ever lives inside it; the colour that covers the rows
+            keeps the face above the fill. The window holds the
+            member panel (v487: the progress block at its top,
+            then the rows + Mark as Complete) — no colour ever
+            lives inside it; the colour that covers the panel
             mid-flight is the fill layer standing over it. */}
         {panelHeld ? (
           <ReAnimated.View
@@ -370,9 +390,10 @@ export function FamilyGroupUnit({
             fillStyle,
           ]}
         />
-        {/* The face block — the mockup's .ghead + .prog, which in
-            the app arrive as the one header element (the Classic
-            card carries the progress block inside itself). In flow
+        {/* The face block — the mockup's .ghead: in the app the
+            one header element, the Classic header card ALONE
+            (v487: the progress block rides in the panel again, so
+            this measure is the header's height only). In flow
             (the column-reverse root sets it at the unit's top),
             never inside the animated window, so its layout report
             is a lawful measure of the face's height. */}
@@ -422,8 +443,8 @@ export function FamilyGroupUnit({
  * The fill inside the header card: the accent, anchored to the
  * card's bottom edge, standing exactly as tall as the pour's fill
  * has climbed into the face (faceFillFrac of the card's own
- * height — the card IS the face block in the app's composition,
- * the progress block riding inside it). This is the face's
+ * height — the card IS the whole face block in the app's
+ * composition since v487). This is the face's
  * interior dress of the same fill whose unit-level layer covers
  * the folding panel; the two are one colour on one schedule.
  * Renders nothing outside a FamilyGroupUnit (the context is the
@@ -445,15 +466,16 @@ export function FamilyPourFill({ color }: { color: string }) {
 
 /**
  * A face text that turns to the on-colour (white) as the fill
- * climbs the face behind it. v486 ranges, keyed to faceFillFrac —
- * the fill enters the face at its bottom, where the progress row
- * sits, and climbs to the head row at its top: the progress texts
- * flip first ([0, 0.35]), the header's name and meta flip across
- * the face's upper reach ([0.45, 1]). (The mockup flips by state
- * with a .3s colour transition; keying the flip to the fill's own
- * fraction is the app's standing way of wearing that flip on the
- * pour's one value.) Outside a unit it is a plain Text in its
- * standing colour.
+ * climbs the face behind it. Ranges keyed to faceFillFrac: the
+ * header's name and meta flip across the face's reach
+ * ([0.45, 1]). The "progress" variant keeps its early range
+ * ([0, 0.35]) in the component's API, but since v487 no face
+ * element wears it — the progress block renders plain in the
+ * panel (Jonathan's ruling), so only name and meta flip now.
+ * (The mockup flips by state with a .3s colour transition;
+ * keying the flip to the fill's own fraction is the app's
+ * standing way of wearing that flip on the pour's one value.)
+ * Outside a unit it is a plain Text in its standing colour.
  */
 export function FamilyPourText({
   variant,
@@ -494,9 +516,12 @@ export function FamilyPourText({
  * transition). WavyProgress takes plain colour props, so the flip
  * is worn the way the chevron wears its own — a twin in the
  * on-fill colours crossfading over the standing bar on the pour's
- * fraction (progress range, [0, 0.35]: the thread sits at the
- * face's bottom, where the fill arrives first). Outside a unit it
- * is the plain bar in its standing colours.
+ * fraction (progress range, [0, 0.35]). v487: RETAINED in this
+ * module but no longer composed anywhere — the panel's thread
+ * renders plain through WavyProgress itself (the pre-v486 dress),
+ * because the block now folds with the panel instead of standing
+ * in the face. Outside a unit it is the plain bar in its
+ * standing colours.
  */
 export function FamilyPourWave({
   value,

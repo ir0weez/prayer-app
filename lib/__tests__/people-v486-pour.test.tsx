@@ -1,45 +1,60 @@
 // ─── v486 — The Pour, ported from the mockup's own source ──────
-// Device verdict on v485 (Jonathan, Nov 9): "This still isn't
-// right! Look at the difference." Three builds (v481, v484, v485)
-// derived the motion from frame extraction and prose; v486 does
-// not derive anything — it ports the mechanism of the mockup
-// file itself (group-motion-concepts-v1.html, Concept 1), read
-// from its CSS:
+// ─── v487 — the progress block goes home (Jonathan's rulings,
+// Nov 9, 22:42–22:43): "that wavy line is now always there... I
+// didn't ask for that... It can just appear when the group is
+// open." And: the cards "feel huge now... bigger than they used
+// to be", and "the grouped contacts should be nearly overlapping
+// other grouped contacts."
 //
-//  · .gcard is position:relative, overflow:hidden. Its children:
-//    .ghead (z-index 3), .prog (z-index 2), .mwrap (the folding
-//    wrap), and .fill — position:absolute, inset:0, z-index 1.
-//  · The .fill is ONE layer behind the whole card, clipped:
-//    clip-path inset(100% 0 0 0) when open → inset(0 0 0 0) when
-//    closed, transition .55s cubic-bezier(.2,0,0,1). A clip-path
-//    percentage reads off the element's own CURRENT height, so
-//    the fill always occupies the bottom q of the card's height
-//    AS IT FOLDS — one layer, one schedule.
-//  · .prog NEVER folds and is NEVER covered: it sits above the
-//    fill (z-2) for the whole gesture; only its colours flip.
-//    .ghead likewise (z-3). Only .mwrap's contents — the member
-//    rows + Mark as Complete — fold and are covered.
-//  · .mwrap folds grid-template-rows 0fr↔1fr on the SAME .55s,
-//    SAME easing, CONCURRENTLY from t=0 — the window is the
-//    panel's own height travelling (1 − q), not a front chasing
-//    it on a second schedule.
+// What v487 changes, and what this file now pins:
+//  · The Classic progress block ("x of y prayed today" + pct +
+//    wavy thread) leaves the FACE and returns to the TOP of the
+//    Classic panel, restoring the pre-v486 (v485) panel
+//    composition: progress + member rows + Mark as Complete,
+//    rendered PLAIN (standing Text + WavyProgress — no
+//    FamilyPourText / FamilyPourWave colour-flip consumers), so
+//    it folds with the panel window and is covered by the rising
+//    fill exactly like the member rows. The face is header-only
+//    again (faces + name + meta + chevron), and the two v486
+//    compensating paddings revert: panel paddingTop 2 → 20 (the
+//    v485 value), and the face loses the progress block's
+//    paddingBottom 18 with the block itself.
+//  · The geometry law is v486's, unchanged — only the inputs'
+//    MEANING is restored: H is the header height ONLY (the
+//    face's onLayout measure shrinks back to the head row) and
+//    P is the FULL panel height INCLUDING the progress block
+//    (the off-flow seat measures the whole panel again):
+//       windowHeight = P × (1 − q)
+//       fillHeight   = q × (H + windowHeight)
+//       faceFillFrac = clamp((fillHeight − windowHeight) / H, 0, 1)
+//    Pinned below at H = 62 (the head row: 12 + 38 + 12) and
+//    P = 360 (progress 46 + members/complete 160 + 154).
+//  · Inter-group spacing: measured against the pre-pour build
+//    (v480, 338085a) it never changed — ROSTER_HOUSEHOLD_GAP 9,
+//    panel marginTop −14 / marginBottom 10, section margins
+//    20/9, personCard marginBottom 8 + gapBoost — so v487
+//    changes none of it; the "huge / spaced-out" read came from
+//    the taller closed faces, which the block's move home fixes.
 //
-// The geometry is therefore three lines off one value q (the
-// existing pour shared value, 1 = closed, 0 = open):
-//    windowHeight = P × (1 − q)
-//    fillHeight   = q × (H + windowHeight)
-//    faceFillFrac = clamp((fillHeight − windowHeight) / H, 0, 1)
-// where H is the whole FACE block (header + progress) and P the
-// panel's natural height (members + Mark as Complete only).
+// Failing-first: run against v486, the source pins below fail on
+// placement — the progress block sits in renderFamilyCard's
+// Classic card (testID family-pour-progress, FamilyPourText
+// variant "progress", FamilyPourWave, paddingBottom 18) and the
+// Classic panel's paddingTop reads 2 with no progress block in
+// it. (The harness geometry passes on either build by design:
+// the law is one function; what v487 restores is what H and P
+// MEASURE, and the composition the numbers describe.)
 //
-// Failing-first: run against v485, the geometry assertions fail
-// on values — v485's familyPourFront at (q, H=130, P=360) gives
-// window/fill 213/147 at q=0.3, 115/245 at q=0.5, 17/343 at
-// q=0.7 (a front of q×(H+P) crossing a full-height segment),
-// where this law requires 252/114.6, 180/155, 108/166.6 — and
-// the structural assertions fail on the tree: v485 has an inset
-// band inside a segment container, and its panel still carries
-// the progress row inside the window.
+// v486's own record, kept: the mockup (group-motion-concepts
+// -v1.html, Concept 1) runs two CSS transitions off one state
+// flip, on the same .55s cubic-bezier(.2,0,0,1), concurrent from
+// t=0 — .mwrap folds grid-template-rows 0fr↔1fr (the window is
+// the panel's own height travelling (1 − q)) while .fill, one
+// absolute layer behind the whole card under a clip-path
+// percentage, always occupies the bottom q of the card's CURRENT
+// height as it folds. v486 seated the mockup's .prog in the
+// card; Jonathan's ruling above overrides that one placement —
+// the MOTION is the mockup's, the progress block's seat is his.
 
 import React, { useContext } from "react";
 import TestRenderer, {
@@ -72,9 +87,9 @@ vi.mock("react-native", () => ({
   },
 }));
 
-// v486: family-pour.tsx now imports the wavy thread (FamilyPourWave
-// wears WavyProgress), which imports react-native-svg — stubbed
-// with inert stand-ins, the wavy-progress-v339 pattern. The wave
+// family-pour.tsx imports the wavy thread (FamilyPourWave wears
+// WavyProgress), which imports react-native-svg — stubbed with
+// inert stand-ins, the wavy-progress-v339 pattern. The wave
 // itself is never rendered by this harness.
 vi.mock("react-native-svg", () => {
   const Stub = () => null;
@@ -188,8 +203,14 @@ const unitSrc = pourSrc.slice(
 );
 
 const ACCENT = "#7C3AED";
-const HEADER_H = 130;
+// v487: H is the header ONLY (the head row's 62) — v486's H of
+// 130 folded the progress block's height into the face measure.
+const HEADER_H = 62;
+// v487: P is the FULL panel, progress block included: the
+// block's 46 (its seat at the panel's top, under paddingTop 20)
+// + 160 + 154 of members and Mark as Complete.
 const PANEL_H = 360;
+const PROGRESS_H = 46;
 
 /** A probe inside the face that surfaces the context's face
  * fraction as a readable style height (the harness's animated
@@ -200,20 +221,21 @@ function FracProbe() {
   return <View testID="frac-probe" style={style} />;
 }
 
-/** The face stub: a 130-tall header block carrying the progress
- * block inside it — the mockup's .ghead + .prog inside .gcard. */
+/** The face stub: the header ALONE (v487) — faces, name, meta,
+ * chevron; no progress block rides in it anymore. */
 const header = (
   <View testID="stub-header" style={{ height: HEADER_H }}>
-    <View testID="family-pour-progress" />
     <FracProbe />
   </View>
 );
-/** A panel of known natural height: 140 + 120 + 100 = 360. */
+/** The panel stub (v487): the progress block at its TOP, then
+ * the member rows and Mark as Complete — 46 + 160 + 154 = 360,
+ * the whole of which the seat measures into P. */
 const panelContent = (
   <View testID="panel-root">
-    <View style={{ height: 140 }} />
-    <View style={{ height: 120 }} />
-    <View style={{ height: 100 }} />
+    <View testID="family-pour-progress" style={{ height: PROGRESS_H }} />
+    <View style={{ height: 160 }} />
+    <View style={{ height: 154 }} />
   </View>
 );
 
@@ -305,43 +327,40 @@ afterEach(() => {
   rig.animations.clear();
 });
 
-describe("v486 — the mockup's geometry (familyPourGeometry)", () => {
+describe("v487 — the mockup's geometry, header-only H, progress-inclusive P (familyPourGeometry)", () => {
   const H = HEADER_H;
   const P = PANEL_H;
 
-  it("rest states: open stands full and empty of colour; closed is face-only, filled", () => {
+  it("rest states: open stands full and empty of colour; closed is header-only, filled", () => {
     expect(familyPourGeometry(0, H, P)).toEqual({ windowHeight: P, fillHeight: 0, faceFillFrac: 0 });
+    // Closed: the unit is the header alone, so the fill is the
+    // HEADER's 62 — not v486's 130 (header + progress).
     expect(familyPourGeometry(1, H, P)).toEqual({ windowHeight: 0, fillHeight: H, faceFillFrac: 1 });
   });
 
-  it("q = 0.3: window 252, fill 114.6, the face not yet reached", () => {
-    const g = familyPourGeometry(0.3, H, P);
-    expect(g.windowHeight).toBeCloseTo(252, 1);
-    expect(g.fillHeight).toBeCloseTo(114.6, 1);
+  it("q = 0.25: window 270, fill 83, the face not yet reached", () => {
+    const g = familyPourGeometry(0.25, H, P);
+    expect(g.windowHeight).toBeCloseTo(270, 6);
+    expect(g.fillHeight).toBeCloseTo(83, 6);
     expect(g.faceFillFrac).toBe(0);
   });
 
-  it("q = 0.5: window 180, fill 155, the face not yet reached", () => {
+  it("q = 0.5: window 180, fill 121, the face not yet reached", () => {
     const g = familyPourGeometry(0.5, H, P);
-    expect(g.windowHeight).toBeCloseTo(180, 1);
-    expect(g.fillHeight).toBeCloseTo(155, 1);
+    expect(g.windowHeight).toBeCloseTo(180, 6);
+    expect(g.fillHeight).toBeCloseTo(121, 6);
     expect(g.faceFillFrac).toBe(0);
   });
 
-  it("q = 0.7: window 108, fill 166.6, the fill has climbed ~0.45 into the face", () => {
-    const g = familyPourGeometry(0.7, H, P);
-    expect(g.windowHeight).toBeCloseTo(108, 1);
-    expect(g.fillHeight).toBeCloseTo(166.6, 1);
-    // The formula's value: (166.6 − 108) / 130 = 0.4508. (The
-    // v486 brief quoted ≈0.544 with a 0.1 tolerance; the formula
-    // value satisfies that tolerance — |0.544 − 0.4508| < 0.1 —
-    // and is what the formula, and this pin, hold.)
-    expect(g.faceFillFrac).toBeCloseTo(0.4508, 3);
-    expect(Math.abs(g.faceFillFrac - 0.544)).toBeLessThan(0.1);
+  it("q = 0.75: window 90, fill 114, the fill has climbed 24/62 into the header", () => {
+    const g = familyPourGeometry(0.75, H, P);
+    expect(g.windowHeight).toBeCloseTo(90, 6);
+    expect(g.fillHeight).toBeCloseTo(114, 6);
+    expect(g.faceFillFrac).toBeCloseTo(24 / 62, 6);
   });
 
-  it("the three lines hold across the whole travel, for two face heights", () => {
-    for (const h of [130, 62]) {
+  it("the three lines hold across the whole travel, for two header heights", () => {
+    for (const h of [62, 130]) {
       for (let step = 0; step <= 40; step += 1) {
         const q = step / 40;
         const g = familyPourGeometry(q, h, P);
@@ -368,8 +387,8 @@ describe("v486 — the mockup's geometry (familyPourGeometry)", () => {
   });
 });
 
-describe("v486 — the mockup's structure, rendered", () => {
-  it("closing: at mid-flight frames the window and the ONE fill read off the same q", () => {
+describe("v487 — the structure, rendered: progress in the panel, header-only face", () => {
+  it("closing: at mid-flight frames the window and the ONE fill read off the same q (H = 62, P = 360)", () => {
     let expanded = true;
     const element = () => (
       <FamilyGroupUnit
@@ -390,12 +409,12 @@ describe("v486 — the mockup's structure, rendered", () => {
       r.update(element());
     });
 
-    // 550ms clock, linear in the rig: 165ms → q 0.3, then +110
-    // → q 0.5, then +110 → q 0.7.
+    // 550ms clock, linear in the rig: 137.5ms steps land exactly
+    // on q 0.25, 0.5, 0.75.
     const samples: { stepMs: number; window: number; fill: number; frac: number }[] = [
-      { stepMs: 165, window: 252, fill: 114.6, frac: 0 },
-      { stepMs: 110, window: 180, fill: 155, frac: 0 },
-      { stepMs: 110, window: 108, fill: 166.6, frac: 0.4508 },
+      { stepMs: 137.5, window: 270, fill: 83, frac: 0 },
+      { stepMs: 137.5, window: 180, fill: 121, frac: 0 },
+      { stepMs: 137.5, window: 90, fill: 114, frac: 24 / 62 },
     ];
     for (const s of samples) {
       act(() => {
@@ -411,13 +430,17 @@ describe("v486 — the mockup's structure, rendered", () => {
       expect(styleHeight(win!)).toBeCloseTo(s.window, 1);
       expect(styleHeight(fill!)).toBeCloseTo(s.fill, 1);
       expect(styleHeight(byTestID(r, "frac-probe"))).toBeCloseTo(s.frac, 3);
-      // The members are still mounted — they are what folds.
+      // The members — and the progress block riding at the
+      // panel's top — are still mounted: they are what folds.
       expect(panelCopies(r).length).toBeGreaterThanOrEqual(1);
+      expect(
+        win!.findAll((n) => n.props.testID === "family-pour-progress").length,
+      ).toBeGreaterThanOrEqual(1);
     }
 
-    // The close completes and the members unmount (v483 lifecycle).
+    // The close completes and the panel unmounts (v483 lifecycle).
     act(() => {
-      rig.stepAll(165);
+      rig.stepAll(137.5);
     });
     act(() => {
       r.update(element());
@@ -425,7 +448,7 @@ describe("v486 — the mockup's structure, rendered", () => {
     expect(panelCopies(r)).toHaveLength(0);
   });
 
-  it("tree order is the mockup's paint order: window, then the fill, then the face — and the progress rides in the face, never in the window", () => {
+  it("tree order is the mockup's paint order: window, then the fill, then the face — and the progress rides in the window, never in the face", () => {
     let expanded = true;
     const element = () => (
       <FamilyGroupUnit
@@ -453,12 +476,21 @@ describe("v486 — the mockup's structure, rendered", () => {
     const win = byTestID(r, "family-pour-window");
     const fill = byTestID(r, "family-pour-fill");
     const face = byTestID(r, "family-pour-face");
-    // The progress block is in the face block's subtree…
-    expect(face!.findAll((n) => n.props.testID === "family-pour-progress").length).toBe(1);
-    expect(order.indexOf("family-pour-progress")).toBeGreaterThan(fillAt);
-    // …and never inside the folding window (v485 kept it there,
-    // so it folded away and was covered — half the device miss).
-    expect(win!.findAll((n) => n.props.testID === "family-pour-progress")).toHaveLength(0);
+    // (a) The progress block renders inside the panel/window
+    // subtree — it folds with the panel and the rising fill
+    // covers it like the member rows (v487; v486 kept it in the
+    // face, always showing — the placement Jonathan overruled).
+    expect(
+      win!.findAll((n) => n.props.testID === "family-pour-progress").length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(order.indexOf("family-pour-progress")).toBeLessThan(fillAt);
+    // (b) The face's rendered content set excludes the progress
+    // row entirely: the header alone — its only testID'd
+    // descendants are the stub header and the fraction probe.
+    expect(face!.findAll((n) => n.props.testID === "family-pour-progress")).toHaveLength(0);
+    const faceIDs: string[] = [];
+    for (const child of elementChildren(face!)) collectTestIDs(child, faceIDs);
+    expect(faceIDs).toEqual(["stub-header", "frac-probe"]);
     // The fill is a sibling layer, not a child of the window:
     // no accent-coloured node lives inside the window's subtree,
     // even though the fill paints over that region on device.
@@ -499,12 +531,12 @@ describe("v486 — the mockup's structure, rendered", () => {
     });
 
     expect(styleHeight(byTestID(r, "family-pour-window"))).toBeCloseTo(180, 1);
-    expect(styleHeight(byTestID(r, "family-pour-fill"))).toBeCloseTo(155, 1);
+    expect(styleHeight(byTestID(r, "family-pour-fill"))).toBeCloseTo(121, 1);
     expect(styleHeight(byTestID(r, "frac-probe"))).toBeCloseTo(0, 3);
   });
 });
 
-describe("v486 — source pins: the port's shape", () => {
+describe("v486/v487 — source pins: the port's shape, the block's seat", () => {
   it("the unit carries exactly the mockup's three layers — no segment, no band, no trailing margin", () => {
     expect(unitSrc).toContain('testID="family-pour-window"');
     expect(unitSrc).toContain('testID="family-pour-fill"');
@@ -518,7 +550,11 @@ describe("v486 — source pins: the port's shape", () => {
     expect(pourSrc).not.toContain("FamilyPourFront");
   });
 
-  it("the Classic card carries the progress block inside the face (the mockup's .prog in .gcard)", () => {
+  it("v487 re-pin: the Classic FACE is header-only — the progress block, its flip consumers and its paddingBottom 18 have left the card", () => {
+    // v486 pinned this block INSIDE the card; Jonathan overruled
+    // that seat ("I didn't ask for that... It can just appear
+    // when the group is open"), so the pin flips: the face's
+    // content set is faces + name + meta + chevron, nothing else.
     const familyCard = indexSrc.slice(
       indexSrc.indexOf("const renderFamilyCard"),
       indexSrc.indexOf("const renderExpandedFamily"),
@@ -527,12 +563,25 @@ describe("v486 — source pins: the port's shape", () => {
       familyCard.indexOf("if (!isSkinned) {"),
       familyCard.indexOf("<ReAnimated.View key={familyId}"),
     );
-    expect(classic).toContain('testID="family-pour-progress"');
-    expect(classic).toContain("} of {familyMembers.length} prayed today</FamilyPourText>");
-    expect(classic).toContain("<FamilyPourWave");
+    expect(classic).not.toContain('testID="family-pour-progress"');
+    expect(classic).not.toContain("FamilyPourWave");
+    expect(classic).not.toContain('variant="progress"');
+    expect(classic).not.toContain("prayed today</FamilyPourText>");
+    // The v486 compensating padding dies with the block.
+    expect(classic).not.toContain("paddingBottom: 18");
+    // What the face keeps: the head row and its two flips.
+    expect(classic).toContain('<FamilyPourText variant="name"');
+    expect(classic).toContain('<FamilyPourText variant="meta"');
+    expect(classic).toContain("<FamilyPourFill");
+    expect(classic).toContain("<FamilyChevron");
   });
 
-  it("the Classic panel is members + Mark as Complete only — the progress row and its wave have left it", () => {
+  it("v487 re-pin: the Classic PANEL opens with the progress block, rendered plain — and its paddingTop is the v485 value", () => {
+    // v486 pinned the block OUT of the panel ("members + Mark as
+    // Complete only"); v487 restores the pre-v486 composition:
+    // progress row + wavy thread at the panel's top, then the
+    // member rows, then Mark as Complete — plain standing
+    // components, no pour colour-flip consumers on the block.
     const expandedFamily = indexSrc.slice(
       indexSrc.indexOf("const renderExpandedFamily"),
       indexSrc.indexOf("const renderPeopleSectionRow"),
@@ -541,12 +590,27 @@ describe("v486 — source pins: the port's shape", () => {
       expandedFamily.indexOf("if (!isSkinned) {"),
       expandedFamily.indexOf("</FamilyPanel>") + "</FamilyPanel>".length,
     );
-    expect(classicPanel).not.toContain("WavyProgress");
-    expect(classicPanel).not.toContain("prayed today</Text>");
-    expect(classicPanel).not.toContain("family-pour-progress");
+    expect(classicPanel).toContain('testID="family-pour-progress"');
+    expect(classicPanel).toContain("} of {familyMembers.length} prayed today</Text>");
+    expect(classicPanel).toContain("<WavyProgress");
+    expect(classicPanel).not.toContain("FamilyPourText");
+    expect(classicPanel).not.toContain("FamilyPourWave");
     expect(classicPanel).toContain("Mark as Complete");
-    // The wave survives exactly once in the whole panel renderer:
-    // the skinned panel's own progress row, untouched.
-    expect(expandedFamily.match(/WavyProgress/g)).toHaveLength(1);
+    // The block stands at the panel's TOP: it precedes the
+    // member rows and the completion door.
+    expect(classicPanel.indexOf('testID="family-pour-progress"')).toBeLessThan(
+      classicPanel.indexOf("renderMemberRow(member, false)"),
+    );
+    expect(classicPanel.indexOf('testID="family-pour-progress"')).toBeLessThan(
+      classicPanel.indexOf("Mark as Complete"),
+    );
+    // (d) The v486 compensation reverts: paddingTop is 20 again
+    // (the v485/v480 value), so the block clears the −14 tuck.
+    expect(classicPanel).toContain("paddingTop: 20");
+    expect(classicPanel).not.toContain("paddingTop: 2,");
+    // The wave now renders twice in the panel renderer: the
+    // Classic panel's restored block and the skinned panel's own
+    // progress row, untouched.
+    expect(expandedFamily.match(/<WavyProgress/g)).toHaveLength(2);
   });
 });

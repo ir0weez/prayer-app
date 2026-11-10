@@ -76,24 +76,49 @@ describe("v481 — the pour's geometry (familyPourFront)", () => {
     expect(front.headerFillFrac).toBe(0);
   });
 
-  it("mid-pour the front has climbed half the unit and the window has folded half away", () => {
+  it("mid-pour the edge stands halfway through the panel — the header is not filling yet", () => {
+    // v485 re-pin: v481's values (window 150, fill 150, fraction
+    // 0.5) encoded the two-edge schedule — the window folding on
+    // (1 − pour) while the header filled on the front, meeting
+    // halfway. The one-edge law reads everything off the front:
+    // at pour 0.5 the front stands at 181 of the panel's 300, so
+    // 119 of rows still stand above the edge, 181 of colour below
+    // it, the segment still at full height, and the header
+    // untouched (fraction 0) until the front crosses the panel.
     const front = familyPourFront(0.5, HEADER, PANEL);
-    expect(front.panelWindowHeight).toBe(150);
-    expect(front.panelFillHeight).toBe(150);
-    expect(front.headerFillFrac).toBe(0.5);
-  });
-
-  it("early in the pour the colour is still inside the panel segment — the header is untouched", () => {
-    const front = familyPourFront(0.25, HEADER, PANEL);
-    expect(front.panelWindowHeight).toBe(225);
-    expect(front.panelFillHeight).toBeCloseTo(90.5);
+    expect(front.panelWindowHeight).toBe(119);
+    expect(front.panelFillHeight).toBe(181);
+    expect(front.segmentHeight).toBe(PANEL);
     expect(front.headerFillFrac).toBe(0);
   });
 
-  it("late in the pour the header is covered before the last of the panel folds", () => {
+  it("early in the pour the colour is still inside the panel segment — the header is untouched", () => {
+    // v485 re-pin: the fill (90.5) and the fraction (0) are the
+    // same numbers — early in the pour the front is inside the
+    // panel on both schedules. The window is what changes: it is
+    // now the rows above the edge (300 − 90.5 = 209.5), not the
+    // (1 − pour) fold (225).
+    const front = familyPourFront(0.25, HEADER, PANEL);
+    expect(front.panelWindowHeight).toBeCloseTo(209.5);
+    expect(front.panelFillHeight).toBeCloseTo(90.5);
+    expect(front.segmentHeight).toBe(PANEL);
+    expect(front.headerFillFrac).toBe(0);
+  });
+
+  it("late in the pour the edge nears the panel's top and the header is STILL untouched", () => {
+    // v485 re-pin: the old pin asserted the header was already
+    // covered (fraction 1) while 75 of the panel still stood —
+    // that IS the two-edge disease (the header filling early,
+    // from pour ≈ P/(H + 2P)). On the one-edge law the front at
+    // pour 0.75 stands at 271.5, still inside the panel (it
+    // crosses at pour ≈ 0.829), so 28.5 of rows stand above the
+    // edge, 271.5 of colour below it, and the header fraction is
+    // still 0 — the header fills only across phase B.
     const front = familyPourFront(0.75, HEADER, PANEL);
-    expect(front.panelWindowHeight).toBe(75);
-    expect(front.headerFillFrac).toBe(1);
+    expect(front.panelWindowHeight).toBeCloseTo(28.5);
+    expect(front.panelFillHeight).toBeCloseTo(271.5);
+    expect(front.segmentHeight).toBe(PANEL);
+    expect(front.headerFillFrac).toBe(0);
   });
 
   it("an unmeasured panel falls back to the pour itself for the header fraction", () => {
@@ -102,10 +127,22 @@ describe("v481 — the pour's geometry (familyPourFront)", () => {
     expect(familyPourFront(0.5, HEADER, 0).headerFillFrac).toBe(0.5);
   });
 
-  it("across the whole travel the fill never exceeds the window and the fraction stays in [0, 1]", () => {
+  it("across the whole travel the rows and the colour partition the segment and the fraction stays in [0, 1]", () => {
+    // v485 re-pin: the old invariant (fill ≤ window) encoded the
+    // fill living INSIDE the window — the slab's shape. The
+    // one-edge invariant is a partition: rows + colour = the
+    // segment, exactly, at every frame; the segment stands at
+    // the panel's full height until the front crosses it, then
+    // collapses across the header's fill phase.
     for (let step = 0; step <= 20; step += 1) {
-      const front = familyPourFront(step / 20, HEADER, PANEL);
-      expect(front.panelFillHeight).toBeLessThanOrEqual(front.panelWindowHeight);
+      const pour = step / 20;
+      const front = familyPourFront(pour, HEADER, PANEL);
+      const frontPx = pour * (HEADER + PANEL);
+      expect(front.panelWindowHeight + front.panelFillHeight).toBeCloseTo(front.segmentHeight, 6);
+      expect(front.segmentHeight).toBeCloseTo(
+        frontPx <= PANEL ? PANEL : (PANEL * (HEADER + PANEL - frontPx)) / HEADER,
+        6,
+      );
       expect(front.headerFillFrac).toBeGreaterThanOrEqual(0);
       expect(front.headerFillFrac).toBeLessThanOrEqual(1);
     }
@@ -166,6 +203,15 @@ describe("v481 — the fill and the flip", () => {
   it("the panel segment fills in the same accent, from the same front", () => {
     expect(unit).toContain("backgroundColor: accent");
     expect(unit).toContain("front.value.panelFillHeight");
+    // v485: the fill is the colour band standing in flow below
+    // the window, inside a segment driven by the same front —
+    // not an absolute slab inside the window (v484's shape, the
+    // solid block in his recording). The trailing-margin offset
+    // the slab floated on is gone with it.
+    expect(unit).toContain('testID="family-pour-segment"');
+    expect(unit).toContain('testID="family-pour-band"');
+    expect(unit).toContain("front.value.segmentHeight");
+    expect(unit).not.toContain("FAMILY_PANEL_TRAILING_MARGIN");
   });
 
   it("the header texts flip to white on the pour — name late, meta first", () => {

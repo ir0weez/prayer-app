@@ -65,6 +65,26 @@
 //    whenever the current panel is falsy. Both failures are
 //    pinned behaviourally in people-v483-pour-seat.test.tsx,
 //    which failed on the v482 seat for exactly these reasons.
+//  · v485 (device: "This is not the look we agreed to..." — his
+//    screen recording of the shipped motion, then of the mockup
+//    itself, "look how smooth you made it!"): the seats were
+//    right but the SCHEDULE was two edges, not one. The window
+//    folded (1 − pour) × panelHeight across the whole travel
+//    while a colour slab inside that same window grew on the
+//    front's schedule and saturated at the window's full height
+//    for most of the travel — mid-flight the panel stood as one
+//    tall solid-violet block, members hidden behind it, a row
+//    peeking squished at the slab's bottom seam; and the header
+//    began filling at pour ≈ P/(H + 2P), long before the front
+//    had crossed the panel. The mockup's motion (and his Oct 2
+//    design) has exactly ONE edge: the front's surface is the
+//    fold line. The schedule below now derives the window, the
+//    segment, the colour band and the header fill from the
+//    front's position alone — see familyPourFront. The seat, the
+//    cache, the lifecycle and the chevron from v483 are
+//    untouched; people-v485-one-edge.test.tsx pins the partition
+//    at mid-flight frames, failing on the v484 schedule for the
+//    slab reason first.
 
 import {
   createContext,
@@ -91,10 +111,6 @@ import ReAnimated, {
  * barely noticeable"), short enough to start feeling instant. */
 export const FAMILY_POUR_DURATION_MS = 500;
 const FAMILY_POUR_EASING = Easing.bezier(0.2, 0, 0, 1);
-/** Both household panels (Classic and skinned) trail a marginBottom
- * of 10 in their FamilyPanel outerStyle; the pour's fill segment
- * ends at the panel surface's bottom edge, above that margin. */
-const FAMILY_PANEL_TRAILING_MARGIN = 10;
 
 type FamilyPourContextValue = {
   /** 1 = the closed card stands full of the accent; 0 = drained open. */
@@ -106,24 +122,51 @@ type FamilyPourContextValue = {
 export const FamilyPourContext = createContext<FamilyPourContextValue | null>(null);
 
 export type FamilyPourFront = {
-  /** The panel window's height right now (content clipped to it). */
+  /** The still-visible member region (rowsVisible): the window's
+   * height — the part of the panel above the front's edge. */
   panelWindowHeight: number;
-  /** The fill's height inside the panel segment, from its bottom. */
+  /** The colour band's height in the panel segment: the folded
+   * part itself, standing below the window. */
   panelFillHeight: number;
+  /** The panel segment's total height right now: rows region +
+   * colour band, exactly, at every frame. */
+  segmentHeight: number;
   /** The fill's rise through the header card, 0..1. */
   headerFillFrac: number;
 };
 
 /**
- * The pour's geometry, pure. One front of colour travels the whole
- * unit — panel segment first, then the header card — at one speed,
- * while the panel window folds away over the same travel: at any
- * pour value the front has climbed `pour` of the unit's full height
- * (header + panel) measured from the unit's bottom edge. The panel
- * window still standing is the part of the panel the front has not
- * reached as FOLD — the window's own shrink and the front's rise
- * are the same motion read from two edges, which is why the rows
- * read as folding INTO the colour rather than sliding away from it.
+ * The pour's geometry, pure — ONE EDGE (v485). One front of colour
+ * travels the whole unit from its bottom edge: at any pour value
+ * the front has climbed `pour` of the unit's full height
+ * (header + panel). Everything in the panel segment is read off
+ * the front's position alone, so the colour's surface IS the fold
+ * line — there is no second schedule for it to disagree with:
+ *
+ *  · rowsVisible = clamp(panel − front, 0, panel): the window is
+ *    exactly the member region the front has not reached, rows
+ *    top-anchored and clipped at the edge; they sink into the
+ *    rising edge in place.
+ *  · Phase A (front ≤ panel): the segment stands at its full
+ *    height — the card does not collapse while the edge crosses
+ *    the members (the mockup's mid-close frame: full height,
+ *    front halfway through the panel, rows crisp above it,
+ *    solid colour below).
+ *  · Phase B (front > panel): no rows remain; the all-colour
+ *    segment collapses panel → 0 linearly across the header's
+ *    own fill (segmentHeight = panel × (total − front) / header),
+ *    so the segment finishes folding exactly as the header
+ *    finishes filling.
+ *  · The colour band is the folded part itself:
+ *    colourBand = segmentHeight − rowsVisible, standing below
+ *    the window in flow — never inside it, never over the rows.
+ *  · The header fill starts only when the front has crossed the
+ *    whole panel: headerFillPx = clamp(front − panel, 0, header).
+ *
+ * Opening is the same law read backwards: the header drains
+ * while the colour segment unfolds back to full height, then the
+ * level drops through the panel and the rows emerge from the
+ * dropping edge.
  */
 export function familyPourFront(pour: number, headerHeight: number, panelHeight: number): FamilyPourFront {
   // v482: the 'worklet' directive is what lets this run inside the
@@ -141,11 +184,18 @@ export function familyPourFront(pour: number, headerHeight: number, panelHeight:
   const clamped = Math.min(1, Math.max(0, safePour));
   const total = safeHeader + safePanel;
   const front = clamped * total;
-  const panelWindowHeight = (1 - clamped) * safePanel;
-  const panelFillHeight = Math.min(Math.max(front, 0), panelWindowHeight);
-  const headerFillPx = Math.min(Math.max(front - panelWindowHeight, 0), safeHeader);
+  const frontInPanel = Math.min(front, safePanel);
+  const panelWindowHeight = safePanel - frontInPanel;
+  const segmentHeight =
+    front <= safePanel
+      ? safePanel
+      : safeHeader > 0
+        ? (safePanel * (total - front)) / safeHeader
+        : 0;
+  const panelFillHeight = Math.max(0, segmentHeight - panelWindowHeight);
+  const headerFillPx = Math.min(Math.max(front - safePanel, 0), safeHeader);
   const headerFillFrac = safeHeader > 0 ? headerFillPx / safeHeader : clamped;
-  return { panelWindowHeight, panelFillHeight, headerFillFrac };
+  return { panelWindowHeight, panelFillHeight, segmentHeight, headerFillFrac };
 }
 
 /**
@@ -215,8 +265,18 @@ export function FamilyGroupUnit({
     if (pour.value === 0) return {};
     return { height: front.value.panelWindowHeight };
   });
-  const panelFillStyle = useAnimatedStyle(() => ({
-    height: Math.max(0, front.value.panelFillHeight - FAMILY_PANEL_TRAILING_MARGIN),
+  // v485: the segment and the colour band ride the same values.
+  // The segment unlocks to auto height at rest open, exactly as
+  // the window does (its rows stand at their natural height and
+  // the band is 0 there); mid-flight it takes the front's
+  // segmentHeight. The band's height is the folded part itself —
+  // the geometry already guarantees it finite and non-negative.
+  const segmentStyle = useAnimatedStyle(() => {
+    if (pour.value === 0) return {};
+    return { height: front.value.segmentHeight };
+  });
+  const bandStyle = useAnimatedStyle(() => ({
+    height: front.value.panelFillHeight,
   }));
 
   // v483: the panel this unit actually renders. The screen passes
@@ -242,21 +302,43 @@ export function FamilyGroupUnit({
         </View>
         {panelHeld ? (
           <View>
-            <ReAnimated.View style={[{ overflow: "hidden" }, windowStyle]}>
-              <View>{renderedPanel}</View>
+            {/* v485: the panel segment — ONE edge. Its height is
+                the front's schedule (full height while the edge
+                crosses the members, then collapsing across the
+                header's fill); inside it, the window — the
+                still-visible rows, clipped at the edge — and
+                below it the colour band — the folded part itself
+                — partition the segment exactly: rows + colour =
+                segment at every frame. The band stands IN FLOW
+                below the window; there is no fill inside the
+                window any more (v484's absolute slab painted over
+                the rows and read on device as a solid block). The
+                band's inset and bottom corners match the panel
+                surface's own (marginHorizontal 12, radius 24 in
+                FamilyPanel's outerStyle), flush with the card's
+                edges, so the colour reads as the panel's own
+                substance continuing below the edge. */}
+            <ReAnimated.View
+              testID="family-pour-segment"
+              style={[{ overflow: "hidden" }, segmentStyle]}
+            >
               <ReAnimated.View
+                testID="family-pour-window"
+                style={[{ overflow: "hidden" }, windowStyle]}
+              >
+                <View>{renderedPanel}</View>
+              </ReAnimated.View>
+              <ReAnimated.View
+                testID="family-pour-band"
                 pointerEvents="none"
                 style={[
                   {
-                    position: "absolute",
-                    left: 12,
-                    right: 12,
-                    bottom: FAMILY_PANEL_TRAILING_MARGIN,
-                    backgroundColor: accent,
+                    marginHorizontal: 12,
                     borderBottomLeftRadius: 24,
                     borderBottomRightRadius: 24,
+                    backgroundColor: accent,
                   },
-                  panelFillStyle,
+                  bandStyle,
                 ]}
               />
             </ReAnimated.View>

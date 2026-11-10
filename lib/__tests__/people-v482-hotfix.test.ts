@@ -63,20 +63,26 @@ describe("v482 — familyPourFront is a worklet, and fail-safe at its boundary",
     expect(frontFn).toMatch(/export function familyPourFront\([^)]*\)[^{]*\{\s*\n(\s*\/\/[^\n]*\n)*\s*"worklet";/);
   });
 
+  // v485 re-pin (applies to this whole describe): the front now
+  // also reports segmentHeight, so the toEqual literals below
+  // gain that field. The three original fields' values at these
+  // inputs are UNCHANGED — these are still the static frames:
+  // closed stands filled (segment 0), open stands drained (the
+  // segment at the panel's full height, band 0).
   it("the pre-measure frame is exactly the static card: closed stands filled, open stands drained", () => {
-    expect(familyPourFront(1, 0, 0)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, headerFillFrac: 1 });
-    expect(familyPourFront(0, 0, 0)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, headerFillFrac: 0 });
+    expect(familyPourFront(1, 0, 0)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, segmentHeight: 0, headerFillFrac: 1 });
+    expect(familyPourFront(0, 0, 0)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, segmentHeight: 0, headerFillFrac: 0 });
   });
 
   it("a non-finite pour falls back to the drained, measured-nothing state", () => {
     const front = familyPourFront(Number.NaN, 62, 300);
-    expect(front).toEqual({ panelWindowHeight: 300, panelFillHeight: 0, headerFillFrac: 0 });
+    expect(front).toEqual({ panelWindowHeight: 300, panelFillHeight: 0, segmentHeight: 300, headerFillFrac: 0 });
     expect(familyPourFront(Number.POSITIVE_INFINITY, 62, 300).headerFillFrac).toBe(0);
   });
 
   it("negative and non-finite measures are treated as unmeasured", () => {
-    expect(familyPourFront(0.5, -10, -20)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, headerFillFrac: 0.5 });
-    expect(familyPourFront(1, Number.NaN, Number.NaN)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, headerFillFrac: 1 });
+    expect(familyPourFront(0.5, -10, -20)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, segmentHeight: 0, headerFillFrac: 0.5 });
+    expect(familyPourFront(1, Number.NaN, Number.NaN)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, segmentHeight: 0, headerFillFrac: 1 });
     expect(familyPourFront(0.75, Number.POSITIVE_INFINITY, 300).headerFillFrac).toBe(0.75);
   });
 
@@ -87,12 +93,18 @@ describe("v482 — familyPourFront is a worklet, and fail-safe at its boundary",
       for (const h of measures) {
         for (const pn of measures) {
           const front = familyPourFront(p, h, pn);
-          for (const value of [front.panelWindowHeight, front.panelFillHeight, front.headerFillFrac]) {
+          // v485 re-pin: segmentHeight joins the swept values,
+          // and the closing bound is the one-edge partition
+          // (band ≤ segment; rows + band = segment) — the old
+          // bound (fill ≤ window) encoded the fill living inside
+          // the window, the slab's shape.
+          for (const value of [front.panelWindowHeight, front.panelFillHeight, front.segmentHeight, front.headerFillFrac]) {
             expect(Number.isFinite(value)).toBe(true);
             expect(value).toBeGreaterThanOrEqual(0);
           }
           expect(front.headerFillFrac).toBeLessThanOrEqual(1);
-          expect(front.panelFillHeight).toBeLessThanOrEqual(front.panelWindowHeight);
+          expect(front.panelFillHeight).toBeLessThanOrEqual(front.segmentHeight);
+          expect(front.panelWindowHeight + front.panelFillHeight).toBeCloseTo(front.segmentHeight, 6);
         }
       }
     }
@@ -100,7 +112,8 @@ describe("v482 — familyPourFront is a worklet, and fail-safe at its boundary",
 
   it("undefined measures (cast in, as a hostile caller would) still yield the static frame", () => {
     const front = familyPourFront(1, undefined as unknown as number, undefined as unknown as number);
-    expect(front).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, headerFillFrac: 1 });
+    // v485 re-pin: the literal gains segmentHeight (0 here), as above.
+    expect(front).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, segmentHeight: 0, headerFillFrac: 1 });
   });
 });
 

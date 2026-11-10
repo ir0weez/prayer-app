@@ -272,13 +272,15 @@ function panelCopies(renderer: ReactTestRenderer): Inst[] {
 }
 
 /** The clipping window: the overflow-hidden View that wraps a
- * panel copy (the seat that shows the members is not a window). */
+ * panel copy (the seat that shows the members is not a window).
+ * v485 re-pin: the finder is by testID now — the one-edge
+ * segment is ALSO an overflow-hidden ancestor holding the panel
+ * copy (it wraps the window), so the structural finder can no
+ * longer tell segment from window. The lifecycle this file pins
+ * is unchanged; only the mid-gesture window numbers below move
+ * to the one-edge schedule. */
 function findWindow(renderer: ReactTestRenderer): Inst | undefined {
-  return renderer.root.findAll((n) => {
-    if (n.type !== "View") return false;
-    if (flattenStyle(n.props.style).overflow !== "hidden") return false;
-    return n.findAll((d) => d.props.testID === "panel-root").length > 0;
-  })[0];
+  return renderer.root.findAll((n) => n.props.testID === "family-pour-window")[0];
 }
 
 function windowHeight(win: Inst): number | undefined {
@@ -318,9 +320,12 @@ describe("v483 — the pour's seat (device: groups did not open; closes folded e
     settleLayout(r, () => r.update(element()));
 
     // Mid-gesture (half the 500ms clock): the window must stand
-    // half open over the members — on the v481 seat the measured
+    // open over the members — on the v481 seat the measured
     // height fixed-pointed at 0, so the window stood at 0 here
     // and the members never seated at all.
+    // v485 re-pin: the height is the one-edge rowsVisible, not
+    // the (1 − pour) fold: at pour 0.5 the front stands at
+    // 0.5 × (62 + 300) = 181, so 300 − 181 = 119 of rows stand.
     act(() => {
       rig.stepAll(250);
     });
@@ -330,7 +335,7 @@ describe("v483 — the pour's seat (device: groups did not open; closes folded e
     settleLayout(r, () => r.update(element()));
     const win = findWindow(r);
     expect(win).toBeTruthy();
-    expect(windowHeight(win!)).toBeCloseTo(PANEL_H / 2, 0);
+    expect(windowHeight(win!)).toBeCloseTo(119, 0);
     expect(win!.findAll((n) => n.props.testID === "panel-root").length).toBeGreaterThanOrEqual(1);
 
     // The gesture completes: the window unlocks back to auto
@@ -377,7 +382,9 @@ describe("v483 — the pour's seat (device: groups did not open; closes folded e
     });
     expect(panelCopies(r).length).toBeGreaterThanOrEqual(1);
 
-    // Mid-fold: still mounted, inside a window standing half shut.
+    // Mid-fold: still mounted, inside the window at its
+    // one-edge height (v485 re-pin: rowsVisible at pour 0.5 is
+    // 119, per the opening test's note — not the old fold's 150).
     act(() => {
       rig.stepAll(250);
     });
@@ -387,7 +394,7 @@ describe("v483 — the pour's seat (device: groups did not open; closes folded e
     settleLayout(r, () => r.update(element()));
     const win = findWindow(r);
     expect(win).toBeTruthy();
-    expect(windowHeight(win!)).toBeCloseTo(PANEL_H / 2, 0);
+    expect(windowHeight(win!)).toBeCloseTo(119, 0);
     expect(win!.findAll((n) => n.props.testID === "panel-root").length).toBeGreaterThanOrEqual(1);
 
     // The close completes: only now do the members unmount.

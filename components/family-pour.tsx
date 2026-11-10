@@ -35,7 +35,10 @@
 //    depends on the callback landing.
 //  · The panel's content measures itself from inside the window
 //    (the v262 queue tray's seat): it is never height-constrained,
-//    so no measurement can clamp it.
+//    so no measurement can clamp it. (v483: this was WRONG — see
+//    the last bullet. The tray's window never derived its height
+//    from the in-window measure; this seat did, and the loop it
+//    closed is what kept the groups shut.)
 //  · v482 HOTFIX (launch crash): familyPourFront carries the
 //    'worklet' directive, and that directive is LOAD-BEARING.
 //    Without it the worklets plugin left the function a plain JS
@@ -46,6 +49,22 @@
 //    (the People tab is the opening tab). The v482 tests pin the
 //    directive, the geometry's finite-input guards, and the rule
 //    that no ref is written during render in the unit.
+//  · v483 (device: groups did not open; closes folded empty):
+//    the window's height is a pure function of panelHeight, so
+//    measuring panelHeight from inside the window closed a loop —
+//    on the panel's first frame the window stands at height 0,
+//    the in-window measure reports the constrained box, and no
+//    natural height ever enters the system; the group can never
+//    open. The measure now lives in an OUT-OF-FLOW seat beside
+//    the window (absolutely positioned, width-matched, invisible),
+//    whose ancestors impose no height at all. Second bug, same
+//    seat: the composition passes `false` for a collapsed panel
+//    and the render's `??` never fell back for a falsy panel, so
+//    a closing group lost its members in the render the fold
+//    began. The rendered panel now falls back to the cached copy
+//    whenever the current panel is falsy. Both failures are
+//    pinned behaviourally in people-v483-pour-seat.test.tsx,
+//    which failed on the v482 seat for exactly these reasons.
 
 import {
   createContext,
@@ -187,7 +206,8 @@ export function FamilyGroupUnit({
   // At rest open the window unlocks back to auto height (the tray's
   // discipline): content that changes while the group stands open
   // flows at its natural height, and the next close measures it
-  // fresh from the layout reports below.
+  // fresh from the measuring seat's layout reports (v483: the seat
+  // beside the window below — never from inside the window).
   const windowStyle = useAnimatedStyle(() => {
     // v482: at rest open the height key is ABSENT (an empty style),
     // never an undefined height value — Reanimated 4 must not be
@@ -198,6 +218,17 @@ export function FamilyGroupUnit({
   const panelFillStyle = useAnimatedStyle(() => ({
     height: Math.max(0, front.value.panelFillHeight - FAMILY_PANEL_TRAILING_MARGIN),
   }));
+
+  // v483: the panel this unit actually renders. The screen passes
+  // `false` (not null) once a group collapses, and the fold needs
+  // the members for its whole travel — so the fallback is FALSY,
+  // not nullish: whenever the current panel is false/null/absent,
+  // the cached copy from the last open render stands in, until
+  // panelHeld drops at the close's completion and both unmount.
+  // (v481/v482 rendered `{panel ?? heldPanelRef.current}` — `false`
+  // is not nullish, so the cache never engaged and closing folded
+  // an empty window.)
+  const renderedPanel = panel ? panel : heldPanelRef.current;
 
   return (
     <View>
@@ -210,30 +241,55 @@ export function FamilyGroupUnit({
           {header}
         </View>
         {panelHeld ? (
-          <ReAnimated.View style={[{ overflow: "hidden" }, windowStyle]}>
+          <View>
+            <ReAnimated.View style={[{ overflow: "hidden" }, windowStyle]}>
+              <View>{renderedPanel}</View>
+              <ReAnimated.View
+                pointerEvents="none"
+                style={[
+                  {
+                    position: "absolute",
+                    left: 12,
+                    right: 12,
+                    bottom: FAMILY_PANEL_TRAILING_MARGIN,
+                    backgroundColor: accent,
+                    borderBottomLeftRadius: 24,
+                    borderBottomRightRadius: 24,
+                  },
+                  panelFillStyle,
+                ]}
+              />
+            </ReAnimated.View>
+            {/* v483: the measuring seat — OUT OF FLOW, beside the
+                window, invisible and inert. The panel's natural
+                height is measured here, where no ancestor imposes
+                a height (the seat is absolutely positioned inside
+                the segment, width-matched to the window), so the
+                measurement can never be clamped by the window it
+                sizes — the closed loop that kept v481/v482's
+                groups shut on device (the window's height derives
+                from panelHeight; measuring panelHeight from
+                inside that window fixed-pointed at 0). The seat
+                renders the same panel element the window shows,
+                only while the group is held; content that changes
+                while the group stands open re-measures through it
+                for the next close. */}
             <View
-              onLayout={(event) => {
-                panelHeight.value = event.nativeEvent.layout.height;
-              }}
-            >
-              {panel ?? heldPanelRef.current}
-            </View>
-            <ReAnimated.View
+              testID="family-pour-measure-seat"
               pointerEvents="none"
-              style={[
-                {
-                  position: "absolute",
-                  left: 12,
-                  right: 12,
-                  bottom: FAMILY_PANEL_TRAILING_MARGIN,
-                  backgroundColor: accent,
-                  borderBottomLeftRadius: 24,
-                  borderBottomRightRadius: 24,
-                },
-                panelFillStyle,
-              ]}
-            />
-          </ReAnimated.View>
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={{ position: "absolute", left: 0, right: 0, top: 0, opacity: 0 }}
+            >
+              <View
+                onLayout={(event) => {
+                  panelHeight.value = event.nativeEvent.layout.height;
+                }}
+              >
+                {renderedPanel}
+              </View>
+            </View>
+          </View>
         ) : null}
       </FamilyPourContext.Provider>
     </View>

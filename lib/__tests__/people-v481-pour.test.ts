@@ -145,7 +145,14 @@ describe("v481 — one value per card, owned by the unit", () => {
     // v482 re-pin: the render prefers the current panel element and
     // falls back to the cached one only for the fold; the cache is
     // written in an effect, never during render.
-    expect(unit).toContain("{panel ?? heldPanelRef.current}");
+    // v483 re-pin: the fallback is FALSY, not nullish — the screen
+    // passes `false` for a collapsed group, `??` never engaged, and
+    // closing folded an empty window on device. The unit resolves
+    // the rendered panel once (current when present, cached
+    // otherwise) and renders that in both the window and the
+    // measuring seat; people-v483-pour-seat pins the lifecycle.
+    expect(unit).toContain("const renderedPanel = panel ? panel : heldPanelRef.current;");
+    expect(unit).toContain("{renderedPanel}");
   });
 });
 
@@ -169,10 +176,17 @@ describe("v481 — the fill and the flip", () => {
     expect(classicCard).toContain('<FamilyPourText variant="meta" fromColor={pmf.inkSoft}');
   });
 
-  it("the chevron turns translucent white with a white glyph as the fill covers it", () => {
+  it("the chevron's twin crossfades in as the fill covers it — solid white circle, accent glyph (v483)", () => {
     expect(chevron).toContain("useContext(FamilyPourContext)");
-    expect(chevron).toContain('backgroundColor: "rgba(255,255,255,0.22)"');
-    expect(chevron).toContain('<MaterialIcons name="expand-more" size={17} color="#FFFFFF" />');
+    // v483 re-pin: v481's dress (translucent white circle, white
+    // glyph) washed out on the violet fill — on device the chevron
+    // was barely visible on a closed card. The twin is now a solid
+    // white circle carrying the glyph in the group's accent (the
+    // chevron's own `color` prop); the crossfade on the pour's
+    // value and the open state are unchanged.
+    expect(chevron).toContain('backgroundColor: "#FFFFFF"');
+    expect(chevron).not.toContain('backgroundColor: "rgba(255,255,255,0.22)"');
+    expect(chevron).toContain('<MaterialIcons name="expand-more" size={17} color={color} />');
     expect(chevron).toContain("duration: QUEUE_TRAY_DURATION_MS,");
   });
 });
@@ -184,7 +198,15 @@ describe("v481 — the fold clips, and none of the retired gates return", () => 
     expect(unit).toContain("pour.value === 0");
   });
 
-  it("the content measures itself from inside the window — it is never height-constrained", () => {
+  it("the measures land in the same shared values (v483: the panel's from the out-of-flow seat, never from inside the window)", () => {
+    // v483 re-pin (title only — the assertions are byte-identical):
+    // v481's title claimed the in-window seat could not clamp the
+    // measure; the device proved the opposite (the window's height
+    // derives from panelHeight, so the in-window measure
+    // fixed-pointed at 0 and groups never opened). The assignment
+    // lines themselves did not move — the panel's onLayout now
+    // lives in the measuring seat beside the window, writing the
+    // same shared value. people-v483-pour-seat pins the lifecycle.
     expect(unit).toContain("panelHeight.value = event.nativeEvent.layout.height;");
     expect(unit).toContain("headerHeight.value = event.nativeEvent.layout.height;");
   });
@@ -193,7 +215,17 @@ describe("v481 — the fold clips, and none of the retired gates return", () => 
     expect(pour).not.toContain("renderToHardwareTextureAndroid");
     expect(pour).not.toContain("shouldRasterizeIOS");
     expect(pour).not.toContain("exiting={");
-    expect(unit).not.toContain("opacity");
+    // v483 re-pin: the unit now contains exactly ONE opacity —
+    // the measuring seat's `opacity: 0`, which hides the SEAT's
+    // duplicate of the panel (it exists only to be measured, out
+    // of flow beside the window). The discipline this pin guards
+    // is unchanged: the VISIBLE panel content — the copy in the
+    // window — carries no opacity gate; the seat's invisibility
+    // is not a gate on the members, who stay fully opaque at
+    // every height in the window.
+    expect(unit.match(/opacity/g)).toHaveLength(1);
+    expect(unit).toContain('testID="family-pour-measure-seat"');
+    expect(unit).toContain("opacity: 0");
   });
 
   it("FamilyPanel itself stays the plain v367 panel — the motion wraps it, never enters it", () => {

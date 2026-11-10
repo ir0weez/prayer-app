@@ -119,7 +119,14 @@ describe("v482 — the unit cannot hand Reanimated an invalid style or a torn re
   });
 
   it("the render prefers the current panel element; the cache is only the fold's bridge", () => {
-    expect(unit).toContain("{panel ?? heldPanelRef.current}");
+    // v483 re-pin: the preference is now a FALSY fallback, not a
+    // nullish one — the composition passes `false` for a collapsed
+    // group, and `??` never fell back for it, so a closing group
+    // lost its members in the render the fold began (device:
+    // closes folded empty). Same discipline, corrected operator:
+    // current panel when there is one, the cached copy otherwise.
+    expect(unit).toContain("const renderedPanel = panel ? panel : heldPanelRef.current;");
+    expect(unit).toContain("{renderedPanel}");
   });
 
   it("every hook in FamilyGroupUnit is unconditional — all hook calls sit above the return", () => {

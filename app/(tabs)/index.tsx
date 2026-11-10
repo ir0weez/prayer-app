@@ -752,11 +752,17 @@ function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: st
     inputRange: [0, 1],
     outputRange: ["0deg", "180deg"],
   });
-  // v481: as the pour's fill covers the card, the chevron's circle
-  // turns translucent white with a white glyph (the mockup's closed
-  // state) — a twin circle crossfading over the standing one on the
-  // pour's own value, read from the group unit's context. Outside a
-  // unit there is no pour and the chevron is exactly its old self.
+  // v481: as the pour's fill covers the card, a twin circle
+  // crossfades over the standing one on the pour's own value, read
+  // from the group unit's context. Outside a unit there is no pour
+  // and the chevron is exactly its old self.
+  // v483 (device verdict on v482): the twin's first dress —
+  // translucent white (rgba(255,255,255,0.22)) with a white glyph —
+  // washed out on the violet fill and the chevron was barely
+  // visible on a closed card. The twin is now a SOLID white circle
+  // carrying the glyph in the group's own accent (the `color`
+  // prop, pmf.deep), which reads clearly at 17px on the fill. The
+  // crossfade range and the open state are unchanged.
   const pourContext = useContext(FamilyPourContext);
   const flipStyle = useAnimatedStyle(() => ({
     opacity: pourContext ? interpolate(pourContext.headerFillFrac.value, [0.55, 1], [0, 1], Extrapolation.CLAMP) : 0,
@@ -787,7 +793,7 @@ function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: st
               width: 30,
               height: 30,
               borderRadius: 15,
-              backgroundColor: "rgba(255,255,255,0.22)",
+              backgroundColor: "#FFFFFF",
               alignItems: "center",
               justifyContent: "center",
             },
@@ -795,7 +801,7 @@ function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: st
           ]}
         >
           <Animated.View style={{ transform: [{ rotate }] }}>
-            <MaterialIcons name="expand-more" size={17} color="#FFFFFF" />
+            <MaterialIcons name="expand-more" size={17} color={color} />
           </Animated.View>
         </ReAnimated.View>
       ) : null}

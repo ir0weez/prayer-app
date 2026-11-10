@@ -429,7 +429,7 @@ describe("v479 the breakdown renderer mirrors the lookup", () => {
   });
 
   it("the curve speaks in the daytime face — after the evening turn, before the now", () => {
-    const eveningAt = face.indexOf("if (nowMin >= 18 * 60)");
+    const eveningAt = face.indexOf("if (nowMin >= 21 * 60)"); // v484 re-pin: 18 * 60 through v483
     const curveAt = face.indexOf("breakdownCurvePoint(");
     const nowAt = face.indexOf('now.optString("date") == deviceDateIso()');
     expect(eveningAt).toBeGreaterThan(-1);

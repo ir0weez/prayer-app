@@ -3428,7 +3428,8 @@ object WidgetRenderer {
   // v478 (the weather header): the card gains a header at its
   // very top, above PRAY — the morning pack's weather, At a
   // Glance style, the way his home screen's Google line reads:
-  // the current temp by day, tomorrow's high/low from 18:00.
+  // the current temp by day, tomorrow's high/low from 21:00
+  // (v484; the turn stood at 18:00 through v483).
   // The feed is v472's store (prayercircle.weather.v1), carried
   // through the snapshot verbatim; the face is decided HERE
   // from the device clock (breakdownWeatherFace), with the
@@ -3598,14 +3599,14 @@ object WidgetRenderer {
    *  - a snapshot more than 48 hours old never faces, and
    *    neither does one whose dates cover neither the date
    *    the face needs;
-   *  - before 18:00, the snapshot's own "now" for today
+   *  - before 21:00, the snapshot's own "now" for today
    *    faces: "{temp}° · {condition}";
-   *  - before 18:00 with a stale or missing "now" but a
+   *  - before 21:00 with a stale or missing "now" but a
    *    forecast covering today, today's high/low faces
    *    instead, named for what it is — "Today · {high}° /
    *    {low}° · {condition}". A "now" temp is never shown
    *    for the wrong day;
-   *  - from 18:00 the card turns to tomorrow, the way At a
+   *  - from 21:00 the card turns to tomorrow, the way At a
    *    Glance does on his home screen: "Tomorrow · {high}°
    *    / {low}° · {condition}", from the days entry for the
    *    device's tomorrow.
@@ -3623,7 +3624,14 @@ object WidgetRenderer {
    * point AND the "now" is not today's. The evening face,
    * the staleness gate and every other v478 rule stand
    * exactly as they were; a snapshot without a curve walks
-   * the v478 order whole. */
+   * the v478 order whole.
+   *
+   * v484 — the evening turn moves from 18:00 to 21:00
+   * (his Nov 9 call: at 18:44 the header already read
+   * Tomorrow while his evening was still ahead of him).
+   * The turn's hour is the only change; every face, the
+   * order among them and the staleness gate stand as
+   * v478/v479 left them. */
   private fun breakdownWeatherFace(weather: JSONObject?, nowMin: Int): DbWeatherFace? {
     if (weather == null) return null
     val preparedMs = weatherPreparedMs(weather.optString("preparedAt")) ?: return null
@@ -3646,7 +3654,7 @@ object WidgetRenderer {
       if (condition.isNotBlank()) parts.add(condition)
       return DbWeatherFace(parts.joinToString(" · "), weatherGlyphKind(condition))
     }
-    if (nowMin >= 18 * 60) {
+    if (nowMin >= 21 * 60) {
       val tomorrow = dayFor(deviceTomorrowIso()) ?: return null
       return dayFace("Tomorrow", tomorrow)
     }

@@ -8,11 +8,16 @@
  * Summary's temperature clause reads), carried through the
  * widget snapshot verbatim; the renderer decides the face
  * from the device clock, the Up Next pattern:
- *  - before 18:00, the snapshot's "now" for today:
+ *  - before 21:00, the snapshot's "now" for today:
  *    "{temp}° · {condition}";
- *  - before 18:00 with a stale/missing "now" but a forecast
+ *  - before 21:00 with a stale/missing "now" but a forecast
  *    covering today: "Today · {high}° / {low}° · {condition}";
- *  - from 18:00: "Tomorrow · {high}° / {low}° · {condition}";
+ *  - from 21:00: "Tomorrow · {high}° / {low}° · {condition}";
+ *    (v484 re-pin: the evening turn stood at 18:00 through
+ *    v483 — Jonathan moved it to 21:00 on Nov 9, after the
+ *    header read Tomorrow at 18:44 with his evening still
+ *    ahead of him. Faces between 18:00 and 20:59 are now
+ *    the today faces; tomorrow's face begins at 21:00.)
  *  - a snapshot over 48h old, or covering neither needed
  *    date, never faces — no header, never a fabricated number.
  * The glyph is drawn in-process (weatherGlyphBitmap), mapped
@@ -265,11 +270,16 @@ describe("v478 Daily Breakdown weather — renderer faces", () => {
     );
   });
 
-  it("the evening face: from 18:00, tomorrow's high/low — and it outranks the day faces", () => {
-    expect(face).toContain("if (nowMin >= 18 * 60)");
+  it("the evening face: from 21:00, tomorrow's high/low — and it outranks the day faces", () => {
+    // v484 re-pin: the threshold was 18 * 60 through v483;
+    // the turn now stands at 21:00, so the whole 18:00–20:59
+    // stretch belongs to the daytime order above (curve,
+    // then now, then the Today fallback).
+    expect(face).toContain("if (nowMin >= 21 * 60)");
+    expect(face).not.toContain("if (nowMin >= 18 * 60)");
     expect(face).toContain("val tomorrow = dayFor(deviceTomorrowIso()) ?: return null");
     expect(face).toContain('dayFace("Tomorrow", tomorrow)');
-    expect(face.indexOf("if (nowMin >= 18 * 60)")).toBeLessThan(
+    expect(face.indexOf("if (nowMin >= 21 * 60)")).toBeLessThan(
       face.indexOf('now.optString("date") == deviceDateIso()'),
     );
     // The high/low composition both forecast faces share.

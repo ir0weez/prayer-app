@@ -1200,8 +1200,9 @@ export function buildStudySnapshot(
 // snapshot carries the weather VERBATIM — preparedAt, now,
 // days — and the renderer decides the face from the device
 // clock, the Up Next pattern: the "now" temp by day,
-// tomorrow's high/low from 18:00, nothing at all when the
-// snapshot is stale or covers neither date.
+// tomorrow's high/low from 21:00 (v484; the turn stood at
+// 18:00 through v483), nothing at all when the snapshot
+// is stale or covers neither date.
 // v479 — the pack's hourly curve rides verbatim too, when
 // the snapshot carries one, and the renderer's daytime face
 // prefers the curve's point for the current hour (the one

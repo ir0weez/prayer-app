@@ -14034,9 +14034,13 @@ export function ScheduleTab({
         // carries the hourly curve, the clause speaks the
         // curve's point for the current hour instead of the
         // pack morning's frozen "now".
+        // v488: the clock's minutes ride along too — the
+        // curve blends between the shipped points, so the
+        // clause reads the moment, not just the hour.
         weatherLine={weatherSummaryClause(weatherSnapshot, selectedDate, {
           date: formatDateLocal(clockNow),
           hour: clockNow.getHours(),
+          minute: clockNow.getMinutes(),
         })}
       />
     );

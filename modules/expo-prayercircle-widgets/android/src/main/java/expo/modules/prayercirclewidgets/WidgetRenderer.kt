@@ -3552,44 +3552,75 @@ object WidgetRenderer {
     }
   }
 
-  /** v479: the hourly curve's point for one local date and
-   * hour — the mirror of lib/weather-snapshot.ts's
-   * weatherCurvePoint, line for line: among the curve's
-   * entries whose date part equals `dateIso` and whose hour
-   * is at or before `hour`, the one with the greatest hour
-   * speaks, and only while it is at most 3 hours old — past
-   * that the morning is talking about the afternoon and the
-   * curve has nothing to say. The point's condition falls
-   * back to the day's own (handed in as `dayCondition`) when
-   * the entry's is blank. Returns the point's temp and its
-   * resolved condition, or null. The date and hour are read
-   * off the "at" string ("YYYY-MM-DDTHH:00"), never parsed
-   * as a Date — the producer's format is the contract. */
+  /** v488: the hourly curve's point for one local moment —
+   * the mirror of lib/weather-snapshot.ts's
+   * weatherCurvePoint, line for line. The v479 step-hold
+   * (the greatest hour at or before the asked hour speaks,
+   * while at most 3 hours old) is replaced by the BLEND
+   * (Jonathan's pick, Nov 10): the asked moment is `nowMin`
+   * — minutes since midnight, so the minute rides in — and
+   * among the curve's entries for `dateIso`, prev is the
+   * greatest stamp at or before the moment and next the
+   * smallest stamp after it. Both exist → the temperature
+   * runs linearly between them, rounded whole, and the
+   * condition comes from the NEARER point (an exact tie
+   * goes to prev); a moment on a point returns it whole.
+   * Only prev → it speaks unchanged while at most 3 hours
+   * old; only next → unchanged while at most 3 hours
+   * ahead; neither → null. Whichever point supplies the
+   * condition, a blank one falls back to the day's own
+   * (handed in as `dayCondition`). Returns the temp and
+   * its resolved condition, or null. The date and hour are
+   * read off the "at" string ("YYYY-MM-DDTHH:00"), never
+   * parsed as a Date — the producer's format is the
+   * contract. */
   private fun breakdownCurvePoint(
     weather: JSONObject,
     dateIso: String,
-    hour: Int,
+    nowMin: Int,
     dayCondition: String,
   ): Pair<Double, String>? {
     val hourly = weather.optJSONArray("hourly") ?: return null
-    var bestHour = -1
-    var bestTemp = 0.0
-    var bestCondition = ""
+    var prevMin = -1
+    var prevTemp = 0.0
+    var prevCondition = ""
+    var nextMin = Int.MAX_VALUE
+    var nextTemp = 0.0
+    var nextCondition = ""
     for (i in 0 until hourly.length()) {
       val entry = hourly.optJSONObject(i) ?: continue
       val at = entry.optString("at")
       if (at.length < 13) continue
       if (at.substring(0, 10) != dateIso) continue
       val entryHour = at.substring(11, 13).toIntOrNull() ?: continue
-      if (entryHour > hour) continue
-      if (entryHour > bestHour) {
-        bestHour = entryHour
-        bestTemp = entry.optDouble("tempF")
-        bestCondition = entry.optString("condition").trim()
+      val entryMin = entryHour * 60
+      if (entryMin <= nowMin) {
+        if (entryMin > prevMin) {
+          prevMin = entryMin
+          prevTemp = entry.optDouble("tempF")
+          prevCondition = entry.optString("condition").trim()
+        }
+      } else if (entryMin < nextMin) {
+        nextMin = entryMin
+        nextTemp = entry.optDouble("tempF")
+        nextCondition = entry.optString("condition").trim()
       }
     }
-    if (bestHour < 0 || hour - bestHour > 3) return null
-    return bestTemp to if (bestCondition.isNotBlank()) bestCondition else dayCondition
+    val resolve = { c: String -> if (c.isNotBlank()) c else dayCondition }
+    if (prevMin >= 0 && nextMin != Int.MAX_VALUE) {
+      val blended = prevTemp + (nextTemp - prevTemp) * (nowMin - prevMin).toDouble() / (nextMin - prevMin)
+      val nearer = if (nowMin - prevMin <= nextMin - nowMin) prevCondition else nextCondition
+      return Math.round(blended).toDouble() to resolve(nearer)
+    }
+    if (prevMin >= 0) {
+      if (nowMin - prevMin > 3 * 60) return null
+      return prevTemp to resolve(prevCondition)
+    }
+    if (nextMin != Int.MAX_VALUE) {
+      if (nextMin - nowMin > 3 * 60) return null
+      return nextTemp to resolve(nextCondition)
+    }
+    return null
   }
 
   /** v478: the weather header's face, decided HERE from the
@@ -3631,7 +3662,14 @@ object WidgetRenderer {
    * Tomorrow while his evening was still ahead of him).
    * The turn's hour is the only change; every face, the
    * order among them and the staleness gate stand as
-   * v478/v479 left them. */
+   * v478/v479 left them.
+   *
+   * v488 — the curve point the daytime order consults is
+   * now BLENDED between the shipped points, and it is
+   * asked for the device's current minute as well as its
+   * hour (see breakdownCurvePoint). The face's order, the
+   * evening turn and the staleness gate stand exactly as
+   * they were; only the point's arithmetic changed. */
   private fun breakdownWeatherFace(weather: JSONObject?, nowMin: Int): DbWeatherFace? {
     if (weather == null) return null
     val preparedMs = weatherPreparedMs(weather.optString("preparedAt")) ?: return null
@@ -3661,10 +3699,13 @@ object WidgetRenderer {
     // v479: the curve's point for the current hour speaks
     // first in the daytime (see the header note) — the same
     // "{temp}° · {condition}" dress as the "now" face below.
+    // v488: the curve is asked for the current MOMENT —
+    // nowMin is minutes since midnight, so the blend gets
+    // the minute without a second clock read.
     val curve = breakdownCurvePoint(
       weather,
       deviceDateIso(),
-      nowMin / 60,
+      nowMin,
       dayFor(deviceDateIso())?.optString("condition")?.trim() ?: "",
     )
     if (curve != null) {

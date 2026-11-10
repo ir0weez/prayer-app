@@ -47,6 +47,17 @@
  * point for the current hour through the ONE lookup,
  * weatherCurvePoint below — the Kotlin renderer mirrors it.
  *
+ * v488 — the lookup BLENDS (Jonathan's pick, Nov 10: "Blend
+ * between Google's points"). The pack in fact ships Google's
+ * 3-hourly points, and the v479 step-hold stood on one point
+ * for up to 3 hours (Nov 10, 10:09: the app and the widget
+ * read the 08:00 point's 48° while Google said 64°). The
+ * lookup now reads the asked moment as a timestamp and
+ * interpolates between the two points that bracket it —
+ * see weatherCurvePoint's own note for the law. A pack
+ * without hourly is untouched by the change: the lookup
+ * returns null exactly as it did, and every fallback stands.
+ *
  * Reading is tolerant: anything malformed reads as "no snapshot"
  * and the summary simply carries no temperature clause — the app
  * NEVER invents a temperature. Snapshots are FORWARD-ONLY, like
@@ -234,42 +245,87 @@ export async function storeWeatherSnapshotForwardOnly(
 }
 
 /**
- * v479 — THE curve lookup, the one definition both readers
+ * v488 — THE curve lookup, the one definition both readers
  * share (the Daily Breakdown's Kotlin renderer mirrors it
  * line for line): the temperature the day's hourly curve
- * speaks for one local moment. Among the entries whose date
- * part equals `localDate` and whose hour is at or before
- * `localHour`, the one with the greatest hour speaks — but
- * only while it is fresh: an entry more than 3 hours behind
- * the asked hour is the morning talking about the afternoon,
- * and no point is returned. The point's condition falls back
- * to the day's own condition when the entry's is blank.
- * Pure string work on the "at" format — no Date, no clock —
- * so every caller decides what "now" is and this only reads.
+ * speaks for one local moment, BLENDED between the shipped
+ * points (Jonathan's pick, Nov 10 — the v479 step-hold it
+ * replaces stood on a single point for up to 3 hours, and
+ * on Nov 10 read 48° at 10:09 from the 08:00 point while
+ * Google said 64°).
+ *
+ * The asked moment is a timestamp — `localDate` plus
+ * `localHour` plus `localMinute` (the minute defaults to 0
+ * for an hour-only caller). Among the date's entries, prev
+ * is the greatest stamp at or before the moment and next
+ * the smallest stamp after it, and:
+ *  - both exist → the temperature runs linearly between
+ *    them: round(prev + (next − prev) × (moment − prev) /
+ *    (next − prev)). A moment landing exactly on a point
+ *    returns that point whole. The condition comes from
+ *    the NEARER point — an exact tie goes to prev —
+ *    because the wording changes slowly and the closer
+ *    reading is the honest one;
+ *  - only prev exists → prev speaks unchanged, but only
+ *    while it is fresh: a moment more than 3 hours past it
+ *    is the morning talking about the afternoon, and no
+ *    point is returned;
+ *  - only next exists → next speaks unchanged while it is
+ *    at most 3 hours ahead (the early morning before the
+ *    day's first shipped point is covered, not silent);
+ *  - neither → null.
+ * Whichever point supplies the condition, a blank one
+ * falls back to the day's own condition, as v479 resolved
+ * it. Whole degrees throughout. Pure string work on the
+ * "at" format — no Date, no clock — so every caller
+ * decides what "now" is and this only reads.
  */
 export function weatherCurvePoint(
   snapshot: WeatherSnapshot | null,
   localDate: string,
   localHour: number,
+  localMinute: number = 0,
 ): { tempF: number; condition: string } | null {
   if (!snapshot || !snapshot.hourly || snapshot.hourly.length === 0) return null;
-  let best: WeatherHourlyEntry | null = null;
-  let bestHour = -1;
+  const momentMin = localHour * 60 + localMinute;
+  let prev: WeatherHourlyEntry | null = null;
+  let prevMin = -1;
+  let next: WeatherHourlyEntry | null = null;
+  let nextMin = Number.POSITIVE_INFINITY;
   for (const entry of snapshot.hourly) {
     if (entry.at.slice(0, 10) !== localDate) continue;
     const hour = Number(entry.at.slice(11, 13));
-    if (!Number.isInteger(hour) || hour > localHour) continue;
-    if (hour > bestHour) {
-      best = entry;
-      bestHour = hour;
+    if (!Number.isInteger(hour)) continue;
+    const entryMin = hour * 60;
+    if (entryMin <= momentMin) {
+      if (entryMin > prevMin) {
+        prev = entry;
+        prevMin = entryMin;
+      }
+    } else if (entryMin < nextMin) {
+      next = entry;
+      nextMin = entryMin;
     }
   }
-  if (best === null || localHour - bestHour > 3) return null;
   const day = snapshot.days.find((d) => d.date === localDate);
-  return {
-    tempF: best.tempF,
-    condition: best.condition.trim() || (day ? day.condition : ""),
-  };
+  const dayCondition = day ? day.condition : "";
+  const resolve = (entry: WeatherHourlyEntry): string =>
+    entry.condition.trim() || dayCondition;
+  if (prev !== null && next !== null) {
+    const blended =
+      prev.tempF + ((next.tempF - prev.tempF) * (momentMin - prevMin)) / (nextMin - prevMin);
+    const nearer = momentMin - prevMin <= nextMin - momentMin ? prev : next;
+    return { tempF: Math.round(blended), condition: resolve(nearer) };
+  }
+  if (prev !== null) {
+    if (momentMin - prevMin > 3 * 60) return null;
+    return { tempF: prev.tempF, condition: resolve(prev) };
+  }
+  if (next !== null) {
+    if (nextMin - momentMin > 3 * 60) return null;
+    return { tempF: next.tempF, condition: resolve(next) };
+  }
+  return null;
 }
 
 /** The device's current local moment, as the summary's
@@ -280,6 +336,12 @@ export interface WeatherDeviceNow {
   date: string;
   /** The device's current local hour, 0–23. */
   hour: number;
+  /** v488 — the device's current local minute, 0–59. The
+   * curve blends on the whole moment, so the minute is
+   * part of the ask; a caller that omits it (every
+   * pre-v488 caller) asks on the hour, exactly as v479
+   * did. */
+  minute?: number;
 }
 
 /**
@@ -290,9 +352,11 @@ export interface WeatherDeviceNow {
  * source; no network):
  *  - v479: the viewed date IS the device's today and the
  *    snapshot carries an hourly curve → the curve's point for
- *    the device's current hour speaks in the today form
+ *    the device's current moment speaks in the today form
  *    ("It's 64° in Lancaster"), stepping through the day as
- *    the hours pass instead of holding the morning's "now";
+ *    the hours pass instead of holding the morning's "now"
+ *    (v488: blended between the shipped points, on the
+ *    device's hour AND minute);
  *  - the viewed date IS the snapshot's "now" date → the today
  *    form: "It's 64° in Lancaster";
  *  - any other date the forecast covers → the forecast form:
@@ -317,7 +381,7 @@ export function weatherSummaryClause(
   if (!snapshot) return null;
   const place = snapshot.location.trim() || "Lancaster";
   if (deviceNow && dateIso === deviceNow.date) {
-    const point = weatherCurvePoint(snapshot, deviceNow.date, deviceNow.hour);
+    const point = weatherCurvePoint(snapshot, deviceNow.date, deviceNow.hour, deviceNow.minute ?? 0);
     if (point) {
       return `It's\u00A0${Math.round(point.tempF)}°\u00A0in\u00A0${place}`;
     }

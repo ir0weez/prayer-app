@@ -20,6 +20,15 @@
  * pack shipped before this — behaves exactly as v478 in
  * both readers; the field is additive, never required.
  *
+ * v488 re-pin note: v488 replaced the lookup's heart with
+ * the blend between the bracketing points (Jonathan's
+ * pick, Nov 10 — see weather-v488-curve-blend.test.ts for
+ * the blend's own pins). The assertions in THIS file that
+ * encoded the step-hold answer are re-pinned in place,
+ * each marked "v488 re-pin"; everything else — the door,
+ * the fallbacks, the no-curve behaviour — stands as
+ * v479 pinned it.
+ *
  * The Kotlin renderer cannot execute in this harness, so —
  * as in every widget round — the TS side is pinned by
  * behaviour and the renderer by source: the mirrored
@@ -222,14 +231,18 @@ describe("v479 the door accepts the hourly curve, entry by entry", () => {
 /* ------------------------------ the lookup ------------------------------ */
 
 describe("v479 the one curve lookup — weatherCurvePoint", () => {
-  it("the greatest hour at or before the asked hour speaks", () => {
+  it("a moment on a point returns it whole; a moment between points blends (v488 re-pin)", () => {
     expect(weatherCurvePoint(snapshot, "2026-11-09", 8)).toEqual({
       tempF: 51,
       condition: "Partly cloudy",
     });
-    // 11 has no entry of its own — 10's point carries it.
+    // v488 re-pin: 11 has no entry of its own — v479 held
+    // 10's point (61) here; the blend now runs 61 → 74
+    // across 10:00–14:00, so 11:00 reads 61 + 13 × 60/240
+    // = 64.25 → 64, with the nearer (10:00, blank) point's
+    // condition falling back to the day's.
     expect(weatherCurvePoint(snapshot, "2026-11-09", 11)).toEqual({
-      tempF: 61,
+      tempF: 64,
       condition: "Partly cloudy",
     });
     expect(weatherCurvePoint(snapshot, "2026-11-09", 14)).toEqual({
@@ -238,9 +251,16 @@ describe("v479 the one curve lookup — weatherCurvePoint", () => {
     });
   });
 
-  it("an entry for a later hour never speaks early", () => {
-    // The day's first entry is 06:00 — at 05:00 the curve is silent.
-    expect(weatherCurvePoint(snapshot, "2026-11-09", 5)).toBeNull();
+  it("an entry up to 3 hours ahead speaks early; farther ahead stays silent (v488 re-pin)", () => {
+    // v488 re-pin: v479 was silent before the day's first
+    // entry by construction. The blend's only-next edge now
+    // speaks the 06:00 point at 05:00 (one hour ahead)…
+    expect(weatherCurvePoint(snapshot, "2026-11-09", 5)).toEqual({
+      tempF: 48,
+      condition: "Partly cloudy",
+    });
+    // …but at 02:00 it is 4 hours ahead — silent.
+    expect(weatherCurvePoint(snapshot, "2026-11-09", 2)).toBeNull();
   });
 
   it("same date only — tomorrow's hours never speak for today, nor today's for tomorrow", () => {
@@ -249,8 +269,13 @@ describe("v479 the one curve lookup — weatherCurvePoint", () => {
       condition: "Sunny",
     });
     expect(weatherCurvePoint(snapshot, "2026-11-11", 9)).toBeNull();
-    // Today's last entry (14:00) is not consulted for the 10th.
-    expect(weatherCurvePoint(snapshot, "2026-11-10", 7)).toBeNull();
+    // Today's last entry (14:00) is not consulted for the
+    // 10th — but v488 re-pin: the 10th's own first entry
+    // (08:00) now speaks at 07:00, one hour ahead of itself.
+    expect(weatherCurvePoint(snapshot, "2026-11-10", 7)).toEqual({
+      tempF: 52,
+      condition: "Sunny",
+    });
   });
 
   it("the 3-hour freshness window: 3 hours old speaks, 4 is the morning talking about the afternoon", () => {
@@ -303,9 +328,14 @@ describe("v479 the summary clause steps through the day", () => {
     expect(weatherSummaryClause(snapshot, "2026-11-09", deviceAt(20))).toBe(
       "It's\u00A051°\u00A0in\u00A0Lancaster",
     );
-    // Before the curve's first hour, the same fallback holds.
+  });
+
+  it("before the day's first point the curve speaks it while it is within 3 hours (v488 re-pin)", () => {
+    // v488 re-pin: v479 fell back to the now form before
+    // the first hour; the blend's only-next edge now speaks
+    // the 06:00 point (48) at 05:00.
     expect(weatherSummaryClause(snapshot, "2026-11-09", deviceAt(5))).toBe(
-      "It's\u00A051°\u00A0in\u00A0Lancaster",
+      "It's\u00A048°\u00A0in\u00A0Lancaster",
     );
   });
 
@@ -419,13 +449,19 @@ describe("v479 the breakdown renderer mirrors the lookup", () => {
     expect(curve).toContain('weather.optJSONArray("hourly") ?: return null');
     expect(curve).toContain("at.substring(0, 10) != dateIso");
     expect(curve).toContain("at.substring(11, 13).toIntOrNull()");
-    expect(curve).toContain("if (entryHour > hour) continue");
-    expect(curve).toContain("if (entryHour > bestHour)");
+    // v488 re-pin: the step-hold guards ("entryHour > hour",
+    // "entryHour > bestHour") are gone — the mirror now
+    // brackets the moment in minutes; its bracketing and
+    // blend pins live in weather-v488-curve-blend.test.ts.
+    expect(curve).toContain("val entryMin = entryHour * 60");
   });
 
-  it("the mirror keeps the same 3-hour freshness window and the day-condition fallback", () => {
-    expect(curve).toContain("if (bestHour < 0 || hour - bestHour > 3) return null");
-    expect(curve).toContain("if (bestCondition.isNotBlank()) bestCondition else dayCondition");
+  it("the mirror keeps the same 3-hour freshness window and the day-condition fallback (v488 re-pin)", () => {
+    // v488 re-pin: the window is minute-true now and stands
+    // on both one-sided edges, not just behind the asked
+    // hour; the fallback resolves through the same idiom.
+    expect(curve).toContain("if (nowMin - prevMin > 3 * 60) return null");
+    expect(curve).toContain("if (c.isNotBlank()) c else dayCondition");
   });
 
   it("the curve speaks in the daytime face — after the evening turn, before the now", () => {
@@ -440,8 +476,11 @@ describe("v479 the breakdown renderer mirrors the lookup", () => {
       .toBeLessThan(curveAt);
   });
 
-  it("the curve is asked for the device's date and the device hour, with the day's condition as its fallback", () => {
-    expect(face).toContain("nowMin / 60");
+  it("the curve is asked for the device's date and the device moment, with the day's condition as its fallback (v488 re-pin)", () => {
+    // v488 re-pin: v479 asked with nowMin / 60 (the hour
+    // alone); the blend is asked with nowMin itself —
+    // minutes since midnight carry the minute for free.
+    expect(face).toContain("nowMin,");
     expect(face).toContain('dayFor(deviceDateIso())?.optString("condition")?.trim() ?: ""');
   });
 

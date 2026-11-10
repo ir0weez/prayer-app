@@ -108,6 +108,12 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
   "news": { g: "#31456B", icon: "article" },
   // v414: the Daily Brief thumb — the front hill's blue under a sun.
   "daily-brief": { g: "#4E7CB8", icon: "wb-sunny" },
+  // v490: the Weather thumb — the door scene at tile size: a gold
+  // sun behind the white cloud, on its sky.
+  "weather": { g: "#2E6DA8", s: [
+    { k: "p", d: "M8.5 3.5a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4z", f: "#FFC93C" },
+    { k: "p", d: "M7 20h9.5a3.8 3.8 0 0 0 .6-7.5A5.5 5.5 0 0 0 6.4 14 3.2 3.2 0 0 0 7 20z", f: "#FFFFFF" },
+  ] },
   "email": { g: "#4C2E91", icon: "mail" },
   "bbq": { g: "#5D2E1E", icon: "outdoor-grill" },
   // v360 — THE SHEET REDRAW (Jonathan, Oct 30: "the up next icons

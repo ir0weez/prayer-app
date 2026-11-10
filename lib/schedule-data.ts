@@ -218,6 +218,14 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   // mentions a daily brief; the door's own card is bound by its
   // stored label, never by detection.
   { keywords: ["daily brief"], label: "Daily Brief", emoji: "", icon: "wb-sunny", bgColor: "#BFD9F2", textColor: "#1B4FA8", accentColor: "#4E7CB8" },
+  // v490: the Weather door — an event titled "Weather" or
+  // "Temperature" wears the sun / clouds / hills scene and
+  // opens the weather page (lib/keyword-pages.ts). Two labels,
+  // because the card keeps the name he gave it; ONE shared
+  // scene underneath (his ruling, Nov 10: both titles, the
+  // first Weather artwork — no thermometer).
+  { keywords: ["weather"], label: "Weather", emoji: "", icon: "wb-sunny", bgColor: "#BFE0F5", textColor: "#1B4FA8", accentColor: "#F5A623" },
+  { keywords: ["temperature"], label: "Temperature", emoji: "", icon: "thermostat", bgColor: "#BFE0F5", textColor: "#1B4FA8", accentColor: "#F5A623" },
   { keywords: ["email", "e-mail", "gmail", "mail"], label: "Email", emoji: "✉️", icon: "mail", bgColor: "#4C2E91", textColor: "#EFE9FF", accentColor: "#7C5CFF" },
   { keywords: ["tv", "tv show", "television", "show", "episode", "series"], label: "TV Show", emoji: "📺", icon: "tv", bgColor: "#2A2A4E", textColor: "#1A237E", accentColor: "#5C6BC0" },
 ];

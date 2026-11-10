@@ -79,6 +79,7 @@ import type { EmailDigest } from '@/lib/email-digest';
 import type { GasPriceSnapshot } from '@/lib/gas-prices';
 import type { NewsBriefingSnapshot, NewsBriefingItem } from '@/lib/news-briefing';
 import type { WeatherHourlyEntry, WeatherSnapshot } from '@/lib/weather-snapshot';
+import { parseWeatherDetails } from '@/lib/weather-snapshot';
 import { NEWS_AREAS, type NewsArea } from '@/lib/news';
 import { CHAPTER_COUNTS, chapterCountFor, getChapterData } from './index';
 import {
@@ -1414,6 +1415,15 @@ export function validateNewsBriefingSection(value: unknown, fallbackPreparedAt =
  * a non-string condition drops THAT entry alone, and a list
  * left with no usable entry is simply a section with no
  * curve — never a reason to refuse weather that stands.
+ *
+ * v490 — the section may also carry "details" (the day's felt
+ * temperature, rain chance, wind, humidity, UV, sunrise and
+ * sunset, for the weather page) and any day may carry a
+ * "precipChancePct". Both are OPTIONAL in the curve's pattern:
+ * parsed field by field through the store's own reader
+ * (parseWeatherDetails), a malformed field drops singly, and
+ * the days list is accepted at whatever length the producer
+ * sends (the full ten since v490).
  */
 export function validateWeatherSection(value: unknown, fallbackPreparedAt = ''): WeatherSnapshot {
   if (!isRecord(value)) fail('The weather section is not an object.');
@@ -1470,7 +1480,20 @@ export function validateWeatherSection(value: unknown, fallbackPreparedAt = ''):
       // No readable date, or a missing high or low: the entry
       // carries nothing — dropped, like a nameless station.
       if (!DATE_RE.test(date) || typeof highF !== 'number' || typeof lowF !== 'number') return;
-      days.push({ date, highF, lowF, condition: leafCondition(entry, `day ${i}`) });
+      const day: WeatherSnapshot['days'][number] = {
+        date,
+        highF,
+        lowF,
+        condition: leafCondition(entry, `day ${i}`),
+      };
+      // v490: the day's rain chance, when the pack carried a
+      // readable one — a malformed chance drops alone, the
+      // day itself stands (the curve's own rule).
+      const precip = entry.precipChancePct;
+      if (typeof precip === 'number' && Number.isFinite(precip)) {
+        day.precipChancePct = precip;
+      }
+      days.push(day);
     });
   }
   // v479: the optional hourly curve — entries judged singly
@@ -1499,6 +1522,19 @@ export function validateWeatherSection(value: unknown, fallbackPreparedAt = ''):
   if (now === null && days.length === 0) fail('The weather section carries no weather.');
   const snapshot: WeatherSnapshot = { preparedAt, location, now, days };
   if (hourly.length > 0) snapshot.hourly = hourly;
+  // v490: the optional details block (the day's felt
+  // temperature, rain chance, wind, humidity, UV, sunrise,
+  // sunset — for the weather page). Parsed by the store's own
+  // field-by-field reader: a malformed field drops singly, a
+  // block with no readable date is simply absent, and neither
+  // is ever a reason to refuse weather that stands. The days
+  // list likewise runs as long as the producer sends it (the
+  // full ten since v490) — there is no length gate here and
+  // there never was.
+  if (value.details !== undefined) {
+    const details = parseWeatherDetails(value.details);
+    if (details) snapshot.details = details;
+  }
   return snapshot;
 }
 

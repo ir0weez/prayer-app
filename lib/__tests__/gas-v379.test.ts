@@ -116,7 +116,9 @@ describe("v379 Gas door routing", () => {
     // ahead of the Get Gas fallback (Jonathan approved
     // daily-breakdown-concepts-v6, "love it all, do it"); the Gas
     // arm's own shape is unchanged.
-    expect(scheduleTab).toContain('pageKind === "food" ? "Meal" : pageKind === "dailyBrief" ? "Daily Brief" : "Get Gas"');
+    // v490 amendment (Nov 10): the Weather door joined ahead of
+    // the fallback the same way; the Gas arm is still the tail.
+    expect(scheduleTab).toContain('pageKind === "food" ? "Meal" : pageKind === "dailyBrief" ? "Daily Brief" : pageKind === "weather" ? "Weather" : "Get Gas"');
   });
 });
 

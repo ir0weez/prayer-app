@@ -58,6 +58,16 @@
  * without hourly is untouched by the change: the lookup
  * returns null exactly as it did, and every fallback stands.
  *
+ * v490 — the section may also carry "details" (the day's felt
+ * temperature, rain chance, wind, humidity, UV, sunrise and
+ * sunset — WeatherDetails below) and any day may carry a
+ * "precipChancePct"; the weather page (app/weather.tsx) reads
+ * both. Optional and additive in the curve's own pattern:
+ * judged field by field, absent without a trace in every
+ * older pack, and the days list may now run to the producer's
+ * full ten. Nothing here invents a value the pack did not
+ * carry.
+ *
  * Reading is tolerant: anything malformed reads as "no snapshot"
  * and the summary simply carries no temperature clause — the app
  * NEVER invents a temperature. Snapshots are FORWARD-ONLY, like
@@ -81,6 +91,39 @@ export interface WeatherDay {
   highF: number;
   lowF: number;
   condition: string;
+  /** v490 — the day's rain chance (a whole percent), when the
+   * pack carried one. Optional exactly like the curve: a day
+   * without it reads byte-identically to v488. */
+  precipChancePct?: number;
+}
+
+/** v490 — the day's detail readings (Jonathan, Nov 10: the
+ * weather page needed more than a temperature — "I don't feel
+ * like there's enough information for me still"). The pack may
+ * carry one of these for its own today: the felt temperature,
+ * the rain chance, wind, humidity, UV and the sun's hours, all
+ * read off the same Google page the rest of the section comes
+ * from. EVERY field but the date is optional, and the parser
+ * judges each on its own — a malformed field drops alone and
+ * never takes the section (or its sibling fields) with it. A
+ * snapshot whose pack carried no details simply has no
+ * `details`, and every reader behaves as it did in v488. */
+export interface WeatherDetails {
+  /** The date these readings belong to (YYYY-MM-DD). */
+  date: string;
+  feelsLikeF?: number;
+  precipChancePct?: number;
+  windMph?: number;
+  /** Compass word as the producer wrote it ("W", "ENE"). */
+  windDir?: string;
+  humidityPct?: number;
+  uvIndex?: number;
+  /** The UV word as the producer wrote it ("Moderate"). */
+  uvLabel?: string;
+  /** "6:24 AM" — the producer's own clock words. */
+  sunrise?: string;
+  /** "4:49 PM". */
+  sunset?: string;
 }
 
 /** v479 — one point on the day's hourly curve. `at` is the
@@ -105,6 +148,10 @@ export interface WeatherSnapshot {
    * empty list) for every pre-v479 snapshot, so old stores
    * read byte-identically to v478. */
   hourly?: WeatherHourlyEntry[];
+  /** v490 — the day's detail readings, when the pack carried
+   * them and the block survived parsing. Absent for every
+   * pre-v490 pack, so old stores read byte-identically. */
+  details?: WeatherDetails;
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -141,7 +188,48 @@ function parseDay(value: unknown): WeatherDay | null {
   const highF = asTemp(row.highF);
   const lowF = asTemp(row.lowF);
   if (!DATE_RE.test(date) || highF === null || lowF === null) return null;
-  return { date, highF, lowF, condition: asString(row.condition).trim() };
+  const day: WeatherDay = { date, highF, lowF, condition: asString(row.condition).trim() };
+  // v490: the rain chance rides only when it reads as a number
+  // — a malformed one drops alone, the day itself stands.
+  const precip = asTemp(row.precipChancePct);
+  if (precip !== null) day.precipChancePct = precip;
+  return day;
+}
+
+/** v490 — the details block, parsed field by field (the
+ * tolerant shape the whole store reads by): the block is
+ * usable only with a readable date — the date is its identity,
+ * the weather page shows the block only for that day — and
+ * every other field is judged on its own: a finite number for
+ * the readings, a non-empty string for the words and the sun's
+ * hours. A field that fails drops alone; a block that is not
+ * an object, or whose date does not read, is no block at all.
+ * Shared by the store parser and the Studio door's validator,
+ * so the two never drift. */
+export function parseWeatherDetails(value: unknown): WeatherDetails | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const date = asString(row.date).trim();
+  if (!DATE_RE.test(date)) return null;
+  const details: WeatherDetails = { date };
+  const num = (key: keyof WeatherDetails) => {
+    const n = asTemp(row[key]);
+    if (n !== null) (details as unknown as Record<string, unknown>)[key] = n;
+  };
+  const str = (key: keyof WeatherDetails) => {
+    const s = asString(row[key]).trim();
+    if (s) (details as unknown as Record<string, unknown>)[key] = s;
+  };
+  num("feelsLikeF");
+  num("precipChancePct");
+  num("windMph");
+  str("windDir");
+  num("humidityPct");
+  num("uvIndex");
+  str("uvLabel");
+  str("sunrise");
+  str("sunset");
+  return details;
 }
 
 /** v479 — one hourly entry, validated on its own: a bad
@@ -206,6 +294,11 @@ export function parseWeatherSnapshotValue(parsed: unknown): WeatherSnapshot | nu
     ? store.hourly.map(parseHourlyEntry).filter((e): e is WeatherHourlyEntry => e !== null)
     : [];
   if (hourly.length > 0) snapshot.hourly = hourly;
+  // v490: the details ride only when the block parses — a
+  // pre-v490 snapshot (or a malformed block) leaves the key
+  // unwritten, so old stores keep reading exactly as v488.
+  const details = parseWeatherDetails(store.details);
+  if (details) snapshot.details = details;
   return snapshot;
 }
 

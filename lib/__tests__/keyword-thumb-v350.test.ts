@@ -84,7 +84,8 @@ describe("v350 — motion coverage is exact: one motion spec per keyword scene",
     // v414: 174 — daily-brief joined the scene set (the Daily Brief door;
     // Jonathan approved daily-breakdown-concepts-v6, Nov 2).
     // v468: 175 — tv-boardwalk-empire joined the scene set (Boardwalk Empire).
-    expect(specKeys.length).toBe(175);
+    // v490: 176 — weather joined the scene set (the Weather door).
+    expect(specKeys.length).toBe(176);
   });
 
   it("every spec names a vocabulary kind with a loop style, inside the 2.4–4s calm band", () => {

@@ -46,9 +46,17 @@
  * Just when I add it as an event."). The generation is gone. The
  * claim above is all that remains: the door exists only where his
  * own stored event carries it, exactly like News and Email.
+ *
+ * v490 — the Weather door: an event carrying the stored keyword
+ * "Weather" or "Temperature" (the two titles are one door — his
+ * ruling, Nov 10) opens the Weather page (the morning pack's
+ * snapshot, drawn out in full). The claim follows the same
+ * rules: the stored label wins outright; a title LEADING with
+ * "Weather" or "Temperature" claims it the way "News" does;
+ * any other stored keyword still wins over the title.
  */
 
-export type KeywordPageKind = "news" | "email" | "food" | "gas" | "dailyBrief";
+export type KeywordPageKind = "news" | "email" | "food" | "gas" | "dailyBrief" | "weather";
 
 export function keywordPageKindForEvent(
   event: {
@@ -63,6 +71,7 @@ export function keywordPageKindForEvent(
     if (event.keyword === "Meal") return "food";
     if (event.keyword === "Get Gas" || event.keyword === "Gas") return "gas";
     if (event.keyword === "Daily Brief") return "dailyBrief";
+    if (event.keyword === "Weather" || event.keyword === "Temperature") return "weather";
     return null;
   }
   const title = (event.title ?? "").trim().toLowerCase();
@@ -70,14 +79,18 @@ export function keywordPageKindForEvent(
   if (/^(e-mail|email|gmail|mail)\b/.test(title)) return "email";
   if (/^gas\b/.test(title)) return "gas";
   if (/^daily brief\b/.test(title)) return "dailyBrief";
+  if (/^(weather|temperature)\b/.test(title)) return "weather";
   if (resolvedLabel === "Meal") return "food";
   if (resolvedLabel === "Get Gas") return "gas";
   if (resolvedLabel === "Daily Brief") return "dailyBrief";
+  if (resolvedLabel === "Weather" || resolvedLabel === "Temperature") return "weather";
   return null;
 }
 
 /** The route a keyword page opens at. */
-export function keywordPagePath(kind: KeywordPageKind): "/news" | "/email" | "/food" | "/gas" | "/daily-brief" {
+export function keywordPagePath(
+  kind: KeywordPageKind,
+): "/news" | "/email" | "/food" | "/gas" | "/daily-brief" | "/weather" {
   return kind === "news"
     ? "/news"
     : kind === "email"
@@ -86,5 +99,7 @@ export function keywordPagePath(kind: KeywordPageKind): "/news" | "/email" | "/f
         ? "/food"
         : kind === "dailyBrief"
           ? "/daily-brief"
-          : "/gas";
+          : kind === "weather"
+            ? "/weather"
+            : "/gas";
 }

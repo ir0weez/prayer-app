@@ -136,7 +136,8 @@ describe("v468 — the router resolves the note in every dialect", () => {
   it("the routable set holds the new id — 175 ids", () => {
     const ids = allPaperSceneIds();
     expect(ids).toContain("tv-boardwalk-empire");
-    expect(ids.length).toBe(175);
+    // v490 re-pin: 176 — weather joined the routable set.
+    expect(ids.length).toBe(176);
   });
 });
 
@@ -175,9 +176,10 @@ describe("v468 — a bespoke scene in every skin dialect", () => {
   });
 
   it("all three registries hold 175 scenes", () => {
-    expect(registryKeyCount(read("components/paper-keyword-scenes.tsx"), "const PAPER_SCENE_REGISTRY")).toBe(175);
-    expect(registryKeyCount(read("components/pixel-keyword-scenes.tsx"), "const PIXEL_SCENE_REGISTRY")).toBe(175);
-    expect(registryKeyCount(read("components/terminal-keyword-scenes.tsx"), "const TERMINAL_SCENE_REGISTRY")).toBe(175);
+    // v490 re-pin: 176 — the weather scene registered in all three.
+    expect(registryKeyCount(read("components/paper-keyword-scenes.tsx"), "const PAPER_SCENE_REGISTRY")).toBe(176);
+    expect(registryKeyCount(read("components/pixel-keyword-scenes.tsx"), "const PIXEL_SCENE_REGISTRY")).toBe(176);
+    expect(registryKeyCount(read("components/terminal-keyword-scenes.tsx"), "const TERMINAL_SCENE_REGISTRY")).toBe(176);
   });
 
   it("the thumb layer covers the new scene too", () => {

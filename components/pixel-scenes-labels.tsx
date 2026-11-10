@@ -1188,6 +1188,27 @@ export function PixelDailyBriefScene() {
   );
 }
 
+export function PixelWeatherScene() {
+  return (
+    <PixelSceneRoot base="#BFE0F5">
+      <PxCloud left="10%" top={12} width={52} />
+      <PxCloud left="68%" top={30} width={38} />
+      {/* The square sun, bobbing in steps over the hills. */}
+      <StepBob left="40%" bottom={52} width={52} height={52} distance={4} period={1400}>
+        <PxSun left={0} bottom={6} size={40} color="#F5A623" core="#FFC65C" ray="#F5A623" />
+      </StepBob>
+      {/* Stepped hills — squares stacked into slopes, the
+          drawing's two greens. */}
+      <Px style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 20, backgroundColor: "#8FC97E" }} />
+      <Px style={{ position: "absolute", left: 0, width: "60%", bottom: 20, height: 12, backgroundColor: "#8FC97E" }} />
+      <Px style={{ position: "absolute", left: 0, width: "32%", bottom: 32, height: 12, backgroundColor: "#8FC97E" }} />
+      <Px style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 12, backgroundColor: "#57A773" }} />
+      <Px style={{ position: "absolute", right: 0, width: "56%", bottom: 12, height: 10, backgroundColor: "#57A773" }} />
+      <Px style={{ position: "absolute", right: 0, width: "28%", bottom: 22, height: 10, backgroundColor: "#57A773" }} />
+    </PixelSceneRoot>
+  );
+}
+
 export function PixelNewsScene() {
   return (
     <PixelSceneRoot base="#31456B">

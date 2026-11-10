@@ -1006,6 +1006,31 @@ export function TermDailyBriefScene() {
   );
 }
 
+export function TermWeatherScene() {
+  return (
+    <TermSceneRoot>
+      {/* Line clouds */}
+      <LP d="M 16 24 h30 M 22 18 h18" c={TERM_MID} w={1.6} />
+      <LP d="M 148 34 h26 M 153 28 h15" c={TERM_MID} w={1.6} />
+      {/* The sun — outline disc with short rays, over the hills. */}
+      <LC cx={94} cy={52} r={16} c={TERM_PHOS} w={2.2} />
+      <LC cx={94} cy={52} r={9.5} c={TERM_MID} w={1.5} />
+      <LL x1={94} y1={26} x2={94} y2={31} c={TERM_PHOS} w={2} />
+      <LL x1={94} y1={73} x2={94} y2={78} c={TERM_PHOS} w={2} />
+      <LL x1={68} y1={52} x2={73} y2={52} c={TERM_PHOS} w={2} />
+      <LL x1={115} y1={52} x2={120} y2={52} c={TERM_PHOS} w={2} />
+      <LL x1={76} y1={34} x2={79} y2={37} c={TERM_PHOS} w={2} />
+      <LL x1={109} y1={67} x2={112} y2={70} c={TERM_PHOS} w={2} />
+      <LL x1={112} y1={34} x2={109} y2={37} c={TERM_PHOS} w={2} />
+      <LL x1={79} y1={67} x2={76} y2={70} c={TERM_PHOS} w={2} />
+      {/* Layered hill lines. */}
+      <LP d="M 0 90 Q 50 68 110 84 T 200 80" c={TERM_SOFT} w={1.8} />
+      <LP d="M 0 104 Q 70 84 135 100 T 200 94" c={TERM_PHOS} w={2.1} />
+      <LL x1={8} y1={112} x2={192} y2={112} c={TERM_DIM} w={1.8} />
+    </TermSceneRoot>
+  );
+}
+
 export function TermNewsScene() {
   return (
     <TermSceneRoot>

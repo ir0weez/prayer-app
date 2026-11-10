@@ -331,7 +331,9 @@ describe("v180+v181 bespoke scenes: the shared emblem shells are dead (source pi
     // Jonathan approved daily-breakdown-concepts-v6, Nov 2).
     // v468: 175 — tv-boardwalk-empire joined the routable set (Boardwalk
     // Empire, a note-keyword TV Show in the style of the other flagships).
-    expect(ids.length).toBe(175);
+    // v490: 176 — weather joined the routable set (the Weather /
+    // Temperature door; sun, clouds and hills in every skin).
+    expect(ids.length).toBe(176);
     const seenComponents = new Set<string>();
     for (const id of ids) {
       const name = componentFor(id);
@@ -348,7 +350,8 @@ describe("v180+v181 bespoke scenes: the shared emblem shells are dead (source pi
       expect(body, `${id} → ${name}`).not.toContain("EmblemScene");
       expect(body, `${id} → ${name}`).not.toContain("movieScene(");
     }
-    expect(seenComponents.size).toBe(175);
+    // v490 re-pin: 176 with the weather scene (the count above).
+    expect(seenComponents.size).toBe(176);
   });
 
   it("the Sopranos flagship is the pool with the ducks, house behind (source pin)", () => {

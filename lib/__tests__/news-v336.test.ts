@@ -133,7 +133,8 @@ describe("v336 scenes", () => {
     // v414: 174 — daily-brief joined the set (the Daily Brief door;
     // Jonathan approved daily-breakdown-concepts-v6, Nov 2).
     // v468: 175 — tv-boardwalk-empire joined the set (Boardwalk Empire).
-    expect(ids.length).toBe(175);
+    // v490: 176 — weather joined the set (the Weather door).
+    expect(ids.length).toBe(176);
     expect(ids).toContain("news");
     expect(ids).toContain("email");
   });
@@ -464,13 +465,17 @@ describe("v336 wiring (source pins)", () => {
     // v414 amendment (Nov 2): the Daily Brief door joined — the
     // chain gained its fifth arm ("Daily Brief"); Jonathan
     // approved daily-breakdown-concepts-v6 ("love it all, do it").
+    // v490 amendment (Nov 10): the Weather door joined — the
+    // chain gained its sixth arm ("Weather", the shared
+    // Weather/Temperature label); the routing shape is
+    // otherwise unchanged.
     expect(tab).toContain("keywordPageKindForEvent(event, detectedKeyword?.label)");
     expect(tab).toContain("keywordPagePath(pageKind)");
     expect(tab).toContain("params: { eventId: event.id, eventDate: event.date }");
     // The card wears the door's keyword wholesale (scene, colours,
     // icon) — the call sites keep their long-standing shape.
     expect(tab).toContain("const keyword = pageKind");
-    expect(tab).toContain('pageKind === "news" ? "News" : pageKind === "email" ? "Email" : pageKind === "food" ? "Meal" : pageKind === "dailyBrief" ? "Daily Brief" : "Get Gas"');
+    expect(tab).toContain('pageKind === "news" ? "News" : pageKind === "email" ? "Email" : pageKind === "food" ? "Meal" : pageKind === "dailyBrief" ? "Daily Brief" : pageKind === "weather" ? "Weather" : "Get Gas"');
     expect(tab).toContain("label={keyword.label}");
   });
 

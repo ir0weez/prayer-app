@@ -2611,6 +2611,44 @@ function DailyBriefScene() {
   );
 }
 
+/** Weather (v490): the door's scene — a sun with rays breathing
+ * over layered green hills, two clouds drifting (the approved
+ * drawing: the FIRST Weather scene, shared by the "Weather" and
+ * "Temperature" titles — no thermometer). */
+function WeatherScene() {
+  return (
+    <SceneRoot base="#BFE0F5">
+      <DriftingCloud top={16} size={42} duration={36000} delay={1000} />
+      <DriftingCloud top={50} size={29} duration={44000} delay={9000} />
+      {/* The sun, breathing — a disc with cut rays. */}
+      <GentlePulse left="50%" bottom={34} width={96} height={96} min={1} max={1.05} duration={4600}>
+        <View style={{ marginLeft: -48, width: 96, height: 96 }}>
+          <View style={{ position: "absolute", left: 0, top: 0, width: 96, height: 96, borderRadius: 48, backgroundColor: "rgba(255,201,60,0.35)" }} />
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
+            <View
+              key={a}
+              style={{
+                position: "absolute",
+                left: 45,
+                top: 40,
+                width: 6,
+                height: 16,
+                borderRadius: 3,
+                backgroundColor: "#F5A623",
+                transform: [{ rotate: `${a}deg` }, { translateY: -40 }],
+              }}
+            />
+          ))}
+          <View style={{ position: "absolute", left: 22, top: 22, width: 52, height: 52, borderRadius: 26, backgroundColor: "#FFC93C" }} />
+        </View>
+      </GentlePulse>
+      {/* Layered hills — the drawing's two greens. */}
+      <View style={{ position: "absolute", left: "-12%", right: "0%", bottom: -30, height: 74, borderRadius: 37, backgroundColor: "#8FC97E" }} />
+      <View style={{ position: "absolute", left: "4%", right: "-12%", bottom: -34, height: 54, borderRadius: 27, backgroundColor: "#57A773" }} />
+    </SceneRoot>
+  );
+}
+
 /** Fast: cross on a hill at dawn with rising light — Christian fasting. */
 function FastScene() {
   return (
@@ -7662,6 +7700,8 @@ export function KeywordAmbientAnimation({ label, title = "", location = "", note
     case "News": return <NewsScene />;
     case "Email": return <EmailScene />;
     case "Daily Brief": return <DailyBriefScene />;
+    case "Weather": return <WeatherScene />;
+    case "Temperature": return <WeatherScene />;
     case "Workout": return <WorkoutScene />;
     case "Basketball": return <BasketballScene />;
     case "Soccer": return <SoccerScene />;
@@ -8255,7 +8295,7 @@ function EventCardInner({
   // keyword (the map's own gas label) wholesale, like the others.
   const pageKind = keywordPageKindForEvent(event, detectedKeyword?.label);
   const keyword = pageKind
-    ? EVENT_KEYWORD_MAP.find((k) => k.label === (pageKind === "news" ? "News" : pageKind === "email" ? "Email" : pageKind === "food" ? "Meal" : pageKind === "dailyBrief" ? "Daily Brief" : "Get Gas")) ?? detectedKeyword
+    ? EVENT_KEYWORD_MAP.find((k) => k.label === (pageKind === "news" ? "News" : pageKind === "email" ? "Email" : pageKind === "food" ? "Meal" : pageKind === "dailyBrief" ? "Daily Brief" : pageKind === "weather" ? "Weather" : "Get Gas")) ?? detectedKeyword
     : detectedKeyword;
   // v313: on the branches that ALSO render the compact S/E read, a
   // note spelling out that same "Season {n} Episode {m}" says the

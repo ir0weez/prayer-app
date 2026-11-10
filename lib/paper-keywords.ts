@@ -209,6 +209,11 @@ const LABEL_SCENES: Record<string, PaperSceneId> = {
   // v414: the Daily Brief door's sunrise, in every skin like the
   // doors above it.
   "Daily Brief": "daily-brief",
+  // v490: the Weather door — both titles over ONE scene (his
+  // ruling: "Weather" and "Temperature" are the same artwork,
+  // the first Weather scene — sun, clouds, hills).
+  "Weather": "weather",
+  "Temperature": "weather",
   "BBQ": "bbq",
   "Fast": "fast",
   "Church": "church",
@@ -298,6 +303,7 @@ export function allPaperSceneIds(): PaperSceneId[] {
     "park-generic",
     "movie",
     "theater",
+    "weather",
     "tv-show",
     "tv-dexter-new-blood",
     "tv-dexter-original-sin",

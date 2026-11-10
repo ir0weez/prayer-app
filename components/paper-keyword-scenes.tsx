@@ -5789,6 +5789,36 @@ export function PaperDailyBriefScene() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Weather (v490): the door's scene — a sun with cut rays, two        */
+/* clouds drifting, layered green hills (the approved drawing: the    */
+/* FIRST Weather scene, shared by the "Weather" and "Temperature"     */
+/* titles — no thermometer).                                          */
+/* ------------------------------------------------------------------ */
+
+export function PaperWeatherScene() {
+  return (
+    <PaperSceneRoot base="#BFE0F5">
+      <PaperCloud top={16} size={42} duration={36000} delay={1000} />
+      <PaperCloud top={50} size={29} duration={44000} delay={9000} />
+      {/* The sun — a cut disc with diamond rays, settled in over
+          the hills (PSun, the kit's own sun). */}
+      <SettleIn delay={80} style={{ position: "absolute", left: "50%", bottom: 34, width: 96, height: 96 }}>
+        <View style={{ marginLeft: -48, width: 96, height: 96 }}>
+          <PSun left={22} bottom={22} size={52} />
+        </View>
+      </SettleIn>
+      {/* Layered cut hills — the drawing's two greens. */}
+      <SettleIn delay={160} style={{ position: "absolute", left: "-12%", right: "-12%", bottom: -30, height: 74 }}>
+        <PaperPiece style={{ position: "absolute", left: 0, right: "14%", top: 0, height: 74, borderRadius: 37, backgroundColor: "#8FC97E" }} />
+      </SettleIn>
+      <SettleIn delay={240} style={{ position: "absolute", left: "-12%", right: "-12%", bottom: -34, height: 54 }}>
+        <PaperPiece style={{ position: "absolute", left: "16%", right: 0, top: 0, height: 54, borderRadius: 27, backgroundColor: "#57A773" }} />
+      </SettleIn>
+    </PaperSceneRoot>
+  );
+}
+
 export function PaperNewsScene() {
   return (
     <PaperSceneRoot base="#31456B">
@@ -5881,6 +5911,7 @@ const PAPER_SCENE_REGISTRY: Record<PaperSceneId, () => ReactNode> = {
   "news": PaperNewsScene,
   "email": PaperEmailScene,
   "daily-brief": PaperDailyBriefScene,
+  "weather": PaperWeatherScene,
   "bbq": PaperBBQScene,
   "fast": PaperFastScene,
   "church": PaperChurchScene,

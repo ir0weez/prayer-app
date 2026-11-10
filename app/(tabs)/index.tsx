@@ -100,7 +100,7 @@ import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
 import { StackedAvatar } from "@/components/stacked-avatar";
 import { StatusModal } from "@/components/status-modal";
 import { EmergencyPrayerPill } from "@/components/emergency-prayer-pill";
-import { FamilyGroupUnit, FamilyPourContext, FamilyPourFill, FamilyPourText } from "@/components/family-pour";
+import { FamilyGroupUnit, FamilyPourContext, FamilyPourFill, FamilyPourText, FamilyPourWave } from "@/components/family-pour";
 import {
   isNativePrayerTimerAvailable,
   startEmergencyNotification,
@@ -765,7 +765,7 @@ function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: st
   // crossfade range and the open state are unchanged.
   const pourContext = useContext(FamilyPourContext);
   const flipStyle = useAnimatedStyle(() => ({
-    opacity: pourContext ? interpolate(pourContext.headerFillFrac.value, [0.55, 1], [0, 1], Extrapolation.CLAMP) : 0,
+    opacity: pourContext ? interpolate(pourContext.faceFillFrac.value, [0.55, 1], [0, 1], Extrapolation.CLAMP) : 0,
   }));
   return (
     <View style={{ width: 30, height: 30 }}>
@@ -2818,6 +2818,7 @@ export default function HomeScreen() {
         ? `Reached ${new Date(`${lastReachedDate}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
         : "Never reached";
       const meta = `${reachedLabel} · ${completedMembers} of ${familyMembers.length} prayed today`;
+      const pct = Math.round((completedMembers / familyMembers.length) * 100);
       const stackMembers = familyMembers.slice(0, 3);
       const overflow = familyMembers.length - stackMembers.length;
       // v255: the head row is the mockup's — stacked faces, name,
@@ -2864,6 +2865,29 @@ export default function HomeScreen() {
               ) : null}
             </View>
           </Pressable>
+          {/* v486: the progress block — the mockup's .prog, seated
+              inside the card (its .gcard) exactly where the mockup
+              seats it: below the head row, part of the face that
+              never folds and is never covered by the fill. Through
+              v485 it lived in the panel, so it folded away with the
+              members and the rising fill covered it — half the
+              device miss. Its texts and wavy thread flip on the
+              pour's face fraction, in the progress range (it sits
+              at the face's bottom, where the fill arrives first).
+              The paddingBottom clears the panel's −14 tuck: the
+              panel overlaps the card's bottom 14, and the thread
+              must stand clear of that seam. */}
+          <View testID="family-pour-progress" style={{ paddingHorizontal: 16, paddingBottom: 18, marginTop: 2 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <FamilyPourText variant="progress" fromColor={pmf.ink} style={{ fontSize: 11.5, fontWeight: "800" }}>{completedMembers} of {familyMembers.length} prayed today</FamilyPourText>
+              <FamilyPourText variant="progress" fromColor={familyRelationship.accent} style={{ fontSize: 11.5, fontWeight: "800" }}>{pct}%</FamilyPourText>
+            </View>
+            {/* v339: the household's prayed-today bar wears the
+                wavy fill in the household accent — same seat. */}
+            <View style={{ marginTop: 6 }}>
+              <FamilyPourWave value={pct / 100} color={familyRelationship.accent} trackColor={pmf.wash} height={8} />
+            </View>
+          </View>
         </View>
       );
     }
@@ -4012,12 +4036,16 @@ export default function HomeScreen() {
     const accent = relationshipColors[section.title].accent;
     const completedMembers = familyMembers.filter((member) => hasPersonCompletedPrayerToday(member, today)).length;
     // v254 (Classic): the unfurl as the concept draws it — the panel
-    // joins the household card as one surface: a "prayed today"
-    // progress head, member rows with urgency in place (DUE TO REACH
-    // badge, emergency pill), children nested smaller on a rail, and
-    // the filled Mark as Complete. Same handlers as the legacy panel.
+    // joins the household card as one surface under the face:
+    // member rows with urgency in place (DUE TO REACH badge,
+    // emergency pill), children nested smaller on a rail, and the
+    // filled Mark as Complete. Same handlers as the legacy panel.
+    // v486: the "prayed today" progress head that opened this panel
+    // through v485 is gone from it — it lives in the card now (the
+    // mockup's .prog in .gcard; see renderFamilyCard), so the
+    // panel is the mockup's .mwrap exactly: member rows + Mark as
+    // Complete, the only contents that fold and are covered.
     if (!isSkinned) {
-      const pct = Math.round((completedMembers / familyMembers.length) * 100);
       const renderMemberRow = (member: Person, kid: boolean) => {
         const emergency = getAllActiveEmergencyPrayers(people).find((entry) => entry.person.id === member.id);
         const emergencyCountdown = emergency ? emergencyCountdowns[emergency.item.id] : undefined;
@@ -4059,18 +4087,7 @@ export default function HomeScreen() {
       const adults = familyMembers.filter((member) => member.familyType !== "Child");
       const kids = familyMembers.filter((member) => member.familyType === "Child");
       return (
-        <FamilyPanel outerStyle={{ marginHorizontal: 12, marginTop: -14, marginBottom: 10, backgroundColor: pmf.card, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingTop: 20, paddingBottom: 14, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-          <View style={{ paddingHorizontal: 16 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={{ fontSize: 11.5, fontWeight: "800", color: pmf.ink }}>{completedMembers} of {familyMembers.length} prayed today</Text>
-              <Text style={{ fontSize: 11.5, fontWeight: "800", color: accent }}>{pct}%</Text>
-            </View>
-            {/* v339: the household's prayed-today bar wears the
-                wavy fill in the household accent — same seat. */}
-            <View style={{ marginTop: 6 }}>
-              <WavyProgress value={pct / 100} color={accent} trackColor={pmf.wash} height={8} />
-            </View>
-          </View>
+        <FamilyPanel outerStyle={{ marginHorizontal: 12, marginTop: -14, marginBottom: 10, backgroundColor: pmf.card, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingTop: 2, paddingBottom: 14, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
           <View style={{ marginTop: 6 }}>
             {adults.map((member) => renderMemberRow(member, false))}
             {kids.length > 0 ? (

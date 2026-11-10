@@ -289,7 +289,14 @@ describe("v339 wavy progress — adoption pins (headline seats)", () => {
   it("People's queue bar and household bars wear it (shine loop retired)", () => {
     const index = read("app/(tabs)/index.tsx");
     expect(index).toContain("color={pmf.seed} colorEnd={pmf.queueTeal} trackColor={pmf.wash} height={8}");
-    expect(index).toContain("color={accent} trackColor={pmf.wash} height={8}");
+    // v486 re-pin: the household bar's seat moved — the progress
+    // block lives in the family card now (the mockup's .prog in
+    // .gcard), and the bar renders through the pour's FamilyPourWave
+    // (components/family-pour.tsx) so it can flip with the fill.
+    // Same wave, same track, same 8px seat; the accent is the
+    // card's familyRelationship.accent, the renderFamilyCard name
+    // for the same relationship colour the panel called `accent`.
+    expect(index).toContain("color={familyRelationship.accent} trackColor={pmf.wash} height={8}");
     expect(index).not.toContain("queueShine");
   });
 

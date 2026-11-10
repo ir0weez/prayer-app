@@ -38,18 +38,23 @@
 //    untouched until the front has crossed the whole panel.
 // Opening is the exact reverse.
 //
-// The geometry pins below assert the partition at pour 0.25 /
-// 0.5 / 0.75 / 0.875 (H = 100, P = 300, T = 400 — 0.75 lands
-// front exactly on P, 0.875 is inside Phase B); the harness
-// (v483's rig: react-test-renderer + the Yoga-rules layout
-// simulation) asserts the same numbers on the rendered tree at
-// mid-flight frames, that the band never lives inside the
-// window, and that the header fraction stays 0 until the front
-// crosses the panel. Run against v484, the geometry assertions
-// fail on values (window 150 not 100 at pour 0.5; header
-// fraction 0.5 not 0) and the harness assertions fail on the
-// slab (an accent-filled node inside the window; no segment or
-// band exists at all).
+// ─── v486 re-pin (this whole file) ───────────────────────────────
+// Device verdict on v485: "This still isn't right! Look at the
+// difference." The one-edge law above was still a derivation —
+// a front schedule read off extracted frames — and it was still
+// not the mockup. v486 ports the mockup file's own mechanism
+// (its CSS, read directly): .mwrap folds (1 − q) of the panel
+// while .fill — ONE absolute layer behind the whole card —
+// stands at the bottom q of the card's CURRENT height, the two
+// concurrent on the same .55s from t=0; the progress row rides
+// in the face and never folds. Every pin below is re-based to
+// that law (familyPourGeometry: window = P(1 − q); fill =
+// q × (H + window); faceFillFrac = clamp((fill − window)/H)).
+// What survives from this file's original purpose, unchanged:
+// the slab can never come back — no colour stands inside the
+// window, ever — and the rendered frames are asserted at
+// mid-flight, where the disease lived. people-v486-pour.test.tsx
+// carries the port's own failing-first pins.
 
 import React, { useContext } from "react";
 import TestRenderer, {
@@ -79,6 +84,26 @@ vi.mock("react-native", () => ({
     absoluteFillObject: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0 },
   },
 }));
+
+// v486 re-pin (mock only): family-pour.tsx now imports the wavy
+// thread (FamilyPourWave wears WavyProgress), which imports
+// react-native-svg — stubbed inert, the wavy-progress-v339
+// pattern. Nothing in this file renders the wave.
+vi.mock("react-native-svg", () => {
+  const Stub = () => null;
+  return {
+    __esModule: true,
+    default: Stub,
+    Circle: Stub,
+    ClipPath: Stub,
+    Defs: Stub,
+    G: Stub,
+    LinearGradient: Stub,
+    Path: Stub,
+    Rect: Stub,
+    Stop: Stub,
+  };
+});
 
 vi.mock("react-native-reanimated", async () => {
   const React = await import("react");
@@ -157,7 +182,7 @@ vi.mock("react-native-reanimated", async () => {
 
 import { View } from "react-native";
 import { useAnimatedStyle } from "react-native-reanimated";
-import { FamilyGroupUnit, FamilyPourContext, familyPourFront } from "@/components/family-pour";
+import { FamilyGroupUnit, FamilyPourContext, familyPourGeometry } from "@/components/family-pour";
 
 type Inst = ReactTestInstance;
 
@@ -165,12 +190,12 @@ const ACCENT = "#7C3AED";
 const HEADER_H = 100;
 const PANEL_H = 300;
 
-/** A probe inside the header that surfaces the context's header
+/** A probe inside the header that surfaces the context's face
  * fraction as a readable style height (the harness's animated
  * styles evaluate eagerly at render). */
 function FracProbe() {
   const ctx = useContext(FamilyPourContext);
-  const style = useAnimatedStyle(() => ({ height: ctx ? ctx.headerFillFrac.value : -1 }));
+  const style = useAnimatedStyle(() => ({ height: ctx ? ctx.faceFillFrac.value : -1 }));
   return <View testID="frac-probe" style={style} />;
 }
 
@@ -264,8 +289,7 @@ function panelCopies(renderer: ReactTestRenderer): Inst[] {
 
 /** The clipping window, found the v483 way (overflow hidden,
  * holding a panel copy, innermost such node) so this finder runs
- * on the old seat too — the slab assertion below must be able to
- * fail on v484's tree, where the window has no testID yet. */
+ * on the old seats too. */
 function findWindowDeepest(renderer: ReactTestRenderer): Inst | undefined {
   const candidates = renderer.root.findAll((n) => {
     if (n.type !== "View") return false;
@@ -284,95 +308,97 @@ afterEach(() => {
   rig.animations.clear();
 });
 
-describe("v485 — the one-edge geometry (familyPourFront)", () => {
+describe("v485 — the geometry, re-pinned to the v486 port (familyPourGeometry)", () => {
   const H = HEADER_H;
   const P = PANEL_H;
-  const T = H + P;
 
-  it("rest states are unchanged: open stands full and empty of colour; closed is header-only, filled", () => {
-    expect(familyPourFront(0, H, P)).toEqual({
-      panelWindowHeight: P,
-      panelFillHeight: 0,
-      segmentHeight: P,
-      headerFillFrac: 0,
+  it("rest states are unchanged: open stands full and empty of colour; closed is face-only, filled", () => {
+    expect(familyPourGeometry(0, H, P)).toEqual({
+      windowHeight: P,
+      fillHeight: 0,
+      faceFillFrac: 0,
     });
-    expect(familyPourFront(1, H, P)).toEqual({
-      panelWindowHeight: 0,
-      panelFillHeight: 0,
-      segmentHeight: 0,
-      headerFillFrac: 1,
+    expect(familyPourGeometry(1, H, P)).toEqual({
+      windowHeight: 0,
+      fillHeight: H,
+      faceFillFrac: 1,
     });
   });
 
-  it("phase A at pour 0.25: the segment still stands full height; the edge has crossed a quarter of the panel", () => {
-    const front = familyPourFront(0.25, H, P);
-    expect(front.segmentHeight).toBe(P);
-    expect(front.panelWindowHeight).toBe(200);
-    expect(front.panelFillHeight).toBe(100);
-    expect(front.headerFillFrac).toBe(0);
+  it("pour 0.25: the wrap has folded a quarter away; the fill is a quarter of the CURRENT height", () => {
+    // v486 re-pin: window 225 (was 200 on the one-edge law);
+    // fill 0.25 × (100 + 225) = 81.25 — read off the shrinking
+    // height, not off a front.
+    const g = familyPourGeometry(0.25, H, P);
+    expect(g.windowHeight).toBe(225);
+    expect(g.fillHeight).toBeCloseTo(81.25, 6);
+    expect(g.faceFillFrac).toBe(0);
   });
 
-  it("phase A at pour 0.5: rows 100, colour 200, segment still 300 — and the header is still untouched", () => {
-    const front = familyPourFront(0.5, H, P);
-    expect(front.segmentHeight).toBe(P);
-    expect(front.panelWindowHeight).toBe(100);
-    expect(front.panelFillHeight).toBe(200);
-    // v484's schedule had the header half filled here (its fill
-    // crossed zero at pour ≈ P/(H + 2P)); the one-edge law keeps
-    // the header white until the front crosses the whole panel.
-    expect(front.headerFillFrac).toBe(0);
+  it("pour 0.5: window 150, fill 125 — the fill still has not reached the face", () => {
+    // v486 re-pin: the one-edge law read window 100 / band 200
+    // here; the port's concurrency reads the wrap's own fold and
+    // the clip percentage of the current height (250).
+    const g = familyPourGeometry(0.5, H, P);
+    expect(g.windowHeight).toBe(150);
+    expect(g.fillHeight).toBe(125);
+    expect(g.faceFillFrac).toBe(0);
   });
 
-  it("the boundary at pour 0.75 (front exactly P): no rows left, the segment all colour at full height, header still white", () => {
-    const front = familyPourFront(0.75, H, P);
-    expect(front.segmentHeight).toBe(P);
-    expect(front.panelWindowHeight).toBe(0);
-    expect(front.panelFillHeight).toBe(P);
-    expect(front.headerFillFrac).toBe(0);
+  it("pour 0.75: a quarter of the panel still stands AND the fill has climbed over half the face", () => {
+    // v486 re-pin: the frame neither phase law could say — the
+    // one-edge law had the header untouched here (its front was
+    // still crossing the panel); the port's fill, read off the
+    // current height, is already 56.25 into the face while 75 of
+    // panel stands open.
+    const g = familyPourGeometry(0.75, H, P);
+    expect(g.windowHeight).toBe(75);
+    expect(g.fillHeight).toBeCloseTo(131.25, 6);
+    expect(g.faceFillFrac).toBeCloseTo(0.5625, 6);
   });
 
-  it("phase B at pour 0.875: the colour segment has collapsed halfway while the header fills halfway", () => {
-    const front = familyPourFront(0.875, H, P);
-    expect(front.segmentHeight).toBe(150);
-    expect(front.panelWindowHeight).toBe(0);
-    expect(front.panelFillHeight).toBe(150);
-    expect(front.headerFillFrac).toBe(0.5);
+  it("pour 0.875: window 37.5, fill 120.3125, face fraction 0.828125", () => {
+    const g = familyPourGeometry(0.875, H, P);
+    expect(g.windowHeight).toBeCloseTo(37.5, 6);
+    expect(g.fillHeight).toBeCloseTo(120.3125, 6);
+    expect(g.faceFillFrac).toBeCloseTo(0.828125, 6);
   });
 
-  it("the partition holds across the whole travel, for two header heights", () => {
+  it("the two lines hold across the whole travel, for two header heights", () => {
     for (const h of [100, 62]) {
       for (let step = 0; step <= 40; step += 1) {
-        const pour = step / 40;
-        const f = familyPourFront(pour, h, P);
-        const frontPx = pour * (h + P);
-        const expectedSegment = frontPx <= P ? P : (P * (h + P - frontPx)) / h;
-        expect(f.panelWindowHeight + f.panelFillHeight).toBeCloseTo(f.segmentHeight, 6);
-        expect(f.segmentHeight).toBeCloseTo(expectedSegment, 6);
-        expect(f.panelWindowHeight).toBeCloseTo(Math.max(0, P - frontPx), 6);
-        expect(f.headerFillFrac).toBeCloseTo(Math.min(1, Math.max(0, frontPx - P) / h), 6);
-        if (frontPx < P) expect(f.headerFillFrac).toBe(0);
-        void T;
+        const q = step / 40;
+        const g = familyPourGeometry(q, h, P);
+        const window = P * (1 - q);
+        expect(g.windowHeight).toBeCloseTo(window, 6);
+        expect(g.fillHeight).toBeCloseTo(q * (h + window), 6);
+        expect(g.faceFillFrac).toBeCloseTo(
+          Math.min(1, Math.max(0, (g.fillHeight - window) / h)),
+          6,
+        );
       }
     }
   });
 });
 
-describe("v485 — the one edge, rendered (mid-flight frames)", () => {
+describe("v485 — the frames, rendered (re-pinned to the v486 port)", () => {
+  // 550ms clock, linear in the rig: each 137.5ms step is a
+  // quarter of the travel; the last sample steps 68.75 (an
+  // eighth) to pour 0.875.
   const samples: {
     pour: number;
     stepMs: number;
-    segment: number;
     window: number;
-    band: number;
+    fill: number;
     frac: number;
   }[] = [
-    { pour: 0.25, stepMs: 125, segment: 300, window: 200, band: 100, frac: 0 },
-    { pour: 0.5, stepMs: 125, segment: 300, window: 100, band: 200, frac: 0 },
-    { pour: 0.75, stepMs: 125, segment: 300, window: 0, band: 300, frac: 0 },
-    { pour: 0.875, stepMs: 62.5, segment: 150, window: 0, band: 150, frac: 0.5 },
+    { pour: 0.25, stepMs: 137.5, window: 225, fill: 81.25, frac: 0 },
+    { pour: 0.5, stepMs: 137.5, window: 150, fill: 125, frac: 0 },
+    { pour: 0.75, stepMs: 137.5, window: 75, fill: 131.25, frac: 0.5625 },
+    { pour: 0.875, stepMs: 68.75, window: 37.5, fill: 120.3125, frac: 0.828125 },
   ];
 
-  it("closing: at every mid-flight frame the rows region and the colour band partition the segment, on the phase schedule", () => {
+  it("closing: at every mid-flight frame the window and the ONE fill read off the same q", () => {
     let expanded = true;
     const element = () => (
       <FamilyGroupUnit
@@ -400,20 +426,14 @@ describe("v485 — the one edge, rendered (mid-flight frames)", () => {
       act(() => {
         r.update(element());
       });
-      const segment = byTestID(r, "family-pour-segment");
       const win = byTestID(r, "family-pour-window");
-      const band = byTestID(r, "family-pour-band");
-      expect(segment, `segment exists at pour ${s.pour}`).toBeTruthy();
+      const fill = byTestID(r, "family-pour-fill");
       expect(win, `window exists at pour ${s.pour}`).toBeTruthy();
-      expect(band, `band exists at pour ${s.pour}`).toBeTruthy();
-      expect(styleHeight(segment!)).toBeCloseTo(s.segment, 6);
+      expect(fill, `the one fill exists at pour ${s.pour}`).toBeTruthy();
       expect(styleHeight(win!)).toBeCloseTo(s.window, 6);
-      expect(styleHeight(band!)).toBeCloseTo(s.band, 6);
-      // The partition, on the rendered tree: rows + colour = segment.
-      expect(styleHeight(win!)! + styleHeight(band!)!).toBeCloseTo(styleHeight(segment!)!, 6);
-      // The header fraction rides the same front: 0 until the
-      // front has crossed the whole panel (pour 0.75 here), then
-      // it fills across phase B.
+      expect(styleHeight(fill!)).toBeCloseTo(s.fill, 6);
+      // The face fraction rides the same q: 0 while the fill's
+      // top is still inside the window's span, then the climb.
       expect(styleHeight(byTestID(r, "frac-probe"))).toBeCloseTo(s.frac, 6);
       // While rows stand, they stand inside the window.
       if (s.window > 0) {
@@ -423,7 +443,7 @@ describe("v485 — the one edge, rendered (mid-flight frames)", () => {
 
     // The close completes and the members unmount (v483 lifecycle).
     act(() => {
-      rig.stepAll(62.5);
+      rig.stepAll(68.75);
     });
     act(() => {
       r.update(element());
@@ -431,7 +451,7 @@ describe("v485 — the one edge, rendered (mid-flight frames)", () => {
     expect(panelCopies(r)).toHaveLength(0);
   });
 
-  it("the colour never stands inside the window (the v484 slab), and the band is the window's sibling, not its child", () => {
+  it("the colour never stands inside the window (the v484 slab), and the fill is the window's sibling layer, not its child", () => {
     let expanded = true;
     const element = () => (
       <FamilyGroupUnit
@@ -452,7 +472,7 @@ describe("v485 — the one edge, rendered (mid-flight frames)", () => {
       r.update(element());
     });
     act(() => {
-      rig.stepAll(250);
+      rig.stepAll(275);
     });
     act(() => {
       r.update(element());
@@ -462,19 +482,22 @@ describe("v485 — the one edge, rendered (mid-flight frames)", () => {
     expect(win).toBeTruthy();
     // On v484 this fails here: the accent fill is an absolute
     // slab INSIDE the window, painting over the rows — the solid
-    // violet block in Jonathan's recording.
+    // violet block in Jonathan's recording. It still fails on any
+    // shape that puts the colour inside the window's subtree.
     const accentInsideWindow = win!.findAll(
       (n) => flattenStyle(n.props.style).backgroundColor === ACCENT,
     );
     expect(accentInsideWindow).toHaveLength(0);
-    // And the band that carries the colour stands outside it.
-    const band = byTestID(r, "family-pour-band");
-    expect(band).toBeTruthy();
-    expect(win!.findAll((n) => n === band).length).toBe(0);
-    expect(flattenStyle(band!.props.style).backgroundColor).toBe(ACCENT);
+    // The layer that carries the colour stands outside it
+    // (v486 re-pin: the ONE fill, family-pour-fill — v485's
+    // in-flow band below the window is gone with the segment).
+    const fill = byTestID(r, "family-pour-fill");
+    expect(fill).toBeTruthy();
+    expect(win!.findAll((n) => n === fill)).toHaveLength(0);
+    expect(flattenStyle(fill!.props.style).backgroundColor).toBe(ACCENT);
   });
 
-  it("opening runs the same edge in reverse: mid-flight at pour 0.5 the frame is identical to closing's", () => {
+  it("opening runs the same law in reverse: mid-flight at pour 0.5 the frame is identical to closing's", () => {
     let expanded = false;
     const element = () => (
       <FamilyGroupUnit
@@ -496,15 +519,16 @@ describe("v485 — the one edge, rendered (mid-flight frames)", () => {
     });
     settleLayout(r, () => r.update(element()));
     act(() => {
-      rig.stepAll(250);
+      rig.stepAll(275);
     });
     act(() => {
       r.update(element());
     });
 
-    expect(styleHeight(byTestID(r, "family-pour-segment"))).toBeCloseTo(300, 6);
-    expect(styleHeight(byTestID(r, "family-pour-window"))).toBeCloseTo(100, 6);
-    expect(styleHeight(byTestID(r, "family-pour-band"))).toBeCloseTo(200, 6);
+    // v486 re-pin: window 150 / fill 125 / frac 0 (the one-edge
+    // law read segment 300 / window 100 / band 200 here).
+    expect(styleHeight(byTestID(r, "family-pour-window"))).toBeCloseTo(150, 6);
+    expect(styleHeight(byTestID(r, "family-pour-fill"))).toBeCloseTo(125, 6);
     expect(styleHeight(byTestID(r, "frac-probe"))).toBeCloseTo(0, 6);
     const win = byTestID(r, "family-pour-window");
     expect(win!.findAll((n) => n.props.testID === "panel-root").length).toBeGreaterThanOrEqual(1);

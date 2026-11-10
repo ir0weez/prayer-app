@@ -93,6 +93,26 @@ vi.mock("react-native", () => ({
   },
 }));
 
+// v486 re-pin (mock only): family-pour.tsx now imports the wavy
+// thread (FamilyPourWave wears WavyProgress), which imports
+// react-native-svg — stubbed inert, the wavy-progress-v339
+// pattern. Nothing in this file renders the wave.
+vi.mock("react-native-svg", () => {
+  const Stub = () => null;
+  return {
+    __esModule: true,
+    default: Stub,
+    Circle: Stub,
+    ClipPath: Stub,
+    Defs: Stub,
+    G: Stub,
+    LinearGradient: Stub,
+    Path: Stub,
+    Rect: Stub,
+    Stop: Stub,
+  };
+});
+
 vi.mock("react-native-reanimated", async () => {
   const React = await import("react");
 
@@ -278,7 +298,10 @@ function panelCopies(renderer: ReactTestRenderer): Inst[] {
  * copy (it wraps the window), so the structural finder can no
  * longer tell segment from window. The lifecycle this file pins
  * is unchanged; only the mid-gesture window numbers below move
- * to the one-edge schedule. */
+ * to the one-edge schedule.
+ * v486 re-pin: the segment is gone (the unit is window / fill /
+ * face now); the finder stays by testID, and the mid-gesture
+ * numbers below move to the port's schedule and clock. */
 function findWindow(renderer: ReactTestRenderer): Inst | undefined {
   return renderer.root.findAll((n) => n.props.testID === "family-pour-window")[0];
 }
@@ -319,15 +342,17 @@ describe("v483 — the pour's seat (device: groups did not open; closes folded e
     });
     settleLayout(r, () => r.update(element()));
 
-    // Mid-gesture (half the 500ms clock): the window must stand
-    // open over the members — on the v481 seat the measured
+    // Mid-gesture (half the clock — v486 re-pin: the clock is
+    // the mockup's 550ms now, so half is 275ms): the window must
+    // stand open over the members — on the v481 seat the measured
     // height fixed-pointed at 0, so the window stood at 0 here
     // and the members never seated at all.
-    // v485 re-pin: the height is the one-edge rowsVisible, not
-    // the (1 − pour) fold: at pour 0.5 the front stands at
-    // 0.5 × (62 + 300) = 181, so 300 − 181 = 119 of rows stand.
+    // v486 re-pin: the height is the port's window — the panel
+    // travelling (1 − pour), the mockup's wrap folding
+    // concurrently from t=0: at pour 0.5, 300 × 0.5 = 150 of the
+    // panel stands. (v485's one-edge schedule read 119 here.)
     act(() => {
-      rig.stepAll(250);
+      rig.stepAll(275);
     });
     act(() => {
       r.update(element());
@@ -335,13 +360,13 @@ describe("v483 — the pour's seat (device: groups did not open; closes folded e
     settleLayout(r, () => r.update(element()));
     const win = findWindow(r);
     expect(win).toBeTruthy();
-    expect(windowHeight(win!)).toBeCloseTo(119, 0);
+    expect(windowHeight(win!)).toBeCloseTo(150, 0);
     expect(win!.findAll((n) => n.props.testID === "panel-root").length).toBeGreaterThanOrEqual(1);
 
     // The gesture completes: the window unlocks back to auto
     // height and the members stand at their natural height.
     act(() => {
-      rig.stepAll(250);
+      rig.stepAll(275);
     });
     act(() => {
       r.update(element());
@@ -382,11 +407,12 @@ describe("v483 — the pour's seat (device: groups did not open; closes folded e
     });
     expect(panelCopies(r).length).toBeGreaterThanOrEqual(1);
 
-    // Mid-fold: still mounted, inside the window at its
-    // one-edge height (v485 re-pin: rowsVisible at pour 0.5 is
-    // 119, per the opening test's note — not the old fold's 150).
+    // Mid-fold: still mounted, inside the window at its ported
+    // height (v486 re-pin: the (1 − pour) fold at pour 0.5 is
+    // 150, per the opening test's note — v485's one-edge
+    // rowsVisible read 119 here).
     act(() => {
-      rig.stepAll(250);
+      rig.stepAll(275);
     });
     act(() => {
       r.update(element());
@@ -394,12 +420,12 @@ describe("v483 — the pour's seat (device: groups did not open; closes folded e
     settleLayout(r, () => r.update(element()));
     const win = findWindow(r);
     expect(win).toBeTruthy();
-    expect(windowHeight(win!)).toBeCloseTo(119, 0);
+    expect(windowHeight(win!)).toBeCloseTo(150, 0);
     expect(win!.findAll((n) => n.props.testID === "panel-root").length).toBeGreaterThanOrEqual(1);
 
     // The close completes: only now do the members unmount.
     act(() => {
-      rig.stepAll(250);
+      rig.stepAll(275);
     });
     act(() => {
       r.update(element());

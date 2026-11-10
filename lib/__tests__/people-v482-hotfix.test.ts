@@ -49,41 +49,65 @@ vi.mock("react-native-reanimated", () => ({
   useSharedValue: () => ({ value: 0 }),
   withTiming: () => ({}),
 }));
+// v486 re-pin (mock only): family-pour.tsx now imports the wavy
+// thread (FamilyPourWave wears WavyProgress), which imports
+// react-native-svg — stubbed inert, the wavy-progress-v339
+// pattern. Nothing in this file renders the wave.
+vi.mock("react-native-svg", () => {
+  const Stub = () => null;
+  return {
+    __esModule: true,
+    default: Stub,
+    Circle: Stub,
+    ClipPath: Stub,
+    Defs: Stub,
+    G: Stub,
+    LinearGradient: Stub,
+    Path: Stub,
+    Rect: Stub,
+    Stop: Stub,
+  };
+});
 
-import { familyPourFront } from "@/components/family-pour";
+import { familyPourGeometry } from "@/components/family-pour";
 
 const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 const pour = read("components/family-pour.tsx");
-const frontFn = pour.slice(pour.indexOf("export function familyPourFront"), pour.indexOf("export function FamilyGroupUnit"));
+const frontFn = pour.slice(pour.indexOf("export function familyPourGeometry"), pour.indexOf("export function FamilyGroupUnit"));
 const unit = pour.slice(pour.indexOf("export function FamilyGroupUnit"), pour.indexOf("export function FamilyPourFill"));
 
-describe("v482 — familyPourFront is a worklet, and fail-safe at its boundary", () => {
+describe("v482 — the pour geometry is a worklet, and fail-safe at its boundary", () => {
   it("the 'worklet' directive is the function's first statement (the launch-crash fix)", () => {
-    expect(frontFn).toMatch(/export function familyPourFront\([^)]*\)[^{]*\{\s*\n(\s*\/\/[^\n]*\n)*\s*"worklet";/);
+    // v486 re-pin: the geometry's name, as renamed by the port —
+    // the directive discipline this test exists to guard is
+    // unchanged (and re-proven against the real babel transform
+    // in the v486 build: familyPourGeometry.__workletHash
+    // 2297146073286, no closure capture).
+    expect(frontFn).toMatch(/export function familyPourGeometry\([^)]*\)[^{]*\{\s*\n(\s*\/\/[^\n]*\n)*\s*"worklet";/);
   });
 
-  // v485 re-pin (applies to this whole describe): the front now
-  // also reports segmentHeight, so the toEqual literals below
-  // gain that field. The three original fields' values at these
-  // inputs are UNCHANGED — these are still the static frames:
-  // closed stands filled (segment 0), open stands drained (the
-  // segment at the panel's full height, band 0).
+  // v486 re-pin (applies to this whole describe): the geometry
+  // reports { windowHeight, fillHeight, faceFillFrac } now — the
+  // mockup's three lines. The static frames these literals pin
+  // are the same frames: closed stands filled (window 0, the
+  // fraction 1), open stands drained (window at the panel's full
+  // height where measured, fill 0).
   it("the pre-measure frame is exactly the static card: closed stands filled, open stands drained", () => {
-    expect(familyPourFront(1, 0, 0)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, segmentHeight: 0, headerFillFrac: 1 });
-    expect(familyPourFront(0, 0, 0)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, segmentHeight: 0, headerFillFrac: 0 });
+    expect(familyPourGeometry(1, 0, 0)).toEqual({ windowHeight: 0, fillHeight: 0, faceFillFrac: 1 });
+    expect(familyPourGeometry(0, 0, 0)).toEqual({ windowHeight: 0, fillHeight: 0, faceFillFrac: 0 });
   });
 
   it("a non-finite pour falls back to the drained, measured-nothing state", () => {
-    const front = familyPourFront(Number.NaN, 62, 300);
-    expect(front).toEqual({ panelWindowHeight: 300, panelFillHeight: 0, segmentHeight: 300, headerFillFrac: 0 });
-    expect(familyPourFront(Number.POSITIVE_INFINITY, 62, 300).headerFillFrac).toBe(0);
+    const g = familyPourGeometry(Number.NaN, 62, 300);
+    expect(g).toEqual({ windowHeight: 300, fillHeight: 0, faceFillFrac: 0 });
+    expect(familyPourGeometry(Number.POSITIVE_INFINITY, 62, 300).faceFillFrac).toBe(0);
   });
 
   it("negative and non-finite measures are treated as unmeasured", () => {
-    expect(familyPourFront(0.5, -10, -20)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, segmentHeight: 0, headerFillFrac: 0.5 });
-    expect(familyPourFront(1, Number.NaN, Number.NaN)).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, segmentHeight: 0, headerFillFrac: 1 });
-    expect(familyPourFront(0.75, Number.POSITIVE_INFINITY, 300).headerFillFrac).toBe(0.75);
+    expect(familyPourGeometry(0.5, -10, -20)).toEqual({ windowHeight: 0, fillHeight: 0, faceFillFrac: 0.5 });
+    expect(familyPourGeometry(1, Number.NaN, Number.NaN)).toEqual({ windowHeight: 0, fillHeight: 0, faceFillFrac: 1 });
+    expect(familyPourGeometry(0.75, Number.POSITIVE_INFINITY, 300)).toEqual({ windowHeight: 75, fillHeight: 56.25, faceFillFrac: 0.75 });
   });
 
   it("no input state can produce a negative, NaN or infinite output", () => {
@@ -92,28 +116,32 @@ describe("v482 — familyPourFront is a worklet, and fail-safe at its boundary",
     for (const p of pours) {
       for (const h of measures) {
         for (const pn of measures) {
-          const front = familyPourFront(p, h, pn);
-          // v485 re-pin: segmentHeight joins the swept values,
-          // and the closing bound is the one-edge partition
-          // (band ≤ segment; rows + band = segment) — the old
-          // bound (fill ≤ window) encoded the fill living inside
-          // the window, the slab's shape.
-          for (const value of [front.panelWindowHeight, front.panelFillHeight, front.segmentHeight, front.headerFillFrac]) {
+          const g = familyPourGeometry(p, h, pn);
+          for (const value of [g.windowHeight, g.fillHeight, g.faceFillFrac]) {
             expect(Number.isFinite(value)).toBe(true);
             expect(value).toBeGreaterThanOrEqual(0);
           }
-          expect(front.headerFillFrac).toBeLessThanOrEqual(1);
-          expect(front.panelFillHeight).toBeLessThanOrEqual(front.segmentHeight);
-          expect(front.panelWindowHeight + front.panelFillHeight).toBeCloseTo(front.segmentHeight, 6);
+          expect(g.faceFillFrac).toBeLessThanOrEqual(1);
+          // v486 re-pin: the closing identity is the port's two
+          // lines, computed from the sanitized inputs — the
+          // window is the panel travelling (1 − q), the fill the
+          // bottom q of the current height. (The v485 partition
+          // identity it replaces encoded the segment law.)
+          const sp = typeof p === "number" && Number.isFinite(p) ? p : 0;
+          const q = Math.min(1, Math.max(0, sp));
+          const sh = typeof h === "number" && Number.isFinite(h) ? Math.max(0, h) : 0;
+          const spn = typeof pn === "number" && Number.isFinite(pn) ? Math.max(0, pn) : 0;
+          const window = spn * (1 - q);
+          expect(g.windowHeight).toBeCloseTo(window, 6);
+          expect(g.fillHeight).toBeCloseTo(q * (sh + window), 6);
         }
       }
     }
   });
 
   it("undefined measures (cast in, as a hostile caller would) still yield the static frame", () => {
-    const front = familyPourFront(1, undefined as unknown as number, undefined as unknown as number);
-    // v485 re-pin: the literal gains segmentHeight (0 here), as above.
-    expect(front).toEqual({ panelWindowHeight: 0, panelFillHeight: 0, segmentHeight: 0, headerFillFrac: 1 });
+    const g = familyPourGeometry(1, undefined as unknown as number, undefined as unknown as number);
+    expect(g).toEqual({ windowHeight: 0, fillHeight: 0, faceFillFrac: 1 });
   });
 });
 

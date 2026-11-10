@@ -42,8 +42,27 @@ vi.mock("react-native-reanimated", () => ({
   useSharedValue: () => ({ value: 0 }),
   withTiming: () => ({}),
 }));
+// v486 re-pin (mock only): family-pour.tsx now imports the wavy
+// thread (FamilyPourWave wears WavyProgress), which imports
+// react-native-svg — stubbed inert, the wavy-progress-v339
+// pattern. Nothing in this file renders the wave.
+vi.mock("react-native-svg", () => {
+  const Stub = () => null;
+  return {
+    __esModule: true,
+    default: Stub,
+    Circle: Stub,
+    ClipPath: Stub,
+    Defs: Stub,
+    G: Stub,
+    LinearGradient: Stub,
+    Path: Stub,
+    Rect: Stub,
+    Stop: Stub,
+  };
+});
 
-import { FAMILY_POUR_DURATION_MS, familyPourFront } from "@/components/family-pour";
+import { FAMILY_POUR_DURATION_MS, familyPourGeometry } from "@/components/family-pour";
 
 const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
@@ -58,98 +77,77 @@ const familyRow = index.slice(index.indexOf("const renderPeopleFamilyRow"), inde
 const classicCard = index.slice(index.indexOf("if (!isSkinned) {"), index.indexOf("<ReAnimated.View key={familyId}"));
 const chevron = index.slice(index.indexOf("function FamilyChevron"), index.indexOf("const rosterRefIds = new WeakMap"));
 
-describe("v481 — the pour's geometry (familyPourFront)", () => {
+describe("v481 — the pour's geometry (familyPourGeometry)", () => {
   const HEADER = 62;
   const PANEL = 300;
 
-  it("at rest closed the card stands full: no window, header fraction 1", () => {
-    const front = familyPourFront(1, HEADER, PANEL);
-    expect(front.panelWindowHeight).toBe(0);
-    expect(front.panelFillHeight).toBe(0);
-    expect(front.headerFillFrac).toBe(1);
+  // v486 re-pin (this whole describe): the geometry is the
+  // mockup's own mechanism now — the window folds (1 − q) of the
+  // panel while the ONE fill stands at the bottom q of the unit's
+  // CURRENT height (face + window), both off the same q, same
+  // clock. The values below are that law's; the v481/v485 values
+  // (front schedules, partitions, phase laws) are superseded.
+  it("at rest closed the card stands full: no window, the fill at the face's height, face fraction 1", () => {
+    const g = familyPourGeometry(1, HEADER, PANEL);
+    expect(g.windowHeight).toBe(0);
+    expect(g.fillHeight).toBe(HEADER);
+    expect(g.faceFillFrac).toBe(1);
   });
 
   it("at rest open the window stands full and nothing is filled", () => {
-    const front = familyPourFront(0, HEADER, PANEL);
-    expect(front.panelWindowHeight).toBe(PANEL);
-    expect(front.panelFillHeight).toBe(0);
-    expect(front.headerFillFrac).toBe(0);
+    const g = familyPourGeometry(0, HEADER, PANEL);
+    expect(g.windowHeight).toBe(PANEL);
+    expect(g.fillHeight).toBe(0);
+    expect(g.faceFillFrac).toBe(0);
   });
 
-  it("mid-pour the edge stands halfway through the panel — the header is not filling yet", () => {
-    // v485 re-pin: v481's values (window 150, fill 150, fraction
-    // 0.5) encoded the two-edge schedule — the window folding on
-    // (1 − pour) while the header filled on the front, meeting
-    // halfway. The one-edge law reads everything off the front:
-    // at pour 0.5 the front stands at 181 of the panel's 300, so
-    // 119 of rows still stand above the edge, 181 of colour below
-    // it, the segment still at full height, and the header
-    // untouched (fraction 0) until the front crosses the panel.
-    const front = familyPourFront(0.5, HEADER, PANEL);
-    expect(front.panelWindowHeight).toBe(119);
-    expect(front.panelFillHeight).toBe(181);
-    expect(front.segmentHeight).toBe(PANEL);
-    expect(front.headerFillFrac).toBe(0);
+  it("mid-pour the window has folded halfway and the fill — the bottom half of the CURRENT height — has not reached the face", () => {
+    const g = familyPourGeometry(0.5, HEADER, PANEL);
+    expect(g.windowHeight).toBe(150);
+    expect(g.fillHeight).toBe(106);
+    expect(g.faceFillFrac).toBe(0);
   });
 
-  it("early in the pour the colour is still inside the panel segment — the header is untouched", () => {
-    // v485 re-pin: the fill (90.5) and the fraction (0) are the
-    // same numbers — early in the pour the front is inside the
-    // panel on both schedules. The window is what changes: it is
-    // now the rows above the edge (300 − 90.5 = 209.5), not the
-    // (1 − pour) fold (225).
-    const front = familyPourFront(0.25, HEADER, PANEL);
-    expect(front.panelWindowHeight).toBeCloseTo(209.5);
-    expect(front.panelFillHeight).toBeCloseTo(90.5);
-    expect(front.segmentHeight).toBe(PANEL);
-    expect(front.headerFillFrac).toBe(0);
+  it("early in the pour the window is still three-quarters open and the fill is shallow", () => {
+    const g = familyPourGeometry(0.25, HEADER, PANEL);
+    expect(g.windowHeight).toBe(225);
+    expect(g.fillHeight).toBeCloseTo(71.75);
+    expect(g.faceFillFrac).toBe(0);
   });
 
-  it("late in the pour the edge nears the panel's top and the header is STILL untouched", () => {
-    // v485 re-pin: the old pin asserted the header was already
-    // covered (fraction 1) while 75 of the panel still stood —
-    // that IS the two-edge disease (the header filling early,
-    // from pour ≈ P/(H + 2P)). On the one-edge law the front at
-    // pour 0.75 stands at 271.5, still inside the panel (it
-    // crosses at pour ≈ 0.829), so 28.5 of rows stand above the
-    // edge, 271.5 of colour below it, and the header fraction is
-    // still 0 — the header fills only across phase B.
-    const front = familyPourFront(0.75, HEADER, PANEL);
-    expect(front.panelWindowHeight).toBeCloseTo(28.5);
-    expect(front.panelFillHeight).toBeCloseTo(271.5);
-    expect(front.segmentHeight).toBe(PANEL);
-    expect(front.headerFillFrac).toBe(0);
+  it("late in the pour the fill has climbed into the face while a quarter of the panel still stands open", () => {
+    // The mockup's concurrency, in one frame: the wrap is still
+    // folding (75 of the panel stands) AND the fill — read off
+    // the shrinking current height — already covers 27.75 of the
+    // face's 62. Both of v485's phase laws denied one half of
+    // this frame or the other.
+    const g = familyPourGeometry(0.75, HEADER, PANEL);
+    expect(g.windowHeight).toBe(75);
+    expect(g.fillHeight).toBeCloseTo(102.75);
+    expect(g.faceFillFrac).toBeCloseTo(27.75 / 62, 6);
   });
 
-  it("an unmeasured panel falls back to the pour itself for the header fraction", () => {
-    expect(familyPourFront(1, HEADER, 0).headerFillFrac).toBe(1);
-    expect(familyPourFront(0, HEADER, 0).headerFillFrac).toBe(0);
-    expect(familyPourFront(0.5, HEADER, 0).headerFillFrac).toBe(0.5);
+  it("an unmeasured panel still gives the pour itself for the face fraction", () => {
+    expect(familyPourGeometry(1, HEADER, 0).faceFillFrac).toBe(1);
+    expect(familyPourGeometry(0, HEADER, 0).faceFillFrac).toBe(0);
+    expect(familyPourGeometry(0.5, HEADER, 0).faceFillFrac).toBe(0.5);
   });
 
-  it("across the whole travel the rows and the colour partition the segment and the fraction stays in [0, 1]", () => {
-    // v485 re-pin: the old invariant (fill ≤ window) encoded the
-    // fill living INSIDE the window — the slab's shape. The
-    // one-edge invariant is a partition: rows + colour = the
-    // segment, exactly, at every frame; the segment stands at
-    // the panel's full height until the front crosses it, then
-    // collapses across the header's fill phase.
+  it("across the whole travel the two lines hold and the fraction stays in [0, 1]", () => {
     for (let step = 0; step <= 20; step += 1) {
-      const pour = step / 20;
-      const front = familyPourFront(pour, HEADER, PANEL);
-      const frontPx = pour * (HEADER + PANEL);
-      expect(front.panelWindowHeight + front.panelFillHeight).toBeCloseTo(front.segmentHeight, 6);
-      expect(front.segmentHeight).toBeCloseTo(
-        frontPx <= PANEL ? PANEL : (PANEL * (HEADER + PANEL - frontPx)) / HEADER,
-        6,
-      );
-      expect(front.headerFillFrac).toBeGreaterThanOrEqual(0);
-      expect(front.headerFillFrac).toBeLessThanOrEqual(1);
+      const q = step / 20;
+      const g = familyPourGeometry(q, HEADER, PANEL);
+      const window = PANEL * (1 - q);
+      expect(g.windowHeight).toBeCloseTo(window, 6);
+      expect(g.fillHeight).toBeCloseTo(q * (HEADER + window), 6);
+      expect(g.faceFillFrac).toBeGreaterThanOrEqual(0);
+      expect(g.faceFillFrac).toBeLessThanOrEqual(1);
     }
   });
 
-  it("the clock is the named 500ms on the Material emphasized easing", () => {
-    expect(FAMILY_POUR_DURATION_MS).toBe(500);
+  it("the clock is the mockup's 550ms on the Material emphasized easing", () => {
+    // v486 re-pin: 500 → 550 — the port takes the spec's own .55s.
+    expect(FAMILY_POUR_DURATION_MS).toBe(550);
     expect(pour).toContain("Easing.bezier(0.2, 0, 0, 1)");
   });
 });
@@ -164,7 +162,8 @@ describe("v481 — one value per card, owned by the unit", () => {
 
   it("the screen creates no pour state of its own — the provider lives in the component file", () => {
     expect(index).not.toContain("FamilyPourContext.Provider");
-    expect(index).not.toContain("familyPourFront");
+    // v486 re-pin: the geometry's name, as renamed by the port.
+    expect(index).not.toContain("familyPourGeometry");
   });
 
   it("the row composes card + panel inside exactly one unit, fed the section's own accent", () => {
@@ -196,28 +195,35 @@ describe("v481 — one value per card, owned by the unit", () => {
 describe("v481 — the fill and the flip", () => {
   it("the header card carries the pour fill in the group's derived accent", () => {
     expect(classicCard).toContain("<FamilyPourFill color={familyRelationship.accent} />");
-    expect(fill).toContain("ctx.headerFillFrac.value * 100");
+    // v486 re-pin: the fraction is the FACE fraction now (the
+    // face is header + progress, the card carrying both).
+    expect(fill).toContain("ctx.faceFillFrac.value * 100");
     expect(fill).toContain('position: "absolute", left: 0, right: 0, bottom: 0');
   });
 
-  it("the panel segment fills in the same accent, from the same front", () => {
+  it("the ONE fill layer stands over the panel region in the same accent, from the same q", () => {
     expect(unit).toContain("backgroundColor: accent");
-    expect(unit).toContain("front.value.panelFillHeight");
-    // v485: the fill is the colour band standing in flow below
-    // the window, inside a segment driven by the same front —
-    // not an absolute slab inside the window (v484's shape, the
-    // solid block in his recording). The trailing-margin offset
-    // the slab floated on is gone with it.
-    expect(unit).toContain('testID="family-pour-segment"');
-    expect(unit).toContain('testID="family-pour-band"');
-    expect(unit).toContain("front.value.segmentHeight");
+    // v486 re-pin: v485's segment + in-flow band are gone; the
+    // fill is one absolute layer whose height is the geometry's
+    // fillHeight (the bottom q of the unit's current height),
+    // standing as a sibling over the window — the mockup's .fill.
+    // The trailing-margin offset the v484 slab floated on stays
+    // gone.
+    expect(unit).toContain('testID="family-pour-fill"');
+    expect(unit).toContain("geometry.value.fillHeight");
+    expect(unit).not.toContain('testID="family-pour-segment"');
+    expect(unit).not.toContain('testID="family-pour-band"');
     expect(unit).not.toContain("FAMILY_PANEL_TRAILING_MARGIN");
   });
 
-  it("the header texts flip to white on the pour — name late, meta first", () => {
+  it("the face texts flip to white on the pour — progress first, name and meta across the upper reach", () => {
     expect(pourText).toContain("interpolateColor");
     expect(pourText).toContain('"#FFFFFF"');
-    expect(pourText).toContain('variant === "name" ? [0.6, 0.92] : [0.34, 0.66]');
+    // v486 re-pin: the ranges are keyed to the fill's climb into
+    // the face — the progress row sits at the face's bottom and
+    // flips over [0, 0.35]; the head row's name/meta flip over
+    // [0.45, 1].
+    expect(pourText).toContain('variant === "progress" ? [0, 0.35] : [0.45, 1]');
     expect(classicCard).toContain('<FamilyPourText variant="name" fromColor={pmf.ink}');
     expect(classicCard).toContain('<FamilyPourText variant="meta" fromColor={pmf.inkSoft}');
   });
@@ -238,9 +244,10 @@ describe("v481 — the fill and the flip", () => {
 });
 
 describe("v481 — the fold clips, and none of the retired gates return", () => {
-  it("the panel window clips its content and takes its height from the front", () => {
+  it("the panel window clips its content and takes its height from the geometry", () => {
     expect(unit).toContain('overflow: "hidden"');
-    expect(unit).toContain("front.value.panelWindowHeight");
+    // v486 re-pin: the derived value is the port's geometry.
+    expect(unit).toContain("geometry.value.windowHeight");
     expect(unit).toContain("pour.value === 0");
   });
 

@@ -100,7 +100,7 @@ import { UndoCountdownTimer } from "@/components/undo-countdown-timer";
 import { StackedAvatar } from "@/components/stacked-avatar";
 import { StatusModal } from "@/components/status-modal";
 import { EmergencyPrayerPill } from "@/components/emergency-prayer-pill";
-import { FamilyGroupUnit, FamilyPourContext, FamilyPourFill, FamilyPourText } from "@/components/family-pour";
+import { FamilyGroupUnit, FamilyPourContext, FamilyPourText } from "@/components/family-pour";
 import {
   isNativePrayerTimerAvailable,
   startEmergencyNotification,
@@ -2826,13 +2826,16 @@ export default function HomeScreen() {
       // row to a little draining pill under the chevron). The 0d/1d
       // day pill v254 carried here is gone; the reach reads in the
       // sub-line's words, as drawn.
+      // v489: the head row alone. The group unit's root is the
+      // card now (one surface — see renderPeopleFamilyRow), so
+      // the face carries no wrapper, no background and no fill of
+      // its own: the unit's ONE fill paints behind this row, and
+      // the name/meta flips ride its fraction exactly as the
+      // retired interior fill's did. The row is also header-only
+      // (v487: the progress block rides in the panel — Jonathan
+      // never asked for it on the face, and its height on every
+      // closed card is what made the groups feel huge).
       return (
-        <View key={familyId} style={{ backgroundColor: pmf.card, borderRadius: 24, marginHorizontal: 12, marginTop: ROSTER_HOUSEHOLD_GAP, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2, overflow: "hidden" }}>
-          {/* v481: the pour's fill inside the card — the group's own
-              accent rising from the card's bottom edge, under the
-              head row (components/family-pour.tsx owns the motion;
-              the unit wrapping this card supplies the value). */}
-          <FamilyPourFill color={familyRelationship.accent} />
           <Pressable onLongPress={() => handleFamilyLongPress(familyMembers)} onPress={() => toggleFamilyExpanded(familyId)} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 14, paddingVertical: 12 }, pressed && { opacity: 0.85 }]}>
             <View style={{ flexDirection: "row", flex: 0 }}>
               {stackMembers.map((member, stackIdx) => (
@@ -2864,16 +2867,6 @@ export default function HomeScreen() {
               ) : null}
             </View>
           </Pressable>
-          {/* v487: the card is the head row alone again — the
-              progress block that v486 seated here (the mockup's
-              .prog in .gcard) is back at the top of the panel,
-              where it lived through v485: Jonathan never asked
-              for it on the face ("that wavy line is now always
-              there... I didn't ask for that... It can just
-              appear when the group is open"), and its height on
-              every closed card is what made the groups feel
-              huge. See renderExpandedFamily. */}
-        </View>
       );
     }
 
@@ -4030,6 +4023,14 @@ export default function HomeScreen() {
     // ("It can just appear when the group is open"), and it returns
     // here rendered plain, folding with the panel and covered by
     // the pour's rising fill exactly like the rows below it.
+    // v489: the panel is content now, not a sheet — the one card
+    // (the group unit's root) supplies the surface, so the sheet's
+    // own background, bottom radii, −14 tuck under the header
+    // card, trailing margin and top padding are all gone; the
+    // content simply lives inside the card. The one outerStyle
+    // value that survives is the content's bottom padding — the
+    // mockup card's own bottom padding, worn by the content so
+    // it measures into the panel height the pour reads.
     if (!isSkinned) {
       const pct = Math.round((completedMembers / familyMembers.length) * 100);
       const renderMemberRow = (member: Person, kid: boolean) => {
@@ -4073,7 +4074,7 @@ export default function HomeScreen() {
       const adults = familyMembers.filter((member) => member.familyType !== "Child");
       const kids = familyMembers.filter((member) => member.familyType === "Child");
       return (
-        <FamilyPanel outerStyle={{ marginHorizontal: 12, marginTop: -14, marginBottom: 10, backgroundColor: pmf.card, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingTop: 20, paddingBottom: 14, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
+        <FamilyPanel outerStyle={{ paddingBottom: 14 }}>
           {/* v487: the progress block, back at the panel's top in
               its pre-v486 plain dress (standing colours, no pour
               flip) — it appears when the group opens and folds
@@ -4162,10 +4163,18 @@ export default function HomeScreen() {
     // expanded identity still flips here in the same render, and
     // the unit keeps a closing group's members mounted for the
     // fold from its own cached copy of the panel element.
+    // v489: on the Classic path the unit's root wears the ONE
+    // card surface — the approved drawing's card (radius 28, the
+    // roster's gap on top, the palette's card + shadow) — and
+    // the header and panel are content inside it. Skinned rows
+    // pass no surface: their header keeps its own card, exactly
+    // as before.
+    const familyCardSurface = !isSkinned ? { backgroundColor: pmf.card, borderRadius: 28, marginHorizontal: 12, marginTop: ROSTER_HOUSEHOLD_GAP, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 } : undefined;
     return (
       <FamilyGroupUnit
         expanded={isExpanded}
         accent={relationshipColors[item.section.title].accent}
+        cardStyle={familyCardSurface}
         header={renderFamilyCard(item.familyMembers, undefined, isExpanded)}
         panel={isExpanded && renderExpandedFamily(item.familyMembers, item.section)}
       />
@@ -4194,13 +4203,16 @@ export default function HomeScreen() {
       const countdown = personEmergency ? emergencyCountdowns[personEmergency.item.id] : undefined;
       // v300: the household→single seam (see ROSTER_HOUSEHOLD_GAP).
       // This row is the seam single when it is the section's first
-      // single and households precede it. The margin is owed only
-      // while the household directly above rests collapsed: when
-      // that household is expanded or closing, its unfurl panel
-      // trails marginBottom 10 and already carries the gap.
+      // single and households precede it.
+      // v489: the margin is owed in BOTH household states now.
+      // Through v487 it was owed only while the household above
+      // rested collapsed, because an expanded household's panel
+      // trailed marginBottom 10 and carried the gap itself; the
+      // one card trails no margin (the sheet and its trailing
+      // margin are gone), so the seam single always supplies the
+      // household gap, open or closed.
       const sectionFamilies = item.section.familyGroups ?? [];
-      const seamFamilyId = sectionFamilies.length > 0 ? sectionFamilies[sectionFamilies.length - 1]?.[0]?.familyId || "" : "";
-      const seamAfterFamily = !isSkinned && item.index === 0 && sectionFamilies.length > 0 && expandedFamilyId !== seamFamilyId;
+      const seamAfterFamily = !isSkinned && item.index === 0 && sectionFamilies.length > 0;
       return (
         <RosterRowShell
           rowKey={item.key}

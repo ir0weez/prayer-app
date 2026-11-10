@@ -55,6 +55,20 @@
 // height as it folds. v486 seated the mockup's .prog in the
 // card; Jonathan's ruling above overrides that one placement —
 // the MOTION is the mockup's, the progress block's seat is his.
+//
+// ─── v489 — the one-card rebuild ───────────────────────────────
+// Device verdict on v487: the card DESIGN was wrong (stacked
+// surfaces → scallops at rest, a detached sheet when open).
+// v489 makes the composition match the mockup's structure: the
+// group unit's root is the single card, the fill runs
+// full-bleed under its outline, the face is the head row alone
+// (no wrapper, no interior fill), and the panel is content
+// inside the card (no sheet). The geometry pins in this file
+// are untouched — the law never changed; what H and P measure
+// now stands inside one outline instead of three. The two
+// composition pins that named the old surfaces are re-pinned
+// below with their reasons; people-v489-one-card.test.tsx
+// carries the one-surface tree pins, failing on v488 first.
 
 import React, { useContext } from "react";
 import TestRenderer, {
@@ -550,7 +564,7 @@ describe("v486/v487 — source pins: the port's shape, the block's seat", () => 
     expect(pourSrc).not.toContain("FamilyPourFront");
   });
 
-  it("v487 re-pin: the Classic FACE is header-only — the progress block, its flip consumers and its paddingBottom 18 have left the card", () => {
+  it("v487 re-pin, v489 re-pin: the Classic FACE is header-only — the progress block, its flip consumers and its paddingBottom 18 have left the card; v489 takes the card wrapper and the interior fill too", () => {
     // v486 pinned this block INSIDE the card; Jonathan overruled
     // that seat ("I didn't ask for that... It can just appear
     // when the group is open"), so the pin flips: the face's
@@ -572,11 +586,15 @@ describe("v486/v487 — source pins: the port's shape, the block's seat", () => 
     // What the face keeps: the head row and its two flips.
     expect(classic).toContain('<FamilyPourText variant="name"');
     expect(classic).toContain('<FamilyPourText variant="meta"');
-    expect(classic).toContain("<FamilyPourFill");
+    // v489 re-pin: the interior FamilyPourFill leaves the face —
+    // the group is one card now and the unit's single fill
+    // paints the face region directly; a second fill inside the
+    // face would double-paint the same pixels.
+    expect(classic).not.toContain("<FamilyPourFill");
     expect(classic).toContain("<FamilyChevron");
   });
 
-  it("v487 re-pin: the Classic PANEL opens with the progress block, rendered plain — and its paddingTop is the v485 value", () => {
+  it("v487 re-pin, v489 re-pin: the Classic PANEL opens with the progress block, rendered plain — and v489 strips its sheet (no paddingTop, no tuck, no trailing margin)", () => {
     // v486 pinned the block OUT of the panel ("members + Mark as
     // Complete only"); v487 restores the pre-v486 composition:
     // progress row + wavy thread at the panel's top, then the
@@ -604,10 +622,16 @@ describe("v486/v487 — source pins: the port's shape, the block's seat", () => 
     expect(classicPanel.indexOf('testID="family-pour-progress"')).toBeLessThan(
       classicPanel.indexOf("Mark as Complete"),
     );
-    // (d) The v486 compensation reverts: paddingTop is 20 again
-    // (the v485/v480 value), so the block clears the −14 tuck.
-    expect(classicPanel).toContain("paddingTop: 20");
-    expect(classicPanel).not.toContain("paddingTop: 2,");
+    // (d) v487 pinned paddingTop 20 here (the v486 compensation
+    // reverted, clearing the −14 tuck). v489 re-pin: the sheet
+    // is gone entirely — there is no tuck to clear and no sheet
+    // to pad, so the panel's only outerStyle is the content's
+    // bottom padding, worn inside the one card and measured
+    // into the panel height like everything else in it.
+    expect(classicPanel).toContain("<FamilyPanel outerStyle={{ paddingBottom: 14 }}>");
+    expect(classicPanel).not.toContain("paddingTop: 20");
+    expect(classicPanel).not.toContain("marginTop: -14");
+    expect(classicPanel).not.toContain("marginBottom: 10");
     // The wave now renders twice in the panel renderer: the
     // Classic panel's restored block and the skinned panel's own
     // progress row, untouched.

@@ -133,6 +133,35 @@
 //    −14/10), so none is touched. people-v486-pour.test.tsx
 //    re-pins the placement and the geometry at H = 62 (header
 //    only), P = 360 (progress included).
+//  · v489 (device, Jonathan's verdict on v487, Nov 10): the
+//    motion was never the problem — the CARD was. Closed groups
+//    stood as solid accent slabs with asymmetric radii stacked
+//    into scallops, and the open tray read as a separate
+//    flat-topped sheet that never connected to the header. The
+//    composition was three stacked surfaces (a header card, a
+//    panel sheet tucked −14 under it, a fill rectangle inset
+//    12px with its own bottom radii), and stacked outlines are
+//    what scallops and seams are. The approved drawing
+//    (group-one-card-v2.html, his "Build it this way") is the
+//    mockup's .gcard itself: ONE element — one background, one
+//    radius (28), one shadow, clipped — holding header,
+//    progress, members and button, with .fill a single
+//    full-bleed layer clipped by that one outline. So the unit's
+//    root becomes the card when the composition hands it a
+//    cardStyle (the Classic path only): the root wears the
+//    surface and clips, the fill goes full-bleed (no inset, no
+//    radius of its own), the header returns its head row alone
+//    (no wrapper card, no interior fill — the ONE fill paints
+//    the face region directly), and the panel loses its sheet
+//    (no background, radii, tuck or trailing margin). Groups
+//    stand on their own with the roster's spacing — no overlap
+//    anywhere (his correction, Nov 10 10:55). The geometry, the
+//    clock, the seat, the cache and the lifecycle are untouched;
+//    H is the header's height inside the one card, P the panel
+//    content's. Skinned rows hand no cardStyle and keep the
+//    v481–v488 shape byte for byte. people-v489-one-card
+//    .test.tsx pins the one-surface tree, the full-bleed fill
+//    and the mid-flight structure, failing on v488 first.
 
 import {
   createContext,
@@ -142,7 +171,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Text, View, type StyleProp, type TextProps, type TextStyle } from "react-native";
+import { Text, View, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from "react-native";
 import ReAnimated, {
   Easing,
   Extrapolation,
@@ -262,17 +291,28 @@ export function familyPourGeometry(pour: number, headerHeight: number, panelHeig
  * header and panel arrive as elements; the panel element is cached
  * on its way in so a closing group keeps rendering its members for
  * the whole fold even though the screen has already let it go.
+ *
+ * v489: when the composition hands the unit a `cardStyle` (the
+ * Classic path), the unit's root IS the one card of the approved
+ * drawing — the surface (background, radius 28, the roster's
+ * margins, the shadow) rides the root, the root clips, and the
+ * fill runs full-bleed under that single outline. Without one
+ * (the skinned paths) the root stays the bare relative box it
+ * has been since v481 and the fill keeps its inset dress behind
+ * the skinned header card.
  */
 export function FamilyGroupUnit({
   expanded,
   accent,
   header,
   panel,
+  cardStyle,
 }: {
   expanded: boolean;
   accent: string;
   header: ReactNode;
   panel: ReactNode;
+  cardStyle?: StyleProp<ViewStyle>;
 }) {
   const pour = useSharedValue(expanded ? 0 : 1);
   const headerHeight = useSharedValue(0);
@@ -342,8 +382,32 @@ export function FamilyGroupUnit({
   // an empty window.)
   const renderedPanel = panel ? panel : heldPanelRef.current;
 
+  // v489: the one-card frames. With a cardStyle the root wears
+  // the card surface itself and clips it (the single outline),
+  // and the fill frame is full-bleed — left/right/bottom 0, no
+  // radius of its own — so the card's outline is the only
+  // outline the gesture can draw. Without one, both frames are
+  // the v481–v488 shapes exactly: a bare relative root, and the
+  // fill inset to the skinned header card's margins (12) with
+  // its bottom corners (24).
+  const oneCard = cardStyle !== undefined;
+  const rootStyle: StyleProp<ViewStyle> = oneCard
+    ? [cardStyle, { position: "relative", flexDirection: "column-reverse", overflow: "hidden" }]
+    : { position: "relative", flexDirection: "column-reverse" };
+  const fillFrame: ViewStyle = oneCard
+    ? { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: accent }
+    : {
+        position: "absolute",
+        left: 12,
+        right: 12,
+        bottom: 0,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        backgroundColor: accent,
+      };
+
   return (
-    <View style={{ position: "relative", flexDirection: "column-reverse" }}>
+    <View style={rootStyle}>
       <FamilyPourContext.Provider value={{ pour, faceFillFrac }}>
         {/* v486: the unit's tree is the mockup's paint order —
             .mwrap, then .fill, then .ghead — laid out by a
@@ -369,34 +433,27 @@ export function FamilyGroupUnit({
             current height). It paints ABOVE the window — the rising
             colour covers the folding rows, as the mockup's z-1
             layer covers its non-positioned .mwrap — and BELOW the
-            face block, which is never covered. Its left/right inset
-            and bottom corners match the joined surface it fills
-            (the header card and the panel both stand at
-            marginHorizontal 12 with 24 bottom corners): inset 0 of
-            the CARD, the way .fill is inset 0 of .gcard. */}
+            face block, which is never covered. v489: its frame is
+            fillFrame above — full-bleed in one-card mode (inset 0
+            of the CARD, the way .fill is inset 0 of .gcard,
+            clipped by the card's one outline); the inset dress
+            (12 sides, 24 bottom corners, matching the skinned
+            header card's own margins and corners) survives only
+            on the skinned path. */}
         <ReAnimated.View
           testID="family-pour-fill"
           pointerEvents="none"
-          style={[
-            {
-              position: "absolute",
-              left: 12,
-              right: 12,
-              bottom: 0,
-              borderBottomLeftRadius: 24,
-              borderBottomRightRadius: 24,
-              backgroundColor: accent,
-            },
-            fillStyle,
-          ]}
+          style={[fillFrame, fillStyle]}
         />
         {/* The face block — the mockup's .ghead: in the app the
-            one header element, the Classic header card ALONE
+            one header element, the Classic head row ALONE
             (v487: the progress block rides in the panel again, so
-            this measure is the header's height only). In flow
-            (the column-reverse root sets it at the unit's top),
-            never inside the animated window, so its layout report
-            is a lawful measure of the face's height. */}
+            this measure is the header's height only; v489: the
+            row itself, no card wrapper around it — the card is
+            the unit's root). In flow (the column-reverse root
+            sets it at the unit's top), never inside the animated
+            window, so its layout report is a lawful measure of
+            the face's height. */}
         <View
           testID="family-pour-face"
           onLayout={(event) => {
@@ -449,6 +506,14 @@ export function FamilyGroupUnit({
  * the folding panel; the two are one colour on one schedule.
  * Renders nothing outside a FamilyGroupUnit (the context is the
  * unit's to give).
+ *
+ * v489: RETAINED in this module but no longer composed anywhere
+ * — in the one-card rebuild the unit's single fill paints the
+ * face region directly (the mockup's .fill behind .ghead), so
+ * an interior second fill would double-paint the same pixels.
+ * It stays, like FamilyPourWave, as the standing dress if a
+ * face ever needs a fill of its own again; its fraction law is
+ * unchanged.
  */
 export function FamilyPourFill({ color }: { color: string }) {
   const ctx = useContext(FamilyPourContext);

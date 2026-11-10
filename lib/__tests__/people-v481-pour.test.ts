@@ -193,8 +193,15 @@ describe("v481 — one value per card, owned by the unit", () => {
 });
 
 describe("v481 — the fill and the flip", () => {
-  it("the header card carries the pour fill in the group's derived accent", () => {
-    expect(classicCard).toContain("<FamilyPourFill color={familyRelationship.accent} />");
+  it("the face carries no fill of its own — the ONE unit fill paints it (v489 re-pin)", () => {
+    // v489 re-pin: through v487 the header card carried an
+    // interior FamilyPourFill wearing this same fraction; in the
+    // one-card rebuild the unit's single full-bleed fill paints
+    // the face region directly (the mockup's .fill behind
+    // .ghead), so the composition composes no second fill. The
+    // component stays in the module, retained like
+    // FamilyPourWave, and its fraction law is still pinned here.
+    expect(classicCard).not.toContain("<FamilyPourFill");
     // v486 re-pin: the fraction is the FACE fraction now (the
     // face is header + progress, the card carrying both).
     expect(fill).toContain("ctx.faceFillFrac.value * 100");

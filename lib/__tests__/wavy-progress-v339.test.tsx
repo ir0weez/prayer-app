@@ -331,12 +331,17 @@ describe("v339 wavy progress — adoption pins (the long tail)", () => {
     expect(tab).not.toContain("liveCursor?.progress ?? 0) * 100");
   });
 
-  it("the devotional pill's line and the full player's seek fill wear it", () => {
+  it("the devotional player's seek fill wears it (the pill's line retired by v497)", () => {
+    // v497 (Jonathan's pick, NOV 11): the pill's progress is now
+    // The Fill — a deep layer advancing behind the pill's content
+    // with a wavy leading edge — so the pill no longer wears the
+    // bottom-edge WavyProgress line. The full player's seek keeps
+    // the wave, now in the per-book player theme's stops.
     const pill = read("components/devotional-pill.tsx");
-    expect(pill).toContain("value={progress} color={palette.rasp} trackColor={palette.band} height={8}");
-    expect(pill).not.toContain("progressFill");
+    expect(pill).not.toContain("WavyProgress");
+    expect(pill).toContain("DEVOTIONAL_FILL_EDGE_PATH");
     const listen = read("components/devotional-listen.tsx");
-    expect(listen).toContain("value={duration > 0 ? position / duration : 0} color={palette.rasp}");
+    expect(listen).toContain("value={duration > 0 ? position / duration : 0} color={theme.primary} trackColor={theme.track}");
   });
 
   it("the old looping wavy prototype on the People page is gone", () => {

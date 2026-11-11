@@ -120,6 +120,26 @@ export function seekDevotional(sec: number): void {
  * rewound, and no devotional loaded, so the pill unmounts and the
  * player screen has nothing to show. Distinct from pause/minimize.
  */
+/**
+ * v497 collapse morph: the pill asks the full player to open
+ * THROUGH the morph (mount already wearing the pill geometry,
+ * then settle open) when the listener taps / swipes the pill up.
+ * Chapter-door opens do not set this, so they mount as the plain
+ * full page they always were. One-shot: the listen view consumes
+ * it on mount.
+ */
+let expandMorphPending = false;
+
+export function requestDevotionalExpandMorph(): void {
+  expandMorphPending = true;
+}
+
+export function consumeDevotionalExpandMorph(): boolean {
+  const pending = expandMorphPending;
+  expandMorphPending = false;
+  return pending;
+}
+
 export function stopDevotional(): void {
   if (player) {
     player.pause();

@@ -31,8 +31,10 @@ describe('v476 registry — all of Ruth, PROGRESS titles', () => {
     expect(reg.map((d) => d.chapter).sort((a, b) => a - b)).toEqual(EXPECTED.map(([n]) => n));
   });
 
-  it('the whole registry is now 112 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4', () => {
-    expect(devotionalRegistry().length).toBe(112);
+  // v492 re-pin: the whole-registry total moved 112 → 143 when
+  // 1 Samuel (31 chapters) registered; the per-book pins below stand.
+  it('the whole registry is now 143 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31', () => {
+    expect(devotionalRegistry().length).toBe(143);
     expect(devotionalRegistry().filter((d) => d.book === 'Genesis').length).toBe(50);
     expect(devotionalRegistry().filter((d) => d.book === 'Deuteronomy').length).toBe(34);
     expect(devotionalRegistry().filter((d) => d.book === 'Joshua').length).toBe(24);

@@ -1,4 +1,4 @@
-// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth) ────
+// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel) ────
 // The require() calls for bundled devotional audio live here — and ONLY
 // here — so lib/devotionals.ts (the registry + math) stays import-pure
 // for tests. One line per narration, keyed exactly like the registry.
@@ -120,6 +120,37 @@ const AUDIO: Record<string, number> = {
   [devotionalKey('Ruth', 2)]: require('@/assets/audio/devotional-ruth-2.m4a'),
   [devotionalKey('Ruth', 3)]: require('@/assets/audio/devotional-ruth-3.m4a'),
   [devotionalKey('Ruth', 4)]: require('@/assets/audio/devotional-ruth-4.m4a'),
+  [devotionalKey('1 Samuel', 1)]: require('@/assets/audio/devotional-1samuel-1.m4a'),
+  [devotionalKey('1 Samuel', 2)]: require('@/assets/audio/devotional-1samuel-2.m4a'),
+  [devotionalKey('1 Samuel', 3)]: require('@/assets/audio/devotional-1samuel-3.m4a'),
+  [devotionalKey('1 Samuel', 4)]: require('@/assets/audio/devotional-1samuel-4.m4a'),
+  [devotionalKey('1 Samuel', 5)]: require('@/assets/audio/devotional-1samuel-5.m4a'),
+  [devotionalKey('1 Samuel', 6)]: require('@/assets/audio/devotional-1samuel-6.m4a'),
+  [devotionalKey('1 Samuel', 7)]: require('@/assets/audio/devotional-1samuel-7.m4a'),
+  [devotionalKey('1 Samuel', 8)]: require('@/assets/audio/devotional-1samuel-8.m4a'),
+  [devotionalKey('1 Samuel', 9)]: require('@/assets/audio/devotional-1samuel-9.m4a'),
+  [devotionalKey('1 Samuel', 10)]: require('@/assets/audio/devotional-1samuel-10.m4a'),
+  [devotionalKey('1 Samuel', 11)]: require('@/assets/audio/devotional-1samuel-11.m4a'),
+  [devotionalKey('1 Samuel', 12)]: require('@/assets/audio/devotional-1samuel-12.m4a'),
+  [devotionalKey('1 Samuel', 13)]: require('@/assets/audio/devotional-1samuel-13.m4a'),
+  [devotionalKey('1 Samuel', 14)]: require('@/assets/audio/devotional-1samuel-14.m4a'),
+  [devotionalKey('1 Samuel', 15)]: require('@/assets/audio/devotional-1samuel-15.m4a'),
+  [devotionalKey('1 Samuel', 16)]: require('@/assets/audio/devotional-1samuel-16.m4a'),
+  [devotionalKey('1 Samuel', 17)]: require('@/assets/audio/devotional-1samuel-17.m4a'),
+  [devotionalKey('1 Samuel', 18)]: require('@/assets/audio/devotional-1samuel-18.m4a'),
+  [devotionalKey('1 Samuel', 19)]: require('@/assets/audio/devotional-1samuel-19.m4a'),
+  [devotionalKey('1 Samuel', 20)]: require('@/assets/audio/devotional-1samuel-20.m4a'),
+  [devotionalKey('1 Samuel', 21)]: require('@/assets/audio/devotional-1samuel-21.m4a'),
+  [devotionalKey('1 Samuel', 22)]: require('@/assets/audio/devotional-1samuel-22.m4a'),
+  [devotionalKey('1 Samuel', 23)]: require('@/assets/audio/devotional-1samuel-23.m4a'),
+  [devotionalKey('1 Samuel', 24)]: require('@/assets/audio/devotional-1samuel-24.m4a'),
+  [devotionalKey('1 Samuel', 25)]: require('@/assets/audio/devotional-1samuel-25.m4a'),
+  [devotionalKey('1 Samuel', 26)]: require('@/assets/audio/devotional-1samuel-26.m4a'),
+  [devotionalKey('1 Samuel', 27)]: require('@/assets/audio/devotional-1samuel-27.m4a'),
+  [devotionalKey('1 Samuel', 28)]: require('@/assets/audio/devotional-1samuel-28.m4a'),
+  [devotionalKey('1 Samuel', 29)]: require('@/assets/audio/devotional-1samuel-29.m4a'),
+  [devotionalKey('1 Samuel', 30)]: require('@/assets/audio/devotional-1samuel-30.m4a'),
+  [devotionalKey('1 Samuel', 31)]: require('@/assets/audio/devotional-1samuel-31.m4a'),
 };
 
 /** The bundled audio module for a chapter's devotional, or null. */

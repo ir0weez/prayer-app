@@ -287,8 +287,13 @@ describe("v256 source pins — the banner and praise card page (index.tsx)", () 
     // The banner pins and the praise derivation stand as they were.
     expect(index).not.toContain("<FrontDoorCarousel count={emergencies.length}");
     expect(index).toContain("EMERGENCY · {emergencies.length} ACTIVE");
+    // v498 amendment (Nov 11): the praise unit's composition moved
+    // into the pure model in lib/praise-unit.ts — the
+    // active-praise filter stands there now, and index consumes
+    // the model (which also seats the virtual birthday hero).
     expect(index).not.toContain("<FrontDoorCarousel count={praises.length}");
-    expect(index).toContain("people.filter((person) => hasActivePraise(person))");
+    expect(index).toContain("buildPraiseUnit(people, today)");
+    expect(read("lib/praise-unit.ts")).toContain("people.filter((person) => hasActivePraise(person))");
   });
 
   it("each banner page reads its OWN expiry; the '+N' kicker and 'Also:' line are gone", () => {

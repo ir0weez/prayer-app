@@ -43,13 +43,15 @@ import { useJournalMaterial } from "@/hooks/use-journal-material";
 import { usePeopleFrontDoor, usePeopleMaterial } from "@/hooks/use-people-material";
 import { queueFaceStatus, queueFirstName, sortQueueFaces } from "@/lib/people-queue";
 import { EDITOR_HEADER_CLOSE_HITSLOP, EDITOR_HEADER_SAVE_HITSLOP } from "@/lib/editor-header";
-import { PEOPLE_EMERGENCY_RED, PEOPLE_GOLD_PILL_INK } from "@/lib/people-material";
+import { PEOPLE_EMERGENCY_RED, PEOPLE_GOLD_PILL_INK, derivePraiseBirthdayFamily } from "@/lib/people-material";
 import { bibleAccentInk, hexToRgba } from "@/lib/bible-v205/palette-accents";
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
 import { nextPageIndex, shouldAutoAdvance } from "@/lib/people-carousel";
 import { PeopleStreakCard } from "@/components/people-streak-card";
 import { WavyProgress } from "@/components/wavy-progress";
 import { getPraiseDisplay, getPraiseJournalText } from "@/lib/praise-display";
+import { buildPraiseUnit } from "@/lib/praise-unit";
+import { PraiseBirthdayConfetti } from "@/components/praise-birthday-confetti";
 import { formatHoursLeft } from "@/lib/bell-header";
 import { EMERGENCY_ROW_MOTION_MS, emergencyRowKey, reconcileEmergencyRows, type EmergencyEntry } from "@/lib/emergency-rows";
 import { getDueReachOut, reachOutCardSubline } from "@/lib/reach-out";
@@ -126,7 +128,6 @@ import {
   getInitialState,
   getLastReachedAccentColor,
   getPrayTodayList,
-  hasActivePraise,
   sortPrayTodayListByPriority,
   getTodayISOString,
   getUrgentPrayerItems,
@@ -1472,6 +1473,15 @@ export default function HomeScreen() {
   // parks it on the first extra (the dots still advance it by
   // tap). The seat is clamped at render, so a shrinking praise set
   // can never park it past the end.
+  // v498: the praise unit's composition (hero + rotating box) is
+  // the pure model in lib/praise-unit.ts — on a person's birthday
+  // it seats a VIRTUAL birthday praise in the hero (date-derived,
+  // never stored); ordinary days are exactly the standing order.
+  // The rotation count is the model's box, so on a birthday day
+  // the box (manual praises + any further birthday people) rotates
+  // like any other set of extras.
+  const praiseUnitModel = useMemo(() => buildPraiseUnit(people, today), [people, today]);
+  const [praiseHeroHeight, setPraiseHeroHeight] = useState(0);
   const [praiseRotateIndex, setPraiseRotateIndex] = useState(0);
   const [praiseRotateReducedMotion, setPraiseRotateReducedMotion] = useState(false);
   useEffect(() => {
@@ -1482,7 +1492,7 @@ export default function HomeScreen() {
     const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setPraiseRotateReducedMotion);
     return () => { live = false; subscription.remove(); };
   }, []);
-  const praiseExtraCount = Math.max(0, people.filter((person) => hasActivePraise(person)).length - 1);
+  const praiseExtraCount = praiseUnitModel.box.length;
   const peopleDoorFocused = activeTab === "people" || activeTab === "home";
   useEffect(() => {
     if (!shouldAutoAdvance({ count: praiseExtraCount, focused: peopleDoorFocused, reducedMotion: praiseRotateReducedMotion })) return;
@@ -3910,76 +3920,119 @@ export default function HomeScreen() {
   );
 
   const renderPraiseCard = () => {
-    const praises = people.filter((person) => hasActivePraise(person));
-    if (praises.length === 0) return null;
+    const unit = praiseUnitModel;
+    if (!unit.hero) return null;
     // v494 (his Nov 11 pick — praise-concepts-v4, "One box,
-    // connected"): the peek carousel is gone. ONE gold Keepsake
-    // unit takes its place: the first live praise is the hero —
-    // photo seat with the star badge pinned to its corner, the
-    // "PRAISE · {NAME}" eyebrow, the headline, his note as the
-    // detail line, and Pray now + Post to Journal side by side at
-    // full readable width (the carousel's peek clipped that button
-    // mid-word — one of his three named faults). The "{N}h left to
-    // celebrate" countdown line is REMOVED (another named fault:
-    // a countdown dresses a praise like an expiring task). Every
-    // further live praise waits in the small rotating box attached
-    // underneath, inside the same card — one at a time, in the
-    // same order, advancing on the v494 seat above; with exactly
-    // one extra the box carries no dots and no footer, and with
-    // none there is no band at all. The dress is the praise gold
-    // family from pmf (goldTint surface, a deeper gold band mixed
-    // from it, goldDeep inks, the gold ring and badge) — the
-    // celebration meaning dress, derived from seed × appearance
-    // the way the lapsed cards derive theirs; the mockup's pinned
-    // light hexes survive nowhere. Handlers are the card's own,
-    // unchanged, for hero and rotating entries alike: Pray now
-    // opens the focused praise session for the person it names,
-    // Post to Journal posts that person's praise text.
+    // connected"): the peek carousel is gone. ONE Keepsake unit
+    // takes its place: the hero — photo seat with the star badge
+    // pinned to its corner, the "PRAISE · {NAME}" eyebrow, the
+    // headline, his note as the detail line, and Pray now + Post
+    // to Journal side by side at full readable width (the
+    // carousel's peek clipped that button mid-word — one of his
+    // three named faults). The "{N}h left to
+    // celebrate" countdown line is REMOVED (another named fault: a countdown dresses a
+    // praise like an expiring task). Every further praise waits in
+    // the small rotating box attached underneath, inside the same
+    // card — one at a time, in the same order, advancing on the
+    // v494 seat above; with exactly one extra the box carries no
+    // dots and no footer, and with none there is no band at all.
+    // Handlers are the card's own, unchanged, for hero and
+    // rotating entries alike: Pray now opens the focused praise
+    // session for the person it names, Post to Journal posts that
+    // person's praise text.
     // v496 (his Nov 11 correction, from his own phone): the
     // note seats in the header column directly under the
     // headline, aligned with the eyebrow — on its own
     // full-width line under the photo row it read as
     // isolated. Dress unchanged; only the seat moved.
-    const praisedPerson = praises[0];
-    const praiseDisplay = getPraiseDisplay(praisedPerson);
-    const text = getPraiseJournalText(praisedPerson);
-    const extras = praises.slice(1);
-    const bandGold = mix(pmf.goldTint, pmf.gold, 0.22);
-    const bandLine = mix(pmf.goldTint, pmf.gold, 0.45);
+    // v498 (his Nov 11 pick — praise-birthday-concepts-v7 — plus
+    // his amendment: "The birthday should count as a Praise. It
+    // should automatically show up the entire 24 hours of the day
+    // of their birthday."): the composition comes from the pure
+    // model in lib/praise-unit.ts. On a person's birthday the hero
+    // is a VIRTUAL birthday praise — date-derived, never stored —
+    // and the card leaves the praise gold for the birthday
+    // person's own accent family (derivePraiseBirthdayFamily,
+    // calibrated on the mockup's two instances): tonal surface, a
+    // BIRTHDAY TODAY line under the eyebrow, the gold star badge
+    // kept, faded confetti falling behind the content, and a wish
+    // row under the buttons riding the Reach Out card's own path
+    // (the person's page). Pray now and Post to Journal stay the
+    // hero's standing handlers keyed to the person — the virtual
+    // praise's journal body is the model's "Birthday — Today",
+    // composed by the same display rules, and nothing is written
+    // back to the person's record. Further birthday people wait
+    // in the rotating box wearing their own accent family + the
+    // BIRTHDAY TODAY marker (confetti is hero-only). Ordinary
+    // days: the model is the standing order and every paint below
+    // is the v497 gold family from pmf.
+    const praisedPerson = unit.hero.person;
+    const heroIsBirthday = unit.hero.kind === "birthday";
+    const praiseDisplay = unit.hero.display;
+    const text = unit.hero.journalText;
+    const extras = unit.box.map((entry) => entry.person);
+    const scheme = colorScheme === "dark" ? "dark" : "light";
+    const birthdayFamily = heroIsBirthday ? derivePraiseBirthdayFamily(praisedPerson.accentColor, scheme) : null;
+    const shownExtraEntry = extras.length > 0 ? unit.box[Math.min(praiseRotateIndex, extras.length - 1)] : null;
+    const shownExtra = shownExtraEntry ? shownExtraEntry.person : null;
+    const shownExtraFamily = shownExtraEntry?.birthdayDress && shownExtra ? derivePraiseBirthdayFamily(shownExtra.accentColor, scheme) : null;
+    const goldBand = mix(pmf.goldTint, pmf.gold, 0.22);
+    const bandGold = shownExtraFamily ? shownExtraFamily.surface : goldBand;
+    const bandLine = shownExtraFamily ? shownExtraFamily.tonal : mix(pmf.goldTint, pmf.gold, 0.45);
     // The Pray now fill: goldDeep walked a step toward the ink —
     // the mockup's deep-gold pill register, derived from family
     // tokens so both appearances keep pale-text contrast (in dark
-    // the pair inverts: light gold fill, deep tint text).
+    // the pair inverts: light gold fill, deep tint text). In the
+    // birthday state the fill is the family's own (the accent,
+    // inverted the same way at night).
     const deepGoldFill = mix(pmf.goldDeep, pmf.ink, 0.3);
-    const shownExtra = extras.length > 0 ? extras[Math.min(praiseRotateIndex, extras.length - 1)] : null;
+    const heroSurface = birthdayFamily ? birthdayFamily.surface : pmf.goldTint;
+    const heroInk = birthdayFamily ? birthdayFamily.ink : pmf.ink;
+    const heroAccentInk = birthdayFamily ? birthdayFamily.accent : pmf.goldDeep;
+    const heroRing = birthdayFamily ? birthdayFamily.accent : pmf.gold;
+    const heroBadgeBorder = birthdayFamily ? birthdayFamily.surface : pmf.goldTint;
+    const heroFill = birthdayFamily ? birthdayFamily.fill : deepGoldFill;
+    const heroFillInk = birthdayFamily ? birthdayFamily.fillInk : pmf.goldTint;
+    const heroTonal = birthdayFamily ? birthdayFamily.tonal : goldBand;
+    const heroTonalInk = birthdayFamily ? birthdayFamily.deep : pmf.goldDeep;
+    const boxFill = shownExtraFamily ? shownExtraFamily.fill : deepGoldFill;
+    const boxFillInk = shownExtraFamily ? shownExtraFamily.fillInk : pmf.goldTint;
+    const boxEyebrow = shownExtraFamily ? shownExtraFamily.deep : pmf.goldDeep;
+    const boxInk = shownExtraFamily ? shownExtraFamily.ink : pmf.ink;
+    const boxRing = shownExtraFamily ? shownExtraFamily.accent : pmf.gold;
+    const shownExtraText = shownExtraEntry && shownExtra ? (shownExtraEntry.kind === "birthday" ? shownExtraEntry.journalText : getPraiseJournalText(shownExtra)) : "";
     return (
       <PeopleEntrance index={3}>
-        <View testID="praise-unit" style={{ backgroundColor: pmf.goldTint, borderRadius: 28, overflow: "hidden", marginHorizontal: 16, marginTop: 12, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 11, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
-          <View style={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 15 }}>
+        <View testID="praise-unit" style={{ backgroundColor: heroSurface, borderRadius: 28, overflow: "hidden", marginHorizontal: 16, marginTop: 12, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 11, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
+          <View onLayout={(event) => setPraiseHeroHeight(event.nativeEvent.layout.height)} style={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 15 }}>
+            {birthdayFamily ? <PraiseBirthdayConfetti family={birthdayFamily} travel={praiseHeroHeight > 0 ? praiseHeroHeight + 24 : 264} /> : null}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
               <View>
-                <AvatarImage id={praisedPerson.id} name={praisedPerson.name} gender={praisedPerson.gender} avatarAsset={praisedPerson.avatarAsset} photoUri={praisedPerson.photoUri} size={58} thumbnail fallbackColor={praisedPerson.accentColor} style={{ borderWidth: 2.5, borderColor: pmf.gold, borderRadius: 29 }} />
-                <View style={{ position: "absolute", right: -4, bottom: -4, width: 21, height: 21, borderRadius: 11, backgroundColor: pmf.gold, borderWidth: 2, borderColor: pmf.goldTint, alignItems: "center", justifyContent: "center" }}>
+                <AvatarImage id={praisedPerson.id} name={praisedPerson.name} gender={praisedPerson.gender} avatarAsset={praisedPerson.avatarAsset} photoUri={praisedPerson.photoUri} size={58} thumbnail fallbackColor={praisedPerson.accentColor} style={{ borderWidth: 2.5, borderColor: heroRing, borderRadius: 29 }} />
+                <View style={{ position: "absolute", right: -4, bottom: -4, width: 21, height: 21, borderRadius: 11, backgroundColor: pmf.gold, borderWidth: 2, borderColor: heroBadgeBorder, alignItems: "center", justifyContent: "center" }}>
                   <MaterialIcons name="star" size={11} color="#FFFFFF" />
                 </View>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <MaterialIcons name="star" size={14} color={pmf.goldDeep} />
-                  <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: pmf.goldDeep }}>PRAISE · {praisedPerson.name.toUpperCase()}</Text>
+                  <MaterialIcons name="star" size={14} color={heroAccentInk} />
+                  <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: heroAccentInk }}>PRAISE · {praisedPerson.name.toUpperCase()}</Text>
                 </View>
-                <Text numberOfLines={2} style={{ fontSize: 23, fontWeight: "800", lineHeight: 27, color: pmf.ink, marginTop: 3 }}>{praiseDisplay.headline}</Text>
+                {heroIsBirthday && birthdayFamily ? (
+                  <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: birthdayFamily.deep, marginTop: 3, marginBottom: 4 }}>BIRTHDAY TODAY</Text>
+                ) : null}
+                <Text numberOfLines={2} style={{ fontSize: 23, fontWeight: "800", lineHeight: 27, color: heroInk, marginTop: 3 }}>{praiseDisplay.headline}</Text>
                 {!!praiseDisplay.note && (
-                  <Text numberOfLines={2} style={{ fontSize: 13.5, fontWeight: "600", color: pmf.goldDeep, marginTop: 10 }}>{praiseDisplay.note}</Text>
+                  <Text numberOfLines={2} style={{ fontSize: 13.5, fontWeight: "600", color: heroAccentInk, marginTop: 10 }}>{praiseDisplay.note}</Text>
                 )}
               </View>
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 13 }}>
               <Pressable
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openFocusedPrayerSession(praisedPerson.id, "praise"); }}
-                style={({ pressed }) => [{ backgroundColor: deepGoldFill, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [{ backgroundColor: heroFill, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }, pressed && { opacity: 0.85 }]}
               >
-                <Text style={{ fontSize: 13.5, fontWeight: "800", color: pmf.goldTint }}>Pray now</Text>
+                <Text style={{ fontSize: 13.5, fontWeight: "800", color: heroFillInk }}>Pray now</Text>
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -3990,39 +4043,53 @@ export default function HomeScreen() {
                   setJournal((previous) => createPrayerJournalEntry(previous, { body: text, taggedPeople: [praisedPerson], kind: "praise" }, `journal-praise-${Date.now()}`));
                   setActiveTab("journal");
                 }}
-                style={({ pressed }) => [{ backgroundColor: bandGold, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [{ backgroundColor: heroTonal, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }, pressed && { opacity: 0.85 }]}
               >
-                <Text style={{ fontSize: 13.5, fontWeight: "800", color: pmf.goldDeep }}>Post to Journal</Text>
+                <Text style={{ fontSize: 13.5, fontWeight: "800", color: heroTonalInk }}>Post to Journal</Text>
               </Pressable>
             </View>
+            {birthdayFamily ? (
+              <>
+                <View style={{ height: 1, backgroundColor: hexToRgba(birthdayFamily.deep, 0.25), marginTop: 14 }} />
+                <Pressable
+                  testID="praise-birthday-wish"
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: "/person", params: { personId: praisedPerson.id } }); }}
+                  style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
+                >
+                  <Text style={{ fontSize: 14.5, fontWeight: "700", color: birthdayFamily.deep }}>Wish {praisedPerson.name.trim().split(/\s+/)[0]} a happy birthday</Text>
+                  <MaterialIcons name="arrow-forward" size={15} color={birthdayFamily.deep} />
+                </Pressable>
+              </>
+            ) : null}
           </View>
           {shownExtra ? (
             <View testID="praise-rotating-box" style={{ backgroundColor: bandGold, borderTopWidth: 1, borderTopColor: bandLine, paddingHorizontal: 14, paddingTop: 11, paddingBottom: 12 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
-                <AvatarImage id={shownExtra.id} name={shownExtra.name} gender={shownExtra.gender} avatarAsset={shownExtra.avatarAsset} photoUri={shownExtra.photoUri} size={38} thumbnail fallbackColor={shownExtra.accentColor} style={{ borderWidth: 2, borderColor: pmf.gold, borderRadius: 19 }} />
+                <AvatarImage id={shownExtra.id} name={shownExtra.name} gender={shownExtra.gender} avatarAsset={shownExtra.avatarAsset} photoUri={shownExtra.photoUri} size={38} thumbnail fallbackColor={shownExtra.accentColor} style={{ borderWidth: 2, borderColor: boxRing, borderRadius: 19 }} />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: "800", color: pmf.ink }}>
-                    <Text style={{ color: pmf.goldDeep }}>PRAISE · </Text>
+                  <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: "800", color: boxInk }}>
+                    <Text style={{ color: boxEyebrow }}>PRAISE · </Text>
                     {shownExtra.name}
+                    {shownExtraEntry?.birthdayDress && shownExtraFamily ? <Text style={{ color: shownExtraFamily.deep }}> · BIRTHDAY TODAY</Text> : null}
                   </Text>
-                  <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "600", color: pmf.goldDeep, marginTop: 1 }}>{getPraiseJournalText(shownExtra)}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "600", color: boxEyebrow, marginTop: 1 }}>{shownExtraText}</Text>
                 </View>
                 <Pressable
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openFocusedPrayerSession(shownExtra.id, "praise"); }}
-                  style={({ pressed }) => [{ backgroundColor: deepGoldFill, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
+                  style={({ pressed }) => [{ backgroundColor: boxFill, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
                 >
-                  <Text style={{ fontSize: 12.5, fontWeight: "800", color: pmf.goldTint }}>Pray now</Text>
+                  <Text style={{ fontSize: 12.5, fontWeight: "800", color: boxFillInk }}>Pray now</Text>
                 </Pressable>
               </View>
               {extras.length > 1 ? (
                 <View style={{ flexDirection: "row", alignItems: "center", marginTop: 9 }}>
-                  <Text style={{ flex: 1, fontSize: 10.5, fontWeight: "800", letterSpacing: 0.8, color: pmf.goldDeep }}>{extras.length} MORE TO CELEBRATE</Text>
+                  <Text style={{ flex: 1, fontSize: 10.5, fontWeight: "800", letterSpacing: 0.8, color: boxEyebrow }}>{extras.length} MORE TO CELEBRATE</Text>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
                     {extras.map((extra, extraIndex) => {
                       const isShown = extraIndex === Math.min(praiseRotateIndex, extras.length - 1);
                       return (
                         <Pressable key={extra.id} onPress={() => setPraiseRotateIndex(extraIndex)} hitSlop={6}>
-                          <View style={{ width: isShown ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: isShown ? pmf.goldDeep : hexToRgba(pmf.goldDeep, 0.3) }} />
+                          <View style={{ width: isShown ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: isShown ? boxEyebrow : hexToRgba(boxEyebrow, 0.3) }} />
                         </Pressable>
                       );
                     })}

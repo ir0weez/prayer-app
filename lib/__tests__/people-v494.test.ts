@@ -35,6 +35,19 @@
  * the photo row, into the header column directly under the
  * headline, aligned with the eyebrow. Section (d) pins the
  * new seat; every other pin in this file stands as written.
+ *
+ * v498 amendment (his Nov 11 pick — praise-birthday-concepts-v7 —
+ * plus "The birthday should count as a Praise"): the unit's
+ * composition moved into the pure model in lib/praise-unit.ts
+ * (on a birthday a VIRTUAL birthday praise is the hero; ordinary
+ * days the model returns exactly this standing order), and the
+ * paints became family variables — gold from pmf ordinarily, the
+ * birthday person's own accent family on their birthday. The
+ * pins below that named the moved strings are RE-BASED to the
+ * model's seats and the family variables; the behavior they
+ * protected (one connected unit, hero + rotating box, no
+ * countdown, derived dress, the card's own handlers) is unchanged
+ * and still pinned here and in praise-birthday-v498.test.ts.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -48,14 +61,19 @@ const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 
 const index = read("app/(tabs)/index.tsx");
+const praiseUnit = read("lib/praise-unit.ts");
 const praise = index.slice(index.indexOf("const renderPraiseCard"), index.indexOf("const renderSlipCard"));
 
 // ─── (a) One connected unit ───────────────────────────────────────
 
 describe("v494 praise unit — one connected Keepsake", () => {
-  it("a single gold card at radius 28, clipped as one surface", () => {
+  it("a single card at radius 28, clipped as one surface (gold ordinarily; the birthday family on a birthday)", () => {
     expect(praise).toContain('testID="praise-unit"');
-    expect(praise).toContain("backgroundColor: pmf.goldTint");
+    // RE-BASED (v498): the surface is the heroSurface variable —
+    // pmf.goldTint ordinarily, the birthday person's accent
+    // surface on their birthday (praise-birthday-v498 pins both).
+    expect(praise).toContain("backgroundColor: heroSurface");
+    expect(praise).toContain("const heroSurface = birthdayFamily ? birthdayFamily.surface : pmf.goldTint;");
     expect(praise).toContain("borderRadius: 28");
     expect(praise).toContain('overflow: "hidden"');
   });
@@ -67,20 +85,31 @@ describe("v494 praise unit — one connected Keepsake", () => {
   });
 
   it("the hero is the first praise in the standing order; the rest are the extras", () => {
-    expect(praise).toContain("people.filter((person) => hasActivePraise(person))");
-    expect(praise).toContain("const praisedPerson = praises[0];");
-    expect(praise).toContain("const extras = praises.slice(1);");
+    // RE-BASED (v498): the standing order is computed by the pure
+    // model now — the filter lives in lib/praise-unit.ts, and the
+    // card consumes the model's hero + box.
+    expect(praiseUnit).toContain("people.filter((person) => hasActivePraise(person))");
+    expect(praise).toContain("const unit = praiseUnitModel;");
+    expect(praise).toContain("const praisedPerson = unit.hero.person;");
+    expect(praise).toContain("const extras = unit.box.map((entry) => entry.person);");
   });
 
   it("hero furniture: 58px photo seat with the gold ring and the star badge pinned to its corner", () => {
     expect(praise).toContain("size={58}");
-    expect(praise).toContain("borderWidth: 2.5, borderColor: pmf.gold, borderRadius: 29");
+    // RE-BASED (v498): the ring is the heroRing variable — pmf.gold
+    // ordinarily, the person's accent on their birthday. The badge
+    // itself stays gold in both states.
+    expect(praise).toContain("borderWidth: 2.5, borderColor: heroRing, borderRadius: 29");
+    expect(praise).toContain("const heroRing = birthdayFamily ? birthdayFamily.accent : pmf.gold;");
     expect(praise).toContain("width: 21, height: 21, borderRadius: 11, backgroundColor: pmf.gold");
     expect(praise).toContain('name="star" size={11}');
   });
 
   it("eyebrow, headline and his note as the detail line — the Keepsake's words", () => {
-    expect(praise).toContain('name="star" size={14} color={pmf.goldDeep}');
+    // RE-BASED (v498): the eyebrow/star/detail wear heroAccentInk —
+    // pmf.goldDeep ordinarily, the person's accent on their birthday.
+    expect(praise).toContain('name="star" size={14} color={heroAccentInk}');
+    expect(praise).toContain("const heroAccentInk = birthdayFamily ? birthdayFamily.accent : pmf.goldDeep;");
     expect(praise).toContain("PRAISE · {praisedPerson.name.toUpperCase()}");
     expect(praise).toContain("{praiseDisplay.headline}");
     expect(praise).toContain("{praiseDisplay.note}");
@@ -107,21 +136,33 @@ describe("v494 praise unit — one connected Keepsake", () => {
 
 describe("v494 rotating box — the extras, one at a time", () => {
   it("the band renders only when an extra exists, seated by the clamped rotating index", () => {
-    expect(praise).toContain("const shownExtra = extras.length > 0 ? extras[Math.min(praiseRotateIndex, extras.length - 1)] : null;");
+    // RE-BASED (v498): the shown entry comes from the model's box
+    // (same clamp); its person is the shown extra.
+    expect(praise).toContain("const shownExtraEntry = extras.length > 0 ? unit.box[Math.min(praiseRotateIndex, extras.length - 1)] : null;");
+    expect(praise).toContain("const shownExtra = shownExtraEntry ? shownExtraEntry.person : null;");
     expect(praise).toContain("{shownExtra ? (");
     expect(praise).toContain('testID="praise-rotating-box"');
   });
 
   it("the band is attached inside the same card: deeper gold, hairline top border", () => {
     expect(praise).toContain("backgroundColor: bandGold, borderTopWidth: 1, borderTopColor: bandLine");
-    expect(praise).toContain("const bandGold = mix(pmf.goldTint, pmf.gold, 0.22);");
-    expect(praise).toContain("const bandLine = mix(pmf.goldTint, pmf.gold, 0.45);");
+    // RE-BASED (v498): the gold mixes are the fallback — when the
+    // shown entry wears a birthday dress the band takes that
+    // person's family surface/tonal instead.
+    expect(praise).toContain("const goldBand = mix(pmf.goldTint, pmf.gold, 0.22);");
+    expect(praise).toContain("const bandGold = shownExtraFamily ? shownExtraFamily.surface : goldBand;");
+    expect(praise).toContain("const bandLine = shownExtraFamily ? shownExtraFamily.tonal : mix(pmf.goldTint, pmf.gold, 0.45);");
   });
 
   it("the shown extra carries its photo, its name line, its praise text and its own Pray now", () => {
     expect(praise).toContain("size={38}");
-    expect(praise).toContain("<Text style={{ color: pmf.goldDeep }}>PRAISE · </Text>");
-    expect(praise).toContain("{getPraiseJournalText(shownExtra)}");
+    // RE-BASED (v498): the eyebrow ink is boxEyebrow (goldDeep
+    // ordinarily, the shown person's deep stop when dressed), and
+    // the text comes through shownExtraText — the model's journal
+    // text for a virtual birthday entry, the standing
+    // getPraiseJournalText for a manual one.
+    expect(praise).toContain("<Text style={{ color: boxEyebrow }}>PRAISE · </Text>");
+    expect(praise).toContain('shownExtraEntry.kind === "birthday" ? shownExtraEntry.journalText : getPraiseJournalText(shownExtra)');
     expect(praise).toContain('openFocusedPrayerSession(shownExtra.id, "praise")');
     // hero Pray now + rotating Pray now — exactly two in the card.
     expect(praise.split(">Pray now</Text>").length - 1).toBe(2);
@@ -136,7 +177,9 @@ describe("v494 rotating box — the extras, one at a time", () => {
     expect(praise).toContain("extras.map((extra, extraIndex)");
     expect(praise).toContain("setPraiseRotateIndex(extraIndex)");
     expect(praise).toContain("width: isShown ? 16 : 6");
-    expect(praise).toContain("backgroundColor: isShown ? pmf.goldDeep : hexToRgba(pmf.goldDeep, 0.3)");
+    // RE-BASED (v498): the dots follow boxEyebrow — goldDeep
+    // ordinarily, the shown person's deep stop when dressed.
+    expect(praise).toContain("backgroundColor: isShown ? boxEyebrow : hexToRgba(boxEyebrow, 0.3)");
   });
 
   it("rotation: a 4s interval behind the shared gate (N>1, focused, motion allowed)", () => {
@@ -157,7 +200,10 @@ describe("v494 rotating box — the extras, one at a time", () => {
 describe("v494 derivation — the Keepsake gold from the family, both appearances", () => {
   it("the Pray now fill is derived, and pale text keeps ≥4.5:1 on it in light and dark", () => {
     expect(praise).toContain("const deepGoldFill = mix(pmf.goldDeep, pmf.ink, 0.3);");
-    expect(praise).toContain("backgroundColor: deepGoldFill");
+    // RE-BASED (v498): the hero's fill is heroFill — deepGoldFill
+    // ordinarily, the birthday family's fill on a birthday.
+    expect(praise).toContain("const heroFill = birthdayFamily ? birthdayFamily.fill : deepGoldFill;");
+    expect(praise).toContain("backgroundColor: heroFill");
     for (const scheme of ["light", "dark"] as const) {
       const fd = derivePeopleFrontDoor("#2563EB", scheme);
       const fill = mix(fd.goldDeep, fd.ink, 0.3);
@@ -207,7 +253,10 @@ describe("v496 hero note — in the header column, under the headline", () => {
   });
 
   it("the note's dress is unchanged — the same gold detail line, only seated higher, and it renders exactly once", () => {
-    expect(praise).toContain('<Text numberOfLines={2} style={{ fontSize: 13.5, fontWeight: "600", color: pmf.goldDeep, marginTop: 10 }}>{praiseDisplay.note}</Text>');
+    // RE-BASED (v498): the detail line's colour is heroAccentInk —
+    // pmf.goldDeep ordinarily (this pin's dress), the person's
+    // accent on their birthday. Size, weight and seat unchanged.
+    expect(praise).toContain('<Text numberOfLines={2} style={{ fontSize: 13.5, fontWeight: "600", color: heroAccentInk, marginTop: 10 }}>{praiseDisplay.note}</Text>');
     expect(praise.split("{praiseDisplay.note}").length - 1).toBe(1);
   });
 });

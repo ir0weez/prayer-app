@@ -58,10 +58,17 @@ const banner = index.slice(index.indexOf("const renderEmergencyBanner"), index.i
 // ─── The dress derives — every paint is a family role ─────────────
 // RE-BASED by v494: the Keepsake's paints are the family's gold
 // roles. The v382 seed-wash dress is superseded for this card.
+// RE-BASED again by v498: the paints read through family VARIABLES
+// (heroSurface, heroAccentInk, heroInk, heroRing, heroFill,
+// boxEyebrow) — the pmf gold roles ordinarily, the birthday
+// person's own accent family on their birthday. The gold roles
+// below are the variables' ordinary values; the birthday values
+// are pinned in praise-birthday-v498.test.ts.
 
-describe("v382 source pins — RE-BASED (v494): the Keepsake reads the pmf gold family, nothing else", () => {
+describe("v382 source pins — RE-BASED (v494, v498): the Keepsake reads family roles, nothing else", () => {
   it("the surface is the family's gold tint at radius 28, family shadow — no gradient, no seed wash", () => {
-    expect(praise).toContain("backgroundColor: pmf.goldTint");
+    expect(praise).toContain("backgroundColor: heroSurface");
+    expect(praise).toContain("const heroSurface = birthdayFamily ? birthdayFamily.surface : pmf.goldTint;");
     expect(praise).toContain("borderRadius: 28");
     expect(praise).toContain("shadowColor: pmf.shadow");
     expect(praise).not.toContain("stopColor={pmf.wash}");
@@ -69,23 +76,24 @@ describe("v382 source pins — RE-BASED (v494): the Keepsake reads the pmf gold 
   });
 
   it("star and eyebrow wear goldDeep; the rotating box's dots follow it", () => {
-    expect(praise).toContain('name="star" size={14} color={pmf.goldDeep}');
-    expect(praise).toContain("letterSpacing: 1.4, color: pmf.goldDeep");
-    expect(praise).toContain("backgroundColor: isShown ? pmf.goldDeep : hexToRgba(pmf.goldDeep, 0.3)");
+    expect(praise).toContain('name="star" size={14} color={heroAccentInk}');
+    expect(praise).toContain("letterSpacing: 1.4, color: heroAccentInk");
+    expect(praise).toContain("backgroundColor: isShown ? boxEyebrow : hexToRgba(boxEyebrow, 0.3)");
   });
 
   it("headline wears the family ink on the tint; the note wears goldDeep; the photo ring and badge are the gold", () => {
-    expect(praise).toContain("lineHeight: 27, color: pmf.ink");
-    expect(praise).toContain("color: pmf.goldDeep, marginTop: 10");
-    expect(praise).toContain("borderColor: pmf.gold");
+    expect(praise).toContain("lineHeight: 27, color: heroInk");
+    expect(praise).toContain("color: heroAccentInk, marginTop: 10");
+    expect(praise).toContain("borderColor: heroRing");
+    expect(praise).toContain("backgroundColor: pmf.gold, borderWidth: 2, borderColor: heroBadgeBorder");
   });
 
   it("Pray now is the derived deep-gold fill with tint text; Post to Journal the band's tonal pill in goldDeep", () => {
-    expect(praise).toContain("backgroundColor: deepGoldFill");
+    expect(praise).toContain("backgroundColor: heroFill");
     expect(praise).toContain("const deepGoldFill = mix(pmf.goldDeep, pmf.ink, 0.3);");
-    expect(praise).toContain('color: pmf.goldTint }}>Pray now</Text>');
+    expect(praise).toContain('color: heroFillInk }}>Pray now</Text>');
     expect(praise).toContain("backgroundColor: bandGold");
-    expect(praise).toContain('color: pmf.goldDeep }}>Post to Journal</Text>');
+    expect(praise).toContain('color: heroTonalInk }}>Post to Journal</Text>');
   });
 
   it("no pinned cream/gold style survives in the card (the removed hexes, in their style forms)", () => {

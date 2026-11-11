@@ -317,3 +317,143 @@ export function derivePeopleMaterial(primary: string, tokens: PeoplePaletteToken
     amberDeep: bibleAccentInk(PEOPLE_REACH_AMBER, mix(card, PEOPLE_REACH_AMBER, dark ? 0.26 : 0.16)),
   };
 }
+
+// ─── v498 — the praise hero's BIRTHDAY family ───────────────────────
+// On a person's birthday the praise hero leaves the praise gold and
+// wears the PERSON'S OWN accent colour (the accent already ringing
+// their photo) as a tonal family — approved mockup
+// praise-birthday-concepts-v7 (Jonathan, Nov 11: "Yeah that works.
+// Build it."). The mockup draws two instances; they are the
+// calibration anchors below, not pins: every stop of any accent is
+// DERIVED from the accent's own HSL the way those two instances
+// relate to their accents —
+//   · each stop's HUE is the accent's hue plus the anchors'
+//     saturation-interpolated hue offset (so an orange accent's
+//     family stays orange — hues never travel across the wheel);
+//   · SATURATION interpolates between the anchors' stop saturations
+//     over the accent's saturation position between the anchors,
+//     muted toward grey for near-grey accents;
+//   · LIGHTNESS interpolates between the anchors' stop lightnesses
+//     over the accent's lightness position (clamped, so a very dark
+//     or very light accent keeps the mockup's tonal distances).
+// Both anchors reproduce exactly (pinned in
+// lib/__tests__/praise-birthday-v498.test.ts). The gold star badge
+// is NOT part of this family — it stays PEOPLE_PRAISE_GOLD.
+
+export interface PraiseBirthdayFamily {
+  /** Card ground (the mockup's deeper tonal step). */
+  surface: string;
+  /** The tonal seat: Post to Journal here; the rotating band when a box row wears this family. */
+  tonal: string;
+  /** Headline ink. */
+  ink: string;
+  /** The accent itself: kicker, detail line, photo ring. */
+  accent: string;
+  /** The deep stop: BIRTHDAY TODAY line, wish action, tonal-seat ink, divider source. */
+  deep: string;
+  /** Pray now fill (light: the accent; dark: the lifted accent, the praise family's dark inversion). */
+  fill: string;
+  /** Ink on the Pray now fill. */
+  fillInk: string;
+  /** Confetti tints (with the accent and white). */
+  tintLight: string;
+  tintMid: string;
+}
+
+const PRAISE_BIRTHDAY_ANCHORS = [
+  { accent: "#14655A", surface: "#C7DED6", tonal: "#9CC4B6", ink: "#122E2A", deep: "#0E4A41", tintLight: "#7FB3A6", tintMid: "#3E7C6E" },
+  { accent: "#6D4A8F", surface: "#DCCDEF", tonal: "#C2A5E0", ink: "#241233", deep: "#553573", tintLight: "#C4A6D9", tintMid: "#8A67A8" },
+] as const;
+
+type PraiseBirthdayStop = "surface" | "tonal" | "ink" | "deep" | "tintLight" | "tintMid";
+const PRAISE_BIRTHDAY_STOPS: PraiseBirthdayStop[] = ["surface", "tonal", "ink", "deep", "tintLight", "tintMid"];
+
+const clampUnit = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+export function derivePraiseBirthdayFamily(accentColor: string, scheme: "light" | "dark"): PraiseBirthdayFamily {
+  const acc = hexToHsl(accentColor);
+  const anchors = PRAISE_BIRTHDAY_ANCHORS.map((anchor) => ({
+    acc: hexToHsl(anchor.accent),
+    stops: Object.fromEntries(PRAISE_BIRTHDAY_STOPS.map((stop) => [stop, hexToHsl(anchor[stop])])) as Record<PraiseBirthdayStop, ReturnType<typeof hexToHsl>>,
+  }));
+  const [a, b] = anchors;
+  const tS = clampUnit((acc.s - a.acc.s) / (b.acc.s - a.acc.s), 0, 1);
+  const tL = clampUnit((acc.l - a.acc.l) / (b.acc.l - a.acc.l), -0.5, 1.5);
+  const mute = acc.s <= 0 ? 0 : Math.min(1, acc.s / b.acc.s);
+  const stopHsl = (stop: PraiseBirthdayStop) => {
+    const offset = (a.stops[stop].h - a.acc.h) + ((b.stops[stop].h - b.acc.h) - (a.stops[stop].h - a.acc.h)) * tS;
+    const s = clampUnit((a.stops[stop].s + (b.stops[stop].s - a.stops[stop].s) * tS) * mute, 0.02, 0.95);
+    const l = clampUnit(a.stops[stop].l + (b.stops[stop].l - a.stops[stop].l) * tL, 0.03, 0.97);
+    return { h: acc.h + offset, s, l };
+  };
+  const light = Object.fromEntries(PRAISE_BIRTHDAY_STOPS.map((stop) => [stop, stopHsl(stop)])) as Record<PraiseBirthdayStop, ReturnType<typeof hexToHsl>>;
+  if (scheme === "light") {
+    return {
+      surface: hslToHex(light.surface),
+      tonal: hslToHex(light.tonal),
+      ink: hslToHex(light.ink),
+      accent: accentColor,
+      deep: hslToHex(light.deep),
+      fill: accentColor,
+      fillInk: "#FFFFFF",
+      tintLight: hslToHex(light.tintLight),
+      tintMid: hslToHex(light.tintMid),
+    };
+  }
+  // Dark: the app's standing dark pattern for people cards — deep
+  // tonal grounds mixed off the accent's own stops, pale inks walked
+  // up, and the filled pair inverted (light fill, deep ink), the way
+  // the praise gold itself inverts at night.
+  const surface = hslToHex({ h: light.surface.h, s: light.surface.s * 0.8, l: 0.16 });
+  const tonal = hslToHex({ h: light.tonal.h, s: light.tonal.s * 0.8, l: 0.25 });
+  const ink = hslToHex({ h: light.ink.h, s: Math.min(light.ink.s, 0.35), l: 0.93 });
+  const deep = hslToHex({ h: light.deep.h, s: light.deep.s * 0.6, l: 0.78 });
+  const accent = hslToHex({ h: acc.h, s: acc.s * 0.9, l: 0.74 });
+  return {
+    surface,
+    tonal,
+    ink,
+    accent,
+    deep,
+    fill: accent,
+    fillInk: hslToHex({ h: light.ink.h, s: light.ink.s * 0.5, l: 0.13 }),
+    tintLight: hslToHex({ h: light.tintLight.h, s: light.tintLight.s * 0.7, l: 0.55 }),
+    tintMid: hslToHex({ h: light.tintMid.h, s: light.tintMid.s * 0.7, l: 0.4 }),
+  };
+}
+
+/**
+ * The birthday hero's confetti, from the v7 mockup's own piece
+ * table: twelve small pieces (rects + circles) in accent-family
+ * tints + white at low opacity, each on a slow 9–15s falling loop
+ * with its own phase (the mockup's negative delays), a ±6–7px sway
+ * and a full turn as it falls. `phase` is the fraction of the loop
+ * already elapsed at mount, so the fall is distributed from the
+ * first frame. Colour is a family ROLE, resolved by the component.
+ */
+export interface PraiseBirthdayConfettiPiece {
+  leftPct: number;
+  width: number;
+  height: number;
+  circle: boolean;
+  colorRole: "accent" | "white" | "tintLight" | "tintMid";
+  opacity: number;
+  durationMs: number;
+  phase: number;
+  sway: number;
+}
+
+export const PRAISE_BIRTHDAY_CONFETTI_PIECES: PraiseBirthdayConfettiPiece[] = [
+  { leftPct: 6, width: 7, height: 10, circle: false, colorRole: "accent", opacity: 0.16, durationMs: 11000, phase: 0.182, sway: 7 },
+  { leftPct: 16, width: 6, height: 6, circle: true, colorRole: "white", opacity: 0.35, durationMs: 13000, phase: 0.538, sway: -6 },
+  { leftPct: 27, width: 6, height: 9, circle: false, colorRole: "tintLight", opacity: 0.28, durationMs: 9000, phase: 0.444, sway: 7 },
+  { leftPct: 38, width: 5, height: 5, circle: true, colorRole: "accent", opacity: 0.13, durationMs: 14000, phase: 0.643, sway: -6 },
+  { leftPct: 47, width: 7, height: 10, circle: false, colorRole: "white", opacity: 0.3, durationMs: 10000, phase: 0.1, sway: 7 },
+  { leftPct: 57, width: 6, height: 6, circle: true, colorRole: "tintMid", opacity: 0.2, durationMs: 12000, phase: 0.5, sway: -6 },
+  { leftPct: 66, width: 6, height: 9, circle: false, colorRole: "white", opacity: 0.32, durationMs: 9500, phase: 0.316, sway: 7 },
+  { leftPct: 74, width: 7, height: 10, circle: false, colorRole: "accent", opacity: 0.15, durationMs: 13500, phase: 0.593, sway: -6 },
+  { leftPct: 83, width: 5, height: 5, circle: true, colorRole: "tintLight", opacity: 0.3, durationMs: 10500, phase: 0.476, sway: 7 },
+  { leftPct: 91, width: 6, height: 9, circle: false, colorRole: "tintMid", opacity: 0.18, durationMs: 12500, phase: 0.8, sway: -6 },
+  { leftPct: 33, width: 5, height: 8, circle: false, colorRole: "white", opacity: 0.25, durationMs: 15000, phase: 0.8, sway: 7 },
+  { leftPct: 62, width: 5, height: 5, circle: true, colorRole: "white", opacity: 0.28, durationMs: 11500, phase: 0.957, sway: -6 },
+];

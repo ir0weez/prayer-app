@@ -125,7 +125,12 @@ describe("v269 source pins — the launch sites (index.tsx)", () => {
     // (praise-concepts-v4) and Pray now wears the unit's derived
     // deep-gold fill (goldDeep walked toward the ink) — people-
     // v494.test.ts pins the unit; the handler pin above stands.
-    expect(praise).toContain("backgroundColor: deepGoldFill");
+    // v498 amendment (Nov 11): the fill reads through heroFill —
+    // deepGoldFill ordinarily, the birthday person's own accent
+    // fill on their birthday (praise-birthday-v498.test.ts pins
+    // the family); the handler pin above stands.
+    expect(praise).toContain("const heroFill = birthdayFamily ? birthdayFamily.fill : deepGoldFill;");
+    expect(praise).toContain("backgroundColor: heroFill");
     expect(praise).not.toContain('color: "#B26E12"');
     // Post to Journal survives beside it, untouched.
     expect(praise).toContain("Post to Journal");

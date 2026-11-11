@@ -64,6 +64,18 @@ export function daysUntilBirthday(birthday: string | undefined, todayIso: string
   return Math.round((next - todayMs) / DAY_MS);
 }
 
+/**
+ * v498: true when the stored birthday's month/day IS today (the
+ * device-local day, carried as an ISO day string by getTodayISOString).
+ * Year-less birthdays ("MM/DD") match the same way; a missing or
+ * unusable birthday is never a birthday today. Feb 29 birthdays use
+ * daysUntilBirthday's clamp (Feb 28 in common years), so the day a
+ * birthday is celebrated and the day it counts as a praise agree.
+ */
+export function isBirthdayToday(birthday: string | undefined, todayIso: string): boolean {
+  return daysUntilBirthday(birthday, todayIso) === 0;
+}
+
 export type WeekDot = {
   iso: string;
   /** Single-letter day label, Monday first (M T W T F S S). */

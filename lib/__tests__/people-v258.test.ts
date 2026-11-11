@@ -243,8 +243,15 @@ describe("v258 surfaces — forms and displays carry title + note", () => {
   });
 
   it("(d) the front-door praise card renders headline + note from the display model", () => {
-    expect(index).toContain("getPraiseDisplay(praisedPerson)");
-    expect(index).toContain("getPraiseJournalText(praisedPerson)");
+    // v498 amendment (Nov 11): the card takes its display + journal
+    // text from the praise-unit model (lib/praise-unit.ts), which
+    // runs these standing display rules on the hero person — and,
+    // on a birthday, the same rules on the birthday praise's
+    // display copy. The card still renders {praiseDisplay.*}.
+    const praiseUnit = read("lib/praise-unit.ts");
+    expect(praiseUnit).toContain("getPraiseDisplay(heroPerson)");
+    expect(praiseUnit).toContain("getPraiseJournalText(heroPerson)");
+    expect(index).toContain("const praiseDisplay = unit.hero.display;");
     expect(index).toContain("{praiseDisplay.headline}");
     expect(index).toContain("{praiseDisplay.note}");
   });

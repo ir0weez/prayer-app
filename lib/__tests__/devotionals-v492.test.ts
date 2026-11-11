@@ -65,8 +65,10 @@ describe('v492 registry — all of 1 Samuel, PROGRESS titles', () => {
 
   // v493 re-pin: the whole-registry total moved 143 → 167 when
   // 2 Samuel (24 chapters) registered; the per-book pins below stand.
-  it('the whole registry is now 167 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31 + 2 Samuel 24', () => {
-    expect(devotionalRegistry().length).toBe(167);
+  // v495 re-pin: the whole-registry total moved 167 → 189 when
+  // 1 Kings (22 chapters) registered; the per-book pins below stand.
+  it('the whole registry is now 189 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31 + 2 Samuel 24 + 1 Kings 22', () => {
+    expect(devotionalRegistry().length).toBe(189);
     expect(devotionalRegistry().filter((d) => d.book === 'Genesis').length).toBe(50);
     expect(devotionalRegistry().filter((d) => d.book === 'Deuteronomy').length).toBe(34);
     expect(devotionalRegistry().filter((d) => d.book === 'Joshua').length).toBe(24);

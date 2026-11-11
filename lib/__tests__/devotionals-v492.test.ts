@@ -63,8 +63,10 @@ describe('v492 registry — all of 1 Samuel, PROGRESS titles', () => {
     expect(reg.map((d) => d.chapter).sort((a, b) => a - b)).toEqual(EXPECTED.map(([n]) => n));
   });
 
-  it('the whole registry is now 143 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31', () => {
-    expect(devotionalRegistry().length).toBe(143);
+  // v493 re-pin: the whole-registry total moved 143 → 167 when
+  // 2 Samuel (24 chapters) registered; the per-book pins below stand.
+  it('the whole registry is now 167 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31 + 2 Samuel 24', () => {
+    expect(devotionalRegistry().length).toBe(167);
     expect(devotionalRegistry().filter((d) => d.book === 'Genesis').length).toBe(50);
     expect(devotionalRegistry().filter((d) => d.book === 'Deuteronomy').length).toBe(34);
     expect(devotionalRegistry().filter((d) => d.book === 'Joshua').length).toBe(24);
@@ -99,7 +101,9 @@ describe('v492 registry — all of 1 Samuel, PROGRESS titles', () => {
     expect(getDevotional('1 Samuel', 1)).not.toBeNull();
     expect(getDevotional('1 Samuel', 31)).not.toBeNull();
     expect(getDevotional('1 Samuel', 32)).toBeNull();
-    expect(getDevotional('2 Samuel', 1)).toBeNull();
+    // v493 re-pin: 2 Samuel 1 now exists (registered in v493);
+    // the forward-guard moves to the chapter past its end.
+    expect(getDevotional('2 Samuel', 25)).toBeNull();
   });
 });
 

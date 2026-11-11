@@ -29,6 +29,12 @@
  *      mockup's pinned light hexes survive nowhere in the card.
  * Change 2 of this build (the grouped renew boxes) is pinned in
  * people-v284.test.ts, section (f).
+ *
+ * v496 amendment (his Nov 11 correction, from his own phone):
+ * the hero note moved seats — out of its full-width line under
+ * the photo row, into the header column directly under the
+ * headline, aligned with the eyebrow. Section (d) pins the
+ * new seat; every other pin in this file stands as written.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -178,5 +184,30 @@ describe("v494 derivation — the Keepsake gold from the family, both appearance
     for (const pinned of ["#FDF2CE", "#FBEFC0", "#EFDB9C", "#8A5E04", "#FFF7DE", "#FBE8B4", "#9A6E07", "#4A3806", "#7A5E10", "#F5A623"]) {
       expect(praise).not.toContain(pinned);
     }
+  });
+});
+
+// ─── (d) v496 — the hero note seats in the header column ─────────
+
+describe("v496 hero note — in the header column, under the headline", () => {
+  it("the note renders inside the header column (at the eyebrow/headline indent), not at the hero's full-width level", () => {
+    expect(praise).toContain("                {!!praiseDisplay.note && (");
+    expect(praise).not.toContain("\n            {!!praiseDisplay.note && (");
+  });
+
+  it("source order down the column: eyebrow, headline, then the note — all before the buttons row", () => {
+    const eyebrow = praise.indexOf("PRAISE · {praisedPerson.name.toUpperCase()}");
+    const headline = praise.indexOf("{praiseDisplay.headline}");
+    const note = praise.indexOf("{praiseDisplay.note}");
+    const buttons = praise.indexOf("gap: 10, marginTop: 13");
+    expect(eyebrow).toBeGreaterThanOrEqual(0);
+    expect(headline).toBeGreaterThan(eyebrow);
+    expect(note).toBeGreaterThan(headline);
+    expect(buttons).toBeGreaterThan(note);
+  });
+
+  it("the note's dress is unchanged — the same gold detail line, only seated higher, and it renders exactly once", () => {
+    expect(praise).toContain('<Text numberOfLines={2} style={{ fontSize: 13.5, fontWeight: "600", color: pmf.goldDeep, marginTop: 10 }}>{praiseDisplay.note}</Text>');
+    expect(praise.split("{praiseDisplay.note}").length - 1).toBe(1);
   });
 });

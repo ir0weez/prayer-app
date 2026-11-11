@@ -3935,6 +3935,11 @@ export default function HomeScreen() {
     // unchanged, for hero and rotating entries alike: Pray now
     // opens the focused praise session for the person it names,
     // Post to Journal posts that person's praise text.
+    // v496 (his Nov 11 correction, from his own phone): the
+    // note seats in the header column directly under the
+    // headline, aligned with the eyebrow — on its own
+    // full-width line under the photo row it read as
+    // isolated. Dress unchanged; only the seat moved.
     const praisedPerson = praises[0];
     const praiseDisplay = getPraiseDisplay(praisedPerson);
     const text = getPraiseJournalText(praisedPerson);
@@ -3964,11 +3969,11 @@ export default function HomeScreen() {
                   <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: pmf.goldDeep }}>PRAISE · {praisedPerson.name.toUpperCase()}</Text>
                 </View>
                 <Text numberOfLines={2} style={{ fontSize: 23, fontWeight: "800", lineHeight: 27, color: pmf.ink, marginTop: 3 }}>{praiseDisplay.headline}</Text>
+                {!!praiseDisplay.note && (
+                  <Text numberOfLines={2} style={{ fontSize: 13.5, fontWeight: "600", color: pmf.goldDeep, marginTop: 10 }}>{praiseDisplay.note}</Text>
+                )}
               </View>
             </View>
-            {!!praiseDisplay.note && (
-              <Text numberOfLines={2} style={{ fontSize: 13.5, fontWeight: "600", color: pmf.goldDeep, marginTop: 10 }}>{praiseDisplay.note}</Text>
-            )}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 13 }}>
               <Pressable
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openFocusedPrayerSession(praisedPerson.id, "praise"); }}

@@ -177,7 +177,19 @@ describe("v481 — one value per card, owned by the unit", () => {
   it("a closing group keeps its members mounted for the whole fold, from the unit's cached panel", () => {
     expect(unit).toContain("heldPanelRef");
     expect(unit).toContain("if (panel) heldPanelRef.current = panel;");
-    expect(unit).toContain("runOnJS(setPanelHeld)(false)");
+    // v491 re-pin: through v490 this block also pinned the
+    // close's completion handoff, runOnJS(setPanelHeld)(false) —
+    // the lifecycle's one callback, which unmounted the panel
+    // when the fold finished. The smoothing pass deletes the
+    // handoff entirely: panelMounted is a one-way door (the
+    // panel stays mounted for the life of the row), so a re-open
+    // never pays the double mount again and no JS bridge rides
+    // the gesture at all. The fold guarantee this test exists
+    // for — the cached panel standing in for the whole travel —
+    // is the assertions around this one, unchanged.
+    expect(unit).not.toContain("runOnJS(setPanelHeld)(false)");
+    expect(unit).toContain("if (expanded) setPanelMounted(true);");
+    expect(unit).not.toContain("setPanelMounted(false)");
     // v482 re-pin: the render prefers the current panel element and
     // falls back to the cached one only for the fold; the cache is
     // written in an effect, never during render.

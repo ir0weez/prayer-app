@@ -452,14 +452,20 @@ describe("v487 — the structure, rendered: progress in the panel, header-only f
       ).toBeGreaterThanOrEqual(1);
     }
 
-    // The close completes and the panel unmounts (v483 lifecycle).
+    // v491 re-pin: through v490 the close completed here and the
+    // panel unmounted (the v483 lifecycle's completion
+    // handoff). The smoothing pass keeps the panel mounted for
+    // the life of the row — the window stands at height 0 with
+    // the members inside it — so the next open pays no remount.
+    // The frames above, this test's substance, are unchanged.
     act(() => {
       rig.stepAll(137.5);
     });
     act(() => {
       r.update(element());
     });
-    expect(panelCopies(r)).toHaveLength(0);
+    expect(panelCopies(r).length).toBeGreaterThanOrEqual(1);
+    expect(styleHeight(byTestID(r, "family-pour-window"))).toBe(0);
   });
 
   it("tree order is the mockup's paint order: window, then the fill, then the face — and the progress rides in the window, never in the face", () => {

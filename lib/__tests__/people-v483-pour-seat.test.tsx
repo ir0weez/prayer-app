@@ -46,6 +46,10 @@
 // falls back to the unit's cached copy whenever the current panel
 // prop is FALSY (false included), so a closing group folds WITH
 // its members and unmounts only when the close completes.
+// (v491: the unmount clause is superseded — the smoothing pass
+// keeps the panel mounted after the fold completes; see the
+// closing test's re-pin below. The seat and the falsy-cache fix
+// this file exists for are unchanged.)
 //
 // THE HARNESS: react-test-renderer (added as a devDependency for
 // this file — the suite's first client-render harness; the older
@@ -378,7 +382,7 @@ describe("v483 — the pour's seat (device: groups did not open; closes folded e
     expect(winAtRest!.findAll((n) => n.props.testID === "panel-root").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("closing: the members stay mounted for the whole fold and unmount only when the close completes", () => {
+  it("closing: the members stay mounted for the whole fold — and stay mounted, clipped at height 0, after it completes (v491 re-pin)", () => {
     let expanded = true;
     const element = () => (
       <FamilyGroupUnit
@@ -423,13 +427,21 @@ describe("v483 — the pour's seat (device: groups did not open; closes folded e
     expect(windowHeight(win!)).toBeCloseTo(150, 0);
     expect(win!.findAll((n) => n.props.testID === "panel-root").length).toBeGreaterThanOrEqual(1);
 
-    // The close completes: only now do the members unmount.
+    // v491 re-pin: through v490 the members unmounted here, when
+    // the close completed — the lifecycle's completion handoff.
+    // The smoothing pass keeps the panel mounted for the life of
+    // the row: the window stands at height 0, clipped, with the
+    // members inside it, so the next open is a pure UI-thread
+    // gesture with no remount. The v483 guarantee this test
+    // exists for — the members mounted for the WHOLE fold, from
+    // the cached panel — is everything above this block.
     act(() => {
       rig.stepAll(275);
     });
     act(() => {
       r.update(element());
     });
-    expect(panelCopies(r)).toHaveLength(0);
+    expect(panelCopies(r).length).toBeGreaterThanOrEqual(1);
+    expect(windowHeight(findWindow(r)!)).toBe(0);
   });
 });

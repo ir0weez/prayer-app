@@ -162,6 +162,44 @@
 //    v481–v488 shape byte for byte. people-v489-one-card
 //    .test.tsx pins the one-surface tree, the full-bleed fill
 //    and the mid-flight structure, failing on v488 first.
+//  · v491 (device, Jonathan on v489/v490, Nov 10): the shape is
+//    right at rest, but the gesture travels in a few coarse
+//    steps — the window stands at ~1 row in one frame and the
+//    group is fully open 0.25s later — and mid-flight frames
+//    paint the members over the families below and double the
+//    header title before it settles. The smoothing pass, and
+//    its diagnosis, by reading: the gesture's values were
+//    already all UI-thread (one shared value, derived geometry,
+//    animated styles; no animated-reaction bridge fed it — the
+//    module's only cross-to-JS call was the close's completion
+//    handoff), and sibling rows do not re-render during a
+//    gesture (their shells' fingerprints carry only their own
+//    state). What WAS costing frames: (1) the panel mounted
+//    TWICE on the JS thread at every open (the window copy and
+//    the measuring-seat copy) — the lifecycle unmounted it when
+//    a close completed, so every cycle re-paid the double mount
+//    while the timing, started at assignment, was already
+//    running; the mount ate the gesture's head and the visible
+//    travel compressed into a jump; (2) the chevron spun on RN
+//    Animated's own 320ms clock, a second driver landing ~230ms
+//    before the 550ms gesture it announces ends. The fix: the
+//    panel stays mounted for the life of the row once first
+//    opened (the handoff and its bridge are deleted — the v481
+//    note above always said a panel left mounted at height 0
+//    is invisible, clipped, and re-driven correctly by the next
+//    open), and the chevron's rotation is interpolated from the
+//    pour itself inside a unit (the composition's FamilyChevron).
+//    What is NOT removed, named plainly: animating an in-flow
+//    height inside the roster's FlatList makes native layout
+//    reposition every following cell per frame, and the moved
+//    cards repaint (each carries elevation) — that cost belongs
+//    to the approved mechanism itself (the mockup's wrap folds
+//    in flow and pushes what follows), and only the phone can
+//    judge what remains. people-v491-smoothing.test.tsx pins
+//    the mount-once lifecycle, the render silence while the
+//    gesture steps, the mid-flight clip, and the source laws;
+//    the v483/v485/v486 close-completion pins are re-pinned in
+//    place.
 
 import {
   createContext,
@@ -177,7 +215,6 @@ import ReAnimated, {
   Extrapolation,
   interpolate,
   interpolateColor,
-  runOnJS,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
@@ -291,6 +328,8 @@ export function familyPourGeometry(pour: number, headerHeight: number, panelHeig
  * header and panel arrive as elements; the panel element is cached
  * on its way in so a closing group keeps rendering its members for
  * the whole fold even though the screen has already let it go.
+ * Since v491 the mounted panel is never dropped again for the life
+ * of the row — see the header note.
  *
  * v489: when the composition hands the unit a `cardStyle` (the
  * Classic path), the unit's root IS the one card of the approved
@@ -317,9 +356,11 @@ export function FamilyGroupUnit({
   const pour = useSharedValue(expanded ? 0 : 1);
   const headerHeight = useSharedValue(0);
   const panelHeight = useSharedValue(0);
-  const [panelHeld, setPanelHeld] = useState(expanded);
+  // v491: renamed from panelHeld — the panel is no longer held
+  // for a fold and then dropped at its completion; once mounted
+  // it stays mounted for the life of the row (the effect below).
+  const [panelMounted, setPanelMounted] = useState(expanded);
   const heldPanelRef = useRef<ReactNode>(null);
-  const expandedRef = useRef(expanded);
 
   // v482: no ref is written during render. The panel cache is a
   // one-render bridge kept in an effect: the render below always
@@ -330,20 +371,26 @@ export function FamilyGroupUnit({
     if (panel) heldPanelRef.current = panel;
   }, [panel]);
 
+  // v491: one assignment, no completion callback, no bridge.
+  // Opening mounts the panel — and it then stays mounted for
+  // the life of the row. Through v490 a close's completion
+  // crossed back to JS (the timing's callback ran a JS-side
+  // setState) and unmounted the panel, so the next open
+  // re-mounted the whole panel twice — window copy and
+  // measuring-seat copy — on the JS thread while its timing
+  // was already running; the mount ate the gesture's first
+  // frames and the visible travel compressed into a jump, on
+  // every cycle. Now a toggle is the tap render plus this one
+  // assignment, and the closed group simply stands with its
+  // window at height 0, clipped by the card. The roster list's
+  // own windowing still unmounts the whole cell — panel
+  // included — when the row scrolls far away, so the retention
+  // is bounded by the list's window, not by the app's life.
   useEffect(() => {
-    expandedRef.current = expanded;
-    if (expanded) {
-      setPanelHeld(true);
-      pour.value = withTiming(0, { duration: FAMILY_POUR_DURATION_MS, easing: FAMILY_POUR_EASING });
-    } else {
-      pour.value = withTiming(
-        1,
-        { duration: FAMILY_POUR_DURATION_MS, easing: FAMILY_POUR_EASING },
-        (finished) => {
-          if (finished && !expandedRef.current) runOnJS(setPanelHeld)(false);
-        },
-      );
-    }
+    if (expanded) setPanelMounted(true);
+    pour.value = expanded
+      ? withTiming(0, { duration: FAMILY_POUR_DURATION_MS, easing: FAMILY_POUR_EASING })
+      : withTiming(1, { duration: FAMILY_POUR_DURATION_MS, easing: FAMILY_POUR_EASING });
   }, [expanded, pour]);
 
   const geometry = useDerivedValue(() => familyPourGeometry(pour.value, headerHeight.value, panelHeight.value));
@@ -375,8 +422,11 @@ export function FamilyGroupUnit({
   // `false` (not null) once a group collapses, and the fold needs
   // the members for its whole travel — so the fallback is FALSY,
   // not nullish: whenever the current panel is false/null/absent,
-  // the cached copy from the last open render stands in, until
-  // panelHeld drops at the close's completion and both unmount.
+  // the cached copy from the last open render stands in — for
+  // the fold, and, since v491, for the rest of the row's life:
+  // the panel no longer unmounts at the close's completion, so
+  // the closed group's window just stands at height 0 over the
+  // cached members.
   // (v481/v482 rendered `{panel ?? heldPanelRef.current}` — `false`
   // is not nullish, so the cache never engaged and closing folded
   // an empty window.)
@@ -419,7 +469,7 @@ export function FamilyGroupUnit({
             then the rows + Mark as Complete) — no colour ever
             lives inside it; the colour that covers the panel
             mid-flight is the fill layer standing over it. */}
-        {panelHeld ? (
+        {panelMounted ? (
           <ReAnimated.View
             testID="family-pour-window"
             style={[{ overflow: "hidden" }, windowStyle]}
@@ -474,7 +524,7 @@ export function FamilyGroupUnit({
             the same panel element the window shows, only while the
             group is held; content that changes while the group
             stands open re-measures through it for the next close. */}
-        {panelHeld ? (
+        {panelMounted ? (
           <View
             testID="family-pour-measure-seat"
             pointerEvents="none"

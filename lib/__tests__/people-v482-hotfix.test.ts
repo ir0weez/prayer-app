@@ -173,7 +173,14 @@ describe("v482 — the unit cannot hand Reanimated an invalid style or a torn re
   it("every hook in FamilyGroupUnit is unconditional — all hook calls sit above the return", () => {
     const returnAt = unit.indexOf("\n  return (");
     expect(returnAt).toBeGreaterThan(0);
-    for (const hook of ["useSharedValue(", "useState(", "useRef(", "useEffect(", "useDerivedValue(", "useAnimatedStyle("]) {
+    // v491 re-pin (the hook list only): "useRef(" loses its
+    // paren because v491 removed expandedRef — the unit's only
+    // bare-paren ref call, which existed solely to serve the
+    // deleted completion handoff; the remaining ref
+    // (heldPanelRef) is written with its generic, useRef<...>.
+    // The pin's substance is unchanged: every hook call in the
+    // unit is found, and every one sits above the return.
+    for (const hook of ["useSharedValue(", "useState(", "useRef", "useEffect(", "useDerivedValue(", "useAnimatedStyle("]) {
       let at = unit.indexOf(hook);
       expect(at).toBeGreaterThan(-1);
       while (at !== -1) {

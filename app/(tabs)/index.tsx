@@ -734,10 +734,20 @@ function FlameSpark({ size = 18 }: { size?: number }) {
 
 /** v254: the Classic household card's chevron — rotates 0↔180 as
  * the card unfurls/collapses (Material standard easing, native
- * driver, no spring). */
+ * driver, no spring).
+ * v491: inside a group unit the rotation rides the pour itself —
+ * interpolated from the unit's shared value on the UI thread, so
+ * the chevron turns on the gesture's own 550ms clock and lands
+ * exactly when the pour lands. Through v490 it spun on RN
+ * Animated's separate 320ms timing: a second driver, landing
+ * ~230ms early. That standing clock survives only as the
+ * fallback for a chevron outside a unit (none in the app today —
+ * the roster's family rows are its only seat, all inside units). */
 function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: string; wash: string }) {
+  const pourContext = useContext(FamilyPourContext);
   const spin = useRef(new Animated.Value(expanded ? 1 : 0)).current;
   useEffect(() => {
+    if (pourContext) return;
     Animated.timing(spin, {
       toValue: expanded ? 1 : 0,
       // v267: the chevron rides the SAME clock as the unfurl it
@@ -747,11 +757,23 @@ function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: st
       easing: RnEasing.bezier(0.2, 0, 0, 1),
       useNativeDriver: true,
     }).start();
-  }, [expanded, spin]);
+  }, [expanded, spin, pourContext]);
   const rotate = spin.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "180deg"],
   });
+  // v491: the pour-driven rotation — closed 0deg, open 180deg,
+  // read off the pour's travel itself (interpolating the shared
+  // value inside the animated style, on the UI thread).
+  const pourRotateStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        rotate: pourContext
+          ? `${interpolate(pourContext.pour.value, [0, 1], [180, 0])}deg`
+          : "0deg",
+      },
+    ],
+  }));
   // v481: as the pour's fill covers the card, a twin circle
   // crossfades over the standing one on the pour's own value, read
   // from the group unit's context. Outside a unit there is no pour
@@ -763,26 +785,30 @@ function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: st
   // carrying the glyph in the group's own accent (the `color`
   // prop, pmf.deep), which reads clearly at 17px on the fill. The
   // crossfade range and the open state are unchanged.
-  const pourContext = useContext(FamilyPourContext);
   const flipStyle = useAnimatedStyle(() => ({
     opacity: pourContext ? interpolate(pourContext.faceFillFrac.value, [0.55, 1], [0, 1], Extrapolation.CLAMP) : 0,
   }));
-  return (
-    <View style={{ width: 30, height: 30 }}>
-      <Animated.View
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: 15,
-          backgroundColor: wash,
-          alignItems: "center",
-          justifyContent: "center",
-          transform: [{ rotate }],
-        }}
-      >
-        <MaterialIcons name="expand-more" size={17} color={color} />
-      </Animated.View>
-      {pourContext ? (
+  // v491: inside a unit, both circles' glyphs rotate on the pour
+  // (pourRotateStyle above) — one clock for the whole gesture.
+  // The dress is the standing one: the wash circle, and over it
+  // the solid white twin crossfading in on the face fraction.
+  if (pourContext) {
+    return (
+      <View style={{ width: 30, height: 30 }}>
+        <ReAnimated.View
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 15,
+            backgroundColor: wash,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <ReAnimated.View style={pourRotateStyle}>
+            <MaterialIcons name="expand-more" size={17} color={color} />
+          </ReAnimated.View>
+        </ReAnimated.View>
         <ReAnimated.View
           pointerEvents="none"
           style={[
@@ -800,11 +826,28 @@ function FamilyChevron({ expanded, color, wash }: { expanded: boolean; color: st
             flipStyle,
           ]}
         >
-          <Animated.View style={{ transform: [{ rotate }] }}>
+          <ReAnimated.View style={pourRotateStyle}>
             <MaterialIcons name="expand-more" size={17} color={color} />
-          </Animated.View>
+          </ReAnimated.View>
         </ReAnimated.View>
-      ) : null}
+      </View>
+    );
+  }
+  return (
+    <View style={{ width: 30, height: 30 }}>
+      <Animated.View
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: 15,
+          backgroundColor: wash,
+          alignItems: "center",
+          justifyContent: "center",
+          transform: [{ rotate }],
+        }}
+      >
+        <MaterialIcons name="expand-more" size={17} color={color} />
+      </Animated.View>
     </View>
   );
 }

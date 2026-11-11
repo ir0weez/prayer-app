@@ -441,14 +441,20 @@ describe("v485 — the frames, rendered (re-pinned to the v486 port)", () => {
       }
     }
 
-    // The close completes and the members unmount (v483 lifecycle).
+    // v491 re-pin: through v490 the close completed here and the
+    // members unmounted (the v483 lifecycle's completion
+    // handoff). The smoothing pass keeps the panel mounted for
+    // the life of the row — the window stands at height 0 with
+    // the members inside it — so the next open pays no remount.
+    // The frames above, this test's substance, are unchanged.
     act(() => {
       rig.stepAll(68.75);
     });
     act(() => {
       r.update(element());
     });
-    expect(panelCopies(r)).toHaveLength(0);
+    expect(panelCopies(r).length).toBeGreaterThanOrEqual(1);
+    expect(styleHeight(byTestID(r, "family-pour-window"))).toBe(0);
   });
 
   it("the colour never stands inside the window (the v484 slab), and the fill is the window's sibling layer, not its child", () => {

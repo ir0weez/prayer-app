@@ -25,12 +25,27 @@
  * kept), inks = the wash-walked roles (washInk / washSub / deep),
  * Pray now = the family's filled seed pill, Post to Journal = its
  * tonal card pill with deep ink.
+ *
+ * v494 SUPERSESSION (Nov 11): Jonathan's verdict on this card
+ * ("these praise boxes suck" — the peek clipped Post to Journal,
+ * the slab was mostly empty, the countdown dressed a praise like
+ * an expiring task) replaced the whole form with the gold
+ * Keepsake unit of praise-concepts-v4: hero + rotating box, no
+ * countdown, no carousel. The dress is the praise GOLD family
+ * from pmf again (goldTint / goldDeep / gold) — derived from the
+ * family's own tokens in both appearances, never the mockup's
+ * pinned light hexes; people-v494.test.ts pins the unit's
+ * structure and rotation, and this file's card pins below are
+ * re-based to the Keepsake. The scope pins at the bottom stand
+ * exactly as written: PRAISE_CARD, PEOPLE_PRAISE_GOLD and the
+ * emergency banner were never this card's to move.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { derivePeopleFrontDoor, derivePeopleMaterial, type PeoplePaletteTokens } from "../people-material";
+import { hexContrast } from "../skin-themes";
 
 const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
@@ -41,33 +56,36 @@ const praise = index.slice(index.indexOf("const renderPraiseCard"), index.indexO
 const banner = index.slice(index.indexOf("const renderEmergencyBanner"), index.indexOf("const renderQueueCard"));
 
 // ─── The dress derives — every paint is a family role ─────────────
+// RE-BASED by v494: the Keepsake's paints are the family's gold
+// roles. The v382 seed-wash dress is superseded for this card.
 
-describe("v382 source pins — the praise card reads pmf, nothing else", () => {
-  it("the surface is the family's primary-container register: wash → wash2 gradient, wash2 rim, family shadow", () => {
-    expect(praise).toContain('stopColor={pmf.wash}');
-    expect(praise).toContain('stopColor={pmf.wash2}');
-    expect(praise).toContain("borderColor: pmf.wash2");
+describe("v382 source pins — RE-BASED (v494): the Keepsake reads the pmf gold family, nothing else", () => {
+  it("the surface is the family's gold tint at radius 28, family shadow — no gradient, no seed wash", () => {
+    expect(praise).toContain("backgroundColor: pmf.goldTint");
+    expect(praise).toContain("borderRadius: 28");
     expect(praise).toContain("shadowColor: pmf.shadow");
+    expect(praise).not.toContain("stopColor={pmf.wash}");
+    expect(praise).not.toContain("stopColor={pmf.wash2}");
   });
 
-  it("star, eyebrow and the celebration countdown wear the family's deep; the dots follow it", () => {
-    expect(praise).toContain('name="star" size={14} color={pmf.deep}');
-    expect(praise).toContain("letterSpacing: 1.4, color: pmf.deep");
-    expect(praise).toContain("fontWeight: \"700\", color: pmf.deep");
-    expect(praise).toContain("activeColor={pmf.deep}");
-    expect(praise).toContain("inactiveColor={hexToRgba(pmf.deep, 0.35)}");
+  it("star and eyebrow wear goldDeep; the rotating box's dots follow it", () => {
+    expect(praise).toContain('name="star" size={14} color={pmf.goldDeep}');
+    expect(praise).toContain("letterSpacing: 1.4, color: pmf.goldDeep");
+    expect(praise).toContain("backgroundColor: isShown ? pmf.goldDeep : hexToRgba(pmf.goldDeep, 0.3)");
   });
 
-  it("headline and note wear the wash-walked inks; the avatar ring is the seed", () => {
-    expect(praise).toContain("lineHeight: 20, color: pmf.washInk");
-    expect(praise).toContain("lineHeight: 18, color: pmf.washSub");
-    expect(praise).toContain("borderColor: pmf.seed");
+  it("headline wears the family ink on the tint; the note wears goldDeep; the photo ring and badge are the gold", () => {
+    expect(praise).toContain("lineHeight: 27, color: pmf.ink");
+    expect(praise).toContain("color: pmf.goldDeep, marginTop: 10");
+    expect(praise).toContain("borderColor: pmf.gold");
   });
 
-  it("Pray now is the family's filled seed pill; Post to Journal its tonal card pill in deep ink", () => {
-    expect(praise).toContain("backgroundColor: pmf.seed");
-    expect(praise).toContain("backgroundColor: pmf.card");
-    expect(praise).toContain('color: pmf.deep }}>Post to Journal</Text>');
+  it("Pray now is the derived deep-gold fill with tint text; Post to Journal the band's tonal pill in goldDeep", () => {
+    expect(praise).toContain("backgroundColor: deepGoldFill");
+    expect(praise).toContain("const deepGoldFill = mix(pmf.goldDeep, pmf.ink, 0.3);");
+    expect(praise).toContain('color: pmf.goldTint }}>Pray now</Text>');
+    expect(praise).toContain("backgroundColor: bandGold");
+    expect(praise).toContain('color: pmf.goldDeep }}>Post to Journal</Text>');
   });
 
   it("no pinned cream/gold style survives in the card (the removed hexes, in their style forms)", () => {
@@ -91,45 +109,50 @@ describe("v382 source pins — the praise card reads pmf, nothing else", () => {
 
 // ─── Identity — what the card IS never moved ──────────────────────
 
-describe("v382 identity pins — star, eyebrow, countdown, both actions", () => {
+describe("v382 identity pins — star, eyebrow, both actions (v494: the countdown is gone by his word)", () => {
   it("the card still reads as the praise card", () => {
     expect(praise).toContain("PRAISE · {praisedPerson.name.toUpperCase()}");
-    expect(praise).toContain("left to celebrate");
-    expect(praise).toContain("Celebrating today");
     expect(praise).toContain(">Pray now</Text>");
     expect(praise).toContain("Post to Journal");
     expect(praise).toContain('openFocusedPrayerSession(praisedPerson.id, "praise")');
   });
+
+  it("v494: no countdown dresses the praise — and the extras wait in the rotating box", () => {
+    expect(praise).not.toContain("left to celebrate");
+    expect(praise).not.toContain("Celebrating today");
+    expect(praise).toContain('testID="praise-rotating-box"');
+    expect(praise).toContain("MORE TO CELEBRATE");
+  });
 });
 
-// ─── Derive, never pin — the consumed roles follow the seed ──────
+// ─── Derive, never pin — RE-BASED (v494): gold derives by appearance ─────
+// v382's rule was "the consumed roles follow the seed". v494's
+// Keepsake supersedes it for this card: praise gold is a meaning
+// family again — it does NOT chase the seed (the light tint is
+// the same at any seed), but it is a real derived family in both
+// appearances: the dark tint is mixed from the card and goldDeep
+// is walked to the contrast floor on it, in both family builders.
 
-describe("v382 derivation — the roles the card consumes carry no cream/gold at any seed", () => {
-  const PINNED = ["#FFF3D6", "#FFE9B8", "#F5D67B", "#B26E12", "#4A3205", "#7A5A14", "#E8C87A"];
-  const consumed = (fam: { wash: string; wash2: string; deep: string; washInk: string; seed: string }) =>
-    [fam.wash, fam.wash2, fam.deep, fam.washInk, fam.seed];
+describe("v382 derivation — RE-BASED (v494): the gold roles derive by appearance, not by seed", () => {
+  it("at any seed, light, the gold roles are the family's light values", () => {
+    const red = derivePeopleFrontDoor("#EF4444", "light");
+    const blue = derivePeopleFrontDoor("#2563EB", "light");
+    expect(red.goldTint).toBe("#FFF3D6");
+    expect(blue.goldTint).toBe("#FFF3D6");
+    expect(red.goldDeep).toBe("#B26E12");
+    expect(blue.goldDeep).toBe("#B26E12");
+    expect(red.gold).toBe("#F59E0B");
+  });
 
-  it("at Jonathan's red seed, dark (the screenshot's theme), no consumed role is a pinned cream/gold value", () => {
-    const red = derivePeopleFrontDoor("#EF4444", "dark");
-    for (const value of consumed(red)) {
-      expect(PINNED).not.toContain(value.toUpperCase());
+  it("dark is a real derived instance: the tint is mixed, goldDeep walked to the floor on it, at any seed", () => {
+    for (const seed of ["#EF4444", "#2563EB"]) {
+      const dark = derivePeopleFrontDoor(seed, "dark");
+      expect(dark.goldTint).not.toBe("#FFF3D6");
+      expect(hexContrast(dark.goldDeep, dark.goldTint)).toBeGreaterThanOrEqual(4.5);
     }
-    expect(red.seed).toBe("#EF4444");
   });
 
-  it("a second seed re-dresses the same roles (hue follows the seed, light and dark)", () => {
-    const redLight = derivePeopleFrontDoor("#EF4444", "light");
-    const blueLight = derivePeopleFrontDoor("#2563EB", "light");
-    expect(blueLight.wash).not.toBe(redLight.wash);
-    expect(blueLight.wash2).not.toBe(redLight.wash2);
-    expect(blueLight.deep).not.toBe(redLight.deep);
-    const redDark = derivePeopleFrontDoor("#EF4444", "dark");
-    const blueDark = derivePeopleFrontDoor("#2563EB", "dark");
-    expect(blueDark.wash).not.toBe(redDark.wash);
-    expect(blueDark.deep).not.toBe(redDark.deep);
-  });
-
-  it("the material-skins fallback family (derivePeopleMaterial) derives the same roles too", () => {
+  it("the material-skins fallback family (derivePeopleMaterial) derives the gold roles from its surface too", () => {
     const tokens: PeoplePaletteTokens = {
       background: "#171210",
       surface: "#241B18",
@@ -137,13 +160,9 @@ describe("v382 derivation — the roles the card consumes carry no cream/gold at
       muted: "#C4B2AB",
       border: "#3A2C27",
     };
-    const red = derivePeopleMaterial("#EF4444", tokens);
-    const blue = derivePeopleMaterial("#2563EB", tokens);
-    expect(red.wash).not.toBe(blue.wash);
-    expect(red.wash2).not.toBe(blue.wash2);
-    for (const value of consumed(red)) {
-      expect(PINNED).not.toContain(value.toUpperCase());
-    }
+    const fam = derivePeopleMaterial("#EF4444", tokens);
+    expect(fam.goldTint).not.toBe("#FFF3D6");
+    expect(hexContrast(fam.goldDeep, fam.goldTint)).toBeGreaterThanOrEqual(4.5);
   });
 });
 

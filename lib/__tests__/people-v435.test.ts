@@ -174,10 +174,17 @@ describe("v435 source pins — the emergency banner is one card of rows (index.t
 
 // ─── 5. Scope — the praise banner keeps the carousel ──────────────
 
-describe("v435 scope pins — praise is untouched v434", () => {
-  it("the praise banner still renders through FrontDoorCarousel, dots and all", () => {
-    expect(praise).toContain("<FrontDoorCarousel count={praises.length}");
-    expect(praise).toContain("<CarouselDots count={praises.length}");
+describe("v435 scope pins — praise is untouched v434 (v494: praise has since left the carousel)", () => {
+  it("the praise banner still renders through FrontDoorCarousel, dots and all — SUPERSEDED by v494", () => {
+    // v494 (Nov 11): the praise card leaves the carousel for the
+    // connected Keepsake unit (praise-concepts-v4) — the first
+    // praise as hero, the rest rotating through the small box
+    // underneath. people-v494.test.ts pins the unit. The shell
+    // pin below stands: the shell itself is still unaltered.
+    expect(praise).not.toContain("<FrontDoorCarousel count={praises.length}");
+    expect(praise).not.toContain("<CarouselDots count={praises.length}");
+    expect(praise).toContain('testID="praise-unit"');
+    expect(praise).toContain('testID="praise-rotating-box"');
   });
 
   it("the carousel shell itself is unaltered (its file is not this build's business)", () => {

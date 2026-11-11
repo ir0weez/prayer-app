@@ -22,6 +22,9 @@
 //    (index.tsx source pin): the focus reload that used to call
 //    removeExpiredEmergencyPrayersFromAll would have deleted the
 //    very records the skinny cards derive from.
+//  - v494 (Nov 11): the skinny rows group into ONE box per kind —
+//    section (f) pins the grouped container; every renew/delete
+//    assertion above stands untouched.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -327,5 +330,47 @@ describe("v284 wiring — source pins", () => {
     expect(scheduler).not.toContain("syncPrayerTrayNotifications");
     expect(scheduler).not.toContain("hasActiveEmergencyPrayer");
     expect(scheduler).not.toContain("hasActivePraise");
+  });
+});
+
+// ─── (f) v494 grouping — the skinny rows share one box per kind ──
+// Jonathan (Nov 11, renew-card-v1's last frame): "Yeah I like the
+// renew cards together like the last concept on here. Emergency
+// with emergency, and praise with praise." Only the container
+// changed: one wash box per kind, hairline-separated rows, a lone
+// entry in the same box with no hairline. Row content, dress and
+// the Renew/Delete doors are v284's exactly (sections a–e stand).
+
+describe("v494 grouping — one renew box per kind (source pins)", () => {
+  const index = read("app/(tabs)/index.tsx");
+  const lapsed = index.slice(index.indexOf("const renderLapsedCards"), index.indexOf("// v435 — the emergency banner's row motion"));
+
+  it("one container per kind, in the kind's own wash — kinds never share a box", () => {
+    expect(lapsed).toContain("lapsedTimedPrayers.filter((entry) => entry.kind === kind)");
+    expect(lapsed).toContain('kind === "emergency" ? pmf.redWash : pmf.goldTint');
+    expect(lapsed).toContain("testID={`lapsed-group-${kind}`}");
+    expect(lapsed).toContain('backgroundColor: wash, borderRadius: 20, overflow: "hidden"');
+    expect(index).toContain('{renderLapsedCards("emergency")}');
+    expect(index).toContain('{renderLapsedCards("praise")}');
+  });
+
+  it("rows are separated by a hairline in a deeper tint of the same wash; the first row carries none", () => {
+    expect(lapsed).toContain("borderTopWidth: entryIndex === 0 ? 0 : 1, borderTopColor: hairline");
+    expect(lapsed).toContain("mix(pmf.redWash, PEOPLE_EMERGENCY_RED, 0.18)");
+    expect(lapsed).toContain("mix(pmf.goldTint, pmf.gold, 0.35)");
+  });
+
+  it("the old per-entry stack is gone — no own-card background per row, no gap stack", () => {
+    expect(lapsed).not.toContain("gap: 8");
+    expect(lapsed).not.toContain("backgroundColor: isEmergency ? pmf.redWash : pmf.goldTint, borderRadius: 20");
+  });
+
+  it("row content and the two doors are v284's, unchanged", () => {
+    expect(lapsed).toContain("size={36}");
+    expect(lapsed).toContain('fontSize: 13.5, fontWeight: "800"');
+    expect(lapsed).toContain("onPress={() => handleRenewLapsed(entry)}");
+    expect(lapsed).toContain("onPress={() => handleDeleteLapsed(entry)}");
+    expect(lapsed).toContain(">Renew</Text>");
+    expect(lapsed).toContain(">Delete</Text>");
   });
 });

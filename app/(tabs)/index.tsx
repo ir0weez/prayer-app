@@ -46,7 +46,7 @@ import { EDITOR_HEADER_CLOSE_HITSLOP, EDITOR_HEADER_SAVE_HITSLOP } from "@/lib/e
 import { PEOPLE_EMERGENCY_RED, PEOPLE_GOLD_PILL_INK } from "@/lib/people-material";
 import { bibleAccentInk, hexToRgba } from "@/lib/bible-v205/palette-accents";
 import type { PeopleFrontDoorFamily } from "@/lib/people-material";
-import { CarouselDots, FrontDoorCarousel } from "@/components/front-door-carousel";
+import { nextPageIndex, shouldAutoAdvance } from "@/lib/people-carousel";
 import { PeopleStreakCard } from "@/components/people-streak-card";
 import { WavyProgress } from "@/components/wavy-progress";
 import { getPraiseDisplay, getPraiseJournalText } from "@/lib/praise-display";
@@ -269,7 +269,7 @@ import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type
 import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/monuments";
 import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
 import { awardXP, awardCustomXP, DEFAULT_XP_STATE, getXPLevelBadgeFrame, getXPLevelTitle, getXPProgress, loadXPState, loseHeart, maxHeartsForLevel, restoreHeart, revokeXP, type XpAction, type XpGainPosition, type XpState } from "@/lib/xp-engine";
-import { ACCENT_THEMES, getAccentThemeDefinition, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
+import { ACCENT_THEMES, getAccentThemeDefinition, mix, normalizeAccentThemeId, type AccentThemeId } from "@/lib/color-themes";
 import { BIT_ON_DUSK, BIT_ON_DUSK_FAINT, BIT_PANEL, BIT_PURPLE, SKIN_THEMES, TERM_BG, TERM_DIM, TERM_MID, TERM_PANEL, TERM_PHOS, TERM_SOFT, bitButtonInk, bitButtonStyle, getSkinThemeDefinition, normalizeSkinThemeId, peopleHeaderInset, skinText, termButtonInk, termButtonStyle, type SkinThemeId, type SkinTokens } from "@/lib/skin-themes";
 import { useSkin } from "@/hooks/use-skin";
 import { PaperGrainOverlay } from "@/components/paper-grain";
@@ -378,6 +378,8 @@ type PersonalProfile = {
 const RELATIONSHIP_ORDER: RelationshipType[] = ["Family", "Friends", "Ministry", "Unministry", "Prospect"];
 const AVATAR_PALETTE = ["#E6E6FA"]; // Consistent light purple for all blank avatars
 const UNDO_COUNTDOWN_MS = 5000;
+// v494: the praise unit's rotating box advances every 4 seconds.
+const PRAISE_ROTATE_MS = 4000;
 /** v262: the queue tray's open/close motion — one timing, no springs. */
 const QUEUE_TRAY_DURATION_MS = 320;
 
@@ -1463,6 +1465,32 @@ export default function HomeScreen() {
   // below stops it immediately.
   const emergencyPraiseEnabledRef = useRef(true);
   const [praiseCountdowns, setPraiseCountdowns] = useState<Record<string, number>>({});
+  // v494: the praise unit's rotating seat — which extra praise the
+  // small box under the hero is showing. Advances on a plain 4s
+  // interval while the People door is focused and motion is
+  // allowed (the carousel helpers' gate, reused); reduced motion
+  // parks it on the first extra (the dots still advance it by
+  // tap). The seat is clamped at render, so a shrinking praise set
+  // can never park it past the end.
+  const [praiseRotateIndex, setPraiseRotateIndex] = useState(0);
+  const [praiseRotateReducedMotion, setPraiseRotateReducedMotion] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((value) => { if (live) setPraiseRotateReducedMotion(value); })
+      .catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setPraiseRotateReducedMotion);
+    return () => { live = false; subscription.remove(); };
+  }, []);
+  const praiseExtraCount = Math.max(0, people.filter((person) => hasActivePraise(person)).length - 1);
+  const peopleDoorFocused = activeTab === "people" || activeTab === "home";
+  useEffect(() => {
+    if (!shouldAutoAdvance({ count: praiseExtraCount, focused: peopleDoorFocused, reducedMotion: praiseRotateReducedMotion })) return;
+    const timer = setInterval(() => {
+      setPraiseRotateIndex((current) => nextPageIndex(current, praiseExtraCount));
+    }, PRAISE_ROTATE_MS);
+    return () => clearInterval(timer);
+  }, [praiseExtraCount, peopleDoorFocused, praiseRotateReducedMotion]);
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
 
   // Card color fill: the accent pours in from the bottom as the group closes,
@@ -3283,19 +3311,27 @@ export default function HomeScreen() {
   // instant and state-derived: renew the stamp and the full banner
   // above takes the person back; the skinny card simply stops
   // deriving. No animation gate stands between him and the record.
+  // v494 (his Nov 11 pick — renew-card-v1, last frame): the kind's
+  // skinny rows share ONE box now — the wash surface at radius 20,
+  // rows separated by a hairline in a deeper tint of the same wash
+  // ("Emergency with emergency, and praise with praise"). The row
+  // content, dress and doors are v284's exactly; only the container
+  // changed. A lone entry gets the same box, one row, no hairline.
   const renderLapsedCards = (kind: "emergency" | "praise") => {
     const entries = lapsedTimedPrayers.filter((entry) => entry.kind === kind);
     if (entries.length === 0) return null;
+    const wash = kind === "emergency" ? pmf.redWash : pmf.goldTint;
+    const hairline = kind === "emergency" ? mix(pmf.redWash, PEOPLE_EMERGENCY_RED, 0.18) : mix(pmf.goldTint, pmf.gold, 0.35);
     return (
-      <View style={{ marginHorizontal: 16, marginTop: 12, gap: 8 }}>
-        {entries.map((entry) => {
+      <View testID={`lapsed-group-${kind}`} style={{ backgroundColor: wash, borderRadius: 20, overflow: "hidden", marginHorizontal: 16, marginTop: 12 }}>
+        {entries.map((entry, entryIndex) => {
           const isEmergency = entry.kind === "emergency";
           const deep = isEmergency ? bibleAccentInk(PEOPLE_EMERGENCY_RED, pmf.redWash) : pmf.goldDeep;
           const title = isEmergency ? entry.title : getPraiseDisplay(entry.person).headline;
           return (
             <View
               key={`${entry.person.id}:${entry.kind}:${entry.item?.id ?? "person"}`}
-              style={{ backgroundColor: isEmergency ? pmf.redWash : pmf.goldTint, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 11, flexDirection: "row", alignItems: "center", gap: 11 }}
+              style={{ paddingHorizontal: 14, paddingVertical: 11, flexDirection: "row", alignItems: "center", gap: 11, borderTopWidth: entryIndex === 0 ? 0 : 1, borderTopColor: hairline }}
             >
               <AvatarImage id={entry.person.id} name={entry.person.name} gender={entry.person.gender} avatarAsset={entry.person.avatarAsset} photoUri={entry.person.photoUri} size={36} thumbnail fallbackColor={entry.person.accentColor} style={{ borderRadius: 18 }} />
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -3876,105 +3912,124 @@ export default function HomeScreen() {
   const renderPraiseCard = () => {
     const praises = people.filter((person) => hasActivePraise(person));
     if (praises.length === 0) return null;
-    // v256 (his 21:21 addition): the praise card pages through ALL
-    // live praises the way the banner pages emergencies — each page
-    // is one person's praise, with its own Post to Journal. One
-    // praise = the static card exactly as drawn, no dots.
-    // v382 (his Oct 30 22:17 ask, screenshot of the red-seed dark
-    // People page): the card's DRESS now derives from the family
-    // (pmf) like every sibling card — the pinned cream/gold island
-    // (#FFF3D6 → #FFE9B8 gradient, #F5D67B line, #B26E12 deep,
-    // #4A3205/#7A5A14 inks, #F59E0B avatar ring) is gone. Surface =
-    // the family's primary-container register (wash → wash2
-    // gradient, the gradient SHAPE kept), inks are the wash-walked
-    // roles, Pray now is the family's filled seed pill, Post to
-    // Journal its tonal card pill. This supersedes the Oct 25
-    // "praise gold never follows the seed" ruling FOR THIS CARD
-    // ONLY — PRAISE_CARD (the Pray Today session's praise lead),
-    // the bell's praise ring, the slip card's gold pills and every
-    // other gold accent keep the constant untouched.
-    const peopleFocused = activeTab === "people" || activeTab === "home";
+    // v494 (his Nov 11 pick — praise-concepts-v4, "One box,
+    // connected"): the peek carousel is gone. ONE gold Keepsake
+    // unit takes its place: the first live praise is the hero —
+    // photo seat with the star badge pinned to its corner, the
+    // "PRAISE · {NAME}" eyebrow, the headline, his note as the
+    // detail line, and Pray now + Post to Journal side by side at
+    // full readable width (the carousel's peek clipped that button
+    // mid-word — one of his three named faults). The "{N}h left to
+    // celebrate" countdown line is REMOVED (another named fault:
+    // a countdown dresses a praise like an expiring task). Every
+    // further live praise waits in the small rotating box attached
+    // underneath, inside the same card — one at a time, in the
+    // same order, advancing on the v494 seat above; with exactly
+    // one extra the box carries no dots and no footer, and with
+    // none there is no band at all. The dress is the praise gold
+    // family from pmf (goldTint surface, a deeper gold band mixed
+    // from it, goldDeep inks, the gold ring and badge) — the
+    // celebration meaning dress, derived from seed × appearance
+    // the way the lapsed cards derive theirs; the mockup's pinned
+    // light hexes survive nowhere. Handlers are the card's own,
+    // unchanged, for hero and rotating entries alike: Pray now
+    // opens the focused praise session for the person it names,
+    // Post to Journal posts that person's praise text.
+    const praisedPerson = praises[0];
+    const praiseDisplay = getPraiseDisplay(praisedPerson);
+    const text = getPraiseJournalText(praisedPerson);
+    const extras = praises.slice(1);
+    const bandGold = mix(pmf.goldTint, pmf.gold, 0.22);
+    const bandLine = mix(pmf.goldTint, pmf.gold, 0.45);
+    // The Pray now fill: goldDeep walked a step toward the ink —
+    // the mockup's deep-gold pill register, derived from family
+    // tokens so both appearances keep pale-text contrast (in dark
+    // the pair inverts: light gold fill, deep tint text).
+    const deepGoldFill = mix(pmf.goldDeep, pmf.ink, 0.3);
+    const shownExtra = extras.length > 0 ? extras[Math.min(praiseRotateIndex, extras.length - 1)] : null;
     return (
       <PeopleEntrance index={3}>
-        <FrontDoorCarousel count={praises.length} focused={peopleFocused} style={{ marginHorizontal: 16, marginTop: 12 }}>
-          {(pageIndex, registerTouch) => {
-            const praisedPerson = praises[Math.min(pageIndex, praises.length - 1)];
-            // v258: title is the headline, the note the sentence under
-            // it (praise-display holds the legacy fallbacks).
-            const praiseDisplay = getPraiseDisplay(praisedPerson);
-            const text = getPraiseJournalText(praisedPerson);
-            const hoursLeft = praisedPerson.praiseExpiresAt
-              ? Math.max(0, Math.round((new Date(praisedPerson.praiseExpiresAt).getTime() - Date.now()) / 3600000))
-              : null;
-            return (
-              <View style={{ borderRadius: 26, overflow: "hidden", borderWidth: 1.5, borderColor: pmf.wash2, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 11, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
-                <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
-                  <Defs>
-                    <LinearGradient id="v254PraiseGrad" x1="0" y1="0" x2="1" y2="0">
-                      <Stop offset="0" stopColor={pmf.wash} />
-                      <Stop offset="1" stopColor={pmf.wash2} />
-                    </LinearGradient>
-                  </Defs>
-                  <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#v254PraiseGrad)" />
-                </Svg>
-                <View style={{ paddingHorizontal: 17, paddingVertical: 15 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <MaterialIcons name="star" size={14} color={pmf.deep} />
-                    <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: pmf.deep }}>PRAISE · {praisedPerson.name.toUpperCase()}</Text>
-                  </View>
-                  <View style={{ flexDirection: "row", gap: 11, marginTop: 9, alignItems: "flex-start" }}>
-                    <AvatarImage id={praisedPerson.id} name={praisedPerson.name} gender={praisedPerson.gender} avatarAsset={praisedPerson.avatarAsset} photoUri={praisedPerson.photoUri} size={44} thumbnail fallbackColor={praisedPerson.accentColor} style={{ borderWidth: 2.5, borderColor: pmf.seed, borderRadius: 22 }} />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text numberOfLines={2} style={{ fontSize: 14.5, fontWeight: "800", lineHeight: 20, color: pmf.washInk }}>{praiseDisplay.headline}</Text>
-                      {!!praiseDisplay.note && (
-                        <Text numberOfLines={2} style={{ fontSize: 13, fontWeight: "600", lineHeight: 18, color: pmf.washSub, marginTop: 2 }}>{praiseDisplay.note}</Text>
-                      )}
-                    </View>
-                  </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 11 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                      <Text style={{ fontSize: 12, fontWeight: "700", color: pmf.deep }}>{hoursLeft !== null ? `${hoursLeft}h left to celebrate` : "Celebrating today"}</Text>
-                      <CarouselDots count={praises.length} index={Math.min(pageIndex, praises.length - 1)} activeColor={pmf.deep} inactiveColor={hexToRgba(pmf.deep, 0.35)} />
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      {/* v269: the praise card gains its Pray now.
-                          It opens a prayer just for this person.
-                          v382: the pill is the family's filled pill
-                          now (pmf.seed, white ink — the queue card's
-                          Start praying dress), not the white pill in
-                          pinned gold ink. */}
-                      <Pressable
-                        onPressIn={registerTouch}
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openFocusedPrayerSession(praisedPerson.id, "praise"); }}
-                        style={({ pressed }) => [{ backgroundColor: pmf.seed, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 }, pressed && { opacity: 0.85 }]}
-                      >
-                        <Text style={{ fontSize: 13.5, fontWeight: "800", color: "#FFFFFF" }}>Pray now</Text>
-                      </Pressable>
-                      <Pressable
-                        onPressIn={registerTouch}
-                        onPress={() => {
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                          // v281 (D2): a posted praise is kind
-                          // "praise" — the Journal renders it as
-                          // the frame's gold praise post.
-                          setJournal((previous) => createPrayerJournalEntry(previous, { body: text, taggedPeople: [praisedPerson], kind: "praise" }, `journal-praise-${Date.now()}`));
-                          setActiveTab("journal");
-                        }}
-                        style={({ pressed }) => [{ backgroundColor: pmf.card, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
-                      >
-                        <Text style={{ fontSize: 12.5, fontWeight: "800", color: pmf.deep }}>Post to Journal</Text>
-                      </Pressable>
-                    </View>
-                  </View>
+        <View testID="praise-unit" style={{ backgroundColor: pmf.goldTint, borderRadius: 28, overflow: "hidden", marginHorizontal: 16, marginTop: 12, shadowColor: pmf.shadow, shadowOpacity: 1, shadowRadius: 11, shadowOffset: { width: 0, height: 5 }, elevation: 4 }}>
+          <View style={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 15 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+              <View>
+                <AvatarImage id={praisedPerson.id} name={praisedPerson.name} gender={praisedPerson.gender} avatarAsset={praisedPerson.avatarAsset} photoUri={praisedPerson.photoUri} size={58} thumbnail fallbackColor={praisedPerson.accentColor} style={{ borderWidth: 2.5, borderColor: pmf.gold, borderRadius: 29 }} />
+                <View style={{ position: "absolute", right: -4, bottom: -4, width: 21, height: 21, borderRadius: 11, backgroundColor: pmf.gold, borderWidth: 2, borderColor: pmf.goldTint, alignItems: "center", justifyContent: "center" }}>
+                  <MaterialIcons name="star" size={11} color="#FFFFFF" />
                 </View>
               </View>
-            );
-          }}
-        </FrontDoorCarousel>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <MaterialIcons name="star" size={14} color={pmf.goldDeep} />
+                  <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: pmf.goldDeep }}>PRAISE · {praisedPerson.name.toUpperCase()}</Text>
+                </View>
+                <Text numberOfLines={2} style={{ fontSize: 23, fontWeight: "800", lineHeight: 27, color: pmf.ink, marginTop: 3 }}>{praiseDisplay.headline}</Text>
+              </View>
+            </View>
+            {!!praiseDisplay.note && (
+              <Text numberOfLines={2} style={{ fontSize: 13.5, fontWeight: "600", color: pmf.goldDeep, marginTop: 10 }}>{praiseDisplay.note}</Text>
+            )}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 13 }}>
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openFocusedPrayerSession(praisedPerson.id, "praise"); }}
+                style={({ pressed }) => [{ backgroundColor: deepGoldFill, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={{ fontSize: 13.5, fontWeight: "800", color: pmf.goldTint }}>Pray now</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  // v281 (D2): a posted praise is kind
+                  // "praise" — the Journal renders it as
+                  // the frame's gold praise post.
+                  setJournal((previous) => createPrayerJournalEntry(previous, { body: text, taggedPeople: [praisedPerson], kind: "praise" }, `journal-praise-${Date.now()}`));
+                  setActiveTab("journal");
+                }}
+                style={({ pressed }) => [{ backgroundColor: bandGold, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={{ fontSize: 13.5, fontWeight: "800", color: pmf.goldDeep }}>Post to Journal</Text>
+              </Pressable>
+            </View>
+          </View>
+          {shownExtra ? (
+            <View testID="praise-rotating-box" style={{ backgroundColor: bandGold, borderTopWidth: 1, borderTopColor: bandLine, paddingHorizontal: 14, paddingTop: 11, paddingBottom: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
+                <AvatarImage id={shownExtra.id} name={shownExtra.name} gender={shownExtra.gender} avatarAsset={shownExtra.avatarAsset} photoUri={shownExtra.photoUri} size={38} thumbnail fallbackColor={shownExtra.accentColor} style={{ borderWidth: 2, borderColor: pmf.gold, borderRadius: 19 }} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: "800", color: pmf.ink }}>
+                    <Text style={{ color: pmf.goldDeep }}>PRAISE · </Text>
+                    {shownExtra.name}
+                  </Text>
+                  <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "600", color: pmf.goldDeep, marginTop: 1 }}>{getPraiseJournalText(shownExtra)}</Text>
+                </View>
+                <Pressable
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openFocusedPrayerSession(shownExtra.id, "praise"); }}
+                  style={({ pressed }) => [{ backgroundColor: deepGoldFill, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }, pressed && { opacity: 0.85 }]}
+                >
+                  <Text style={{ fontSize: 12.5, fontWeight: "800", color: pmf.goldTint }}>Pray now</Text>
+                </Pressable>
+              </View>
+              {extras.length > 1 ? (
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 9 }}>
+                  <Text style={{ flex: 1, fontSize: 10.5, fontWeight: "800", letterSpacing: 0.8, color: pmf.goldDeep }}>{extras.length} MORE TO CELEBRATE</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    {extras.map((extra, extraIndex) => {
+                      const isShown = extraIndex === Math.min(praiseRotateIndex, extras.length - 1);
+                      return (
+                        <Pressable key={extra.id} onPress={() => setPraiseRotateIndex(extraIndex)} hitSlop={6}>
+                          <View style={{ width: isShown ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: isShown ? pmf.goldDeep : hexToRgba(pmf.goldDeep, 0.3) }} />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
       </PeopleEntrance>
     );
   };
-
   const renderSlipCard = () => {
     if (reachEntries.length === 0) return null;
     // v412 (his Nov 2 pick — Concept 1 + the approved multi-person

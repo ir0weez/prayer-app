@@ -121,7 +121,11 @@ describe("v269 source pins — the launch sites (index.tsx)", () => {
     // pill now; the focused session's gold praise lead (below,
     // PRAISE_CARD) is untouched. people-v382-praise-theme.test.ts
     // pins the derived dress.
-    expect(praise).toContain("backgroundColor: pmf.seed");
+    // v494 amendment (Nov 11): the card is the gold Keepsake unit
+    // (praise-concepts-v4) and Pray now wears the unit's derived
+    // deep-gold fill (goldDeep walked toward the ink) — people-
+    // v494.test.ts pins the unit; the handler pin above stands.
+    expect(praise).toContain("backgroundColor: deepGoldFill");
     expect(praise).not.toContain('color: "#B26E12"');
     // Post to Journal survives beside it, untouched.
     expect(praise).toContain("Post to Journal");

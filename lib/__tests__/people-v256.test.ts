@@ -272,15 +272,22 @@ describe("v256 carousel logic — pure helpers", () => {
 describe("v256 source pins — the banner and praise card page (index.tsx)", () => {
   const index = read("app/(tabs)/index.tsx");
 
-  it("both cards render through FrontDoorCarousel, one page per live entry", () => {
+  it("both cards render through FrontDoorCarousel, one page per live entry — v494 amendment: praise leaves the carousel", () => {
     // v435 amendment: the emergency card no longer renders through
     // FrontDoorCarousel — it is one card of rows (Concept 2, his
     // Nov 4 pick; people-v435.test.ts pins the rows banner). The
     // praise card still pages through the carousel, one page per
     // live entry, exactly as this test has always pinned.
+    // v494 amendment (Nov 11): the praise card no longer pages
+    // either — his verdict on the peek carousel ("these praise
+    // boxes suck": the peek clipped Post to Journal mid-word)
+    // replaced it with ONE connected unit (praise-concepts-v4):
+    // the first praise is the hero, the rest rotate through the
+    // small box underneath. people-v494.test.ts pins the unit.
+    // The banner pins and the praise derivation stand as they were.
     expect(index).not.toContain("<FrontDoorCarousel count={emergencies.length}");
     expect(index).toContain("EMERGENCY · {emergencies.length} ACTIVE");
-    expect(index).toContain("<FrontDoorCarousel count={praises.length}");
+    expect(index).not.toContain("<FrontDoorCarousel count={praises.length}");
     expect(index).toContain("people.filter((person) => hasActivePraise(person))");
   });
 
@@ -302,14 +309,19 @@ describe("v256 source pins — the banner and praise card page (index.tsx)", () 
     expect(index).toContain("people={sessionPeople}");
   });
 
-  it("dots render only when N>1 (CarouselDots self-hides at one page)", () => {
+  it("dots render only when N>1 (CarouselDots self-hides at one page) — v494 amendment: the unit's dots are its own", () => {
     const carousel = read("components/front-door-carousel.tsx");
     expect(carousel).toContain("if (count <= 1) return null");
     expect(carousel).toContain("shouldAutoAdvance({ count, focused, reducedMotion })");
     // v435 amendment: the emergency card has no dots — no pages
     // remain on it (people-v435.test.ts pins their absence). The
     // praise card's dots and the CarouselDots self-hide rule stand.
+    // v494 amendment (Nov 11): the praise card renders no
+    // CarouselDots either — its rotating box draws its own
+    // position dots, one per extra praise, only when there is
+    // more than one extra to rotate through (people-v494 pins
+    // them). The shell's self-hide rule above stands unamended.
     expect(index).not.toContain("<CarouselDots count={emergencies.length}");
-    expect(index).toContain("<CarouselDots count={praises.length}");
+    expect(index).not.toContain("<CarouselDots count={praises.length}");
   });
 });

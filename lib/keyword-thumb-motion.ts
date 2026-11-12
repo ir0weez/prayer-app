@@ -152,6 +152,8 @@ export const KEYWORD_THUMB_MOTIONS: Record<string, ThumbMotionSpec> = {
   "daily-brief": { kind: "breathe", duration: 3200 },
   // v490: the weather thumb drifts, the way its clouds do.
   "weather": { kind: "drift", duration: 3600 },
+  // v509: the release thumb breathes, the way its low sun does.
+  "release": { kind: "breathe", duration: 3400 },
   "outreach": { kind: "breathe", duration: 3600 },
   "park": { kind: "sway", duration: 3400 },
   "park-disney": { kind: "twinkle", duration: 3000 },

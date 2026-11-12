@@ -198,6 +198,22 @@ function movieSceneId(title: string, notes: string): PaperSceneId | null {
 }
 
 /* ------------------------------------------------------------------ */
+/* Release — v509 (Jonathan, Nov 11: "It's just an event titled        */
+/* 'Release' with 'GTA6' in the note"). The one conjunction keyword:   */
+/* the scene fires only when the TITLE carries the word "release"      */
+/* AND the NOTES name the game ("gta6" or "gta 6"). Either half        */
+/* alone renders nothing — the same context-guard idiom the TV and     */
+/* Movie sub-dispatches above use for their common words.              */
+/* ------------------------------------------------------------------ */
+
+function releaseSceneId(title: string, notes: string): PaperSceneId | null {
+  if (!/\brelease\b/.test((title ?? "").toLowerCase())) return null;
+  const n = (notes ?? "").toLowerCase();
+  if (n.includes("gta6") || n.includes("gta 6")) return "release";
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
 /* The label dispatch — mirrors KeywordAmbientAnimation's switch.      */
 /* ------------------------------------------------------------------ */
 
@@ -281,6 +297,7 @@ export function paperSceneIdFor(
   notes = "",
 ): PaperSceneId | null {
   if (label === "Meal") return mealSceneId(title, location, notes);
+  if (label === "Release") return releaseSceneId(title, notes);
   if (label === "Movie") return movieSceneId(title, notes) ?? "movie";
   if (label === "Theater") return movieSceneId(title, notes) ?? "theater";
   if (label === "TV Show") return tvSceneId(title, notes);
@@ -304,6 +321,7 @@ export function allPaperSceneIds(): PaperSceneId[] {
     "movie",
     "theater",
     "weather",
+    "release",
     "tv-show",
     "tv-dexter-new-blood",
     "tv-dexter-original-sin",

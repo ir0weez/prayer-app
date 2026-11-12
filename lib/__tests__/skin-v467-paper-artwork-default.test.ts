@@ -128,8 +128,9 @@ describe("v467 — no scene registry lost an entry", () => {
     // v468: each registry grew by one — "tv-boardwalk-empire" was
     // registered in all three dialects; nothing was lost.
     // v490: 176 — the weather scene joined all three the same way.
-    expect(registryKeyCount(read("components/paper-keyword-scenes.tsx"), "const PAPER_SCENE_REGISTRY")).toBe(176);
-    expect(registryKeyCount(read("components/pixel-keyword-scenes.tsx"), "const PIXEL_SCENE_REGISTRY")).toBe(176);
-    expect(registryKeyCount(read("components/terminal-keyword-scenes.tsx"), "const TERMINAL_SCENE_REGISTRY")).toBe(176);
+    // v509: 177 — the release scene joined all three the same way.
+    expect(registryKeyCount(read("components/paper-keyword-scenes.tsx"), "const PAPER_SCENE_REGISTRY")).toBe(177);
+    expect(registryKeyCount(read("components/pixel-keyword-scenes.tsx"), "const PIXEL_SCENE_REGISTRY")).toBe(177);
+    expect(registryKeyCount(read("components/terminal-keyword-scenes.tsx"), "const TERMINAL_SCENE_REGISTRY")).toBe(177);
   });
 });

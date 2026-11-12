@@ -228,6 +228,18 @@ export const EVENT_KEYWORD_MAP: EventKeyword[] = [
   { keywords: ["temperature"], label: "Temperature", emoji: "", icon: "thermostat", bgColor: "#BFE0F5", textColor: "#1B4FA8", accentColor: "#F5A623" },
   { keywords: ["email", "e-mail", "gmail", "mail"], label: "Email", emoji: "✉️", icon: "mail", bgColor: "#4C2E91", textColor: "#EFE9FF", accentColor: "#7C5CFF" },
   { keywords: ["tv", "tv show", "television", "show", "episode", "series"], label: "TV Show", emoji: "📺", icon: "tv", bgColor: "#2A2A4E", textColor: "#1A237E", accentColor: "#5C6BC0" },
+  // v509: the Release scene (Jonathan, Nov 11) — an event titled
+  // "Release" whose notes name GTA6 wears the Vice Sunset. The
+  // label matches the word "release" in the combined text, like
+  // every entry here; the title+notes CONJUNCTION is gated in
+  // the scene routing (paperSceneIdFor's release gate,
+  // lib/paper-keywords.ts) — the same place the Movie/TV
+  // sub-dispatches apply their context guards — so a "Release"
+  // event without GTA6 in its notes keeps these colours and
+  // icon but renders no scene. It sits LAST on purpose, later
+  // even than the doors: every scene that matched before still
+  // wins, and Release claims only what matched nothing.
+  { keywords: ["release"], label: "Release", emoji: "", icon: "sports-esports", bgColor: "#5D3350", textColor: "#F7C8B8", accentColor: "#E77E63" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

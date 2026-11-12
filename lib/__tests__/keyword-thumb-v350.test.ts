@@ -85,7 +85,9 @@ describe("v350 — motion coverage is exact: one motion spec per keyword scene",
     // Jonathan approved daily-breakdown-concepts-v6, Nov 2).
     // v468: 175 — tv-boardwalk-empire joined the scene set (Boardwalk Empire).
     // v490: 176 — weather joined the scene set (the Weather door).
-    expect(specKeys.length).toBe(176);
+    // v509: 177 — release joined the scene set (the Vice Sunset;
+    // title "Release" + GTA6 in the notes).
+    expect(specKeys.length).toBe(177);
   });
 
   it("every spec names a vocabulary kind with a loop style, inside the 2.4–4s calm band", () => {

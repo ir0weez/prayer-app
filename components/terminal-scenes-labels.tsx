@@ -1031,6 +1031,37 @@ export function TermWeatherScene() {
   );
 }
 
+export function TermReleaseScene() {
+  // Vice Sunset as line art (v509): a low sun over the water
+  // line, the skyline traced as a stepped silhouette, a palm
+  // stroked at each side.
+  return (
+    <TermSceneRoot>
+      {/* The skyline silhouette, stepped along the water line. */}
+      <LP d="M 0 88 V 66 H 12 V 56 H 22 V 88 M 30 88 V 62 H 42 V 70 H 54 V 88 M 122 88 V 64 H 134 V 54 H 144 V 88 M 152 88 V 68 H 164 V 60 H 174 V 88" c={TERM_MID} w={1.7} />
+      {/* The low sun on the horizon. */}
+      <LC cx={88} cy={64} r={15} c={TERM_PHOS} w={2.2} />
+      <LC cx={88} cy={64} r={8} c={TERM_MID} w={1.5} />
+      {/* The water: the light line + two glints under the sun. */}
+      <LL x1={0} y1={88} x2={200} y2={88} c={TERM_PHOS} w={2} />
+      <LL x1={76} y1={96} x2={100} y2={96} c={TERM_MID} w={1.6} />
+      <LL x1={82} y1={103} x2={94} y2={103} c={TERM_DIM} w={1.5} />
+      <LL x1={8} y1={112} x2={192} y2={112} c={TERM_DIM} w={1.8} />
+      {/* Palms, one at each side. */}
+      <LP d="M 22 112 C 21 98 19 88 15 80" c={TERM_SOFT} w={1.9} />
+      <LP d="M 15 80 C 9 74 4 72 0 74" c={TERM_SOFT} w={1.7} />
+      <LP d="M 15 80 C 13 72 9 68 4 66" c={TERM_SOFT} w={1.7} />
+      <LP d="M 15 80 C 18 72 22 68 27 66" c={TERM_SOFT} w={1.7} />
+      <LP d="M 15 80 C 21 75 26 73 30 74" c={TERM_SOFT} w={1.7} />
+      <LP d="M 178 112 C 179 100 181 90 185 82" c={TERM_SOFT} w={1.9} />
+      <LP d="M 185 82 C 191 76 196 74 200 76" c={TERM_SOFT} w={1.7} />
+      <LP d="M 185 82 C 187 74 191 70 196 68" c={TERM_SOFT} w={1.7} />
+      <LP d="M 185 82 C 182 74 178 70 173 68" c={TERM_SOFT} w={1.7} />
+      <LP d="M 185 82 C 179 77 174 75 170 76" c={TERM_SOFT} w={1.7} />
+    </TermSceneRoot>
+  );
+}
+
 export function TermNewsScene() {
   return (
     <TermSceneRoot>

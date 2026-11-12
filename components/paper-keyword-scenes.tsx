@@ -5819,6 +5819,60 @@ export function PaperWeatherScene() {
   );
 }
 
+export function PaperReleaseScene() {
+  // Vice Sunset (v509, Jonathan's pick — keyword-release-gta6-v1
+  // Concept 1): the banded paper sky, a low gold sun breathing on
+  // the calm sine, the skyline silhouette standing in the water,
+  // the gold light line on the water, a palm at each side. Flat
+  // pieces in the mockup's own colours; no wordmark, no logo —
+  // an original sunset.
+  return (
+    <PaperSceneRoot base="#F7C8B8">
+      {/* The banded sky */}
+      <View style={{ position: "absolute", left: 0, right: 0, top: "22%", height: "25%", backgroundColor: "#F2A58E" }} />
+      <View style={{ position: "absolute", left: 0, right: 0, top: "47%", height: "26%", backgroundColor: "#E77E63" }} />
+      {/* The low sun, breathing */}
+      <PaperPulse left="50%" bottom={34} width={74} height={74} min={1} max={1.04} duration={4600}>
+        <View style={{ marginLeft: -37, width: 74, height: 74 }}>
+          <PaperPiece style={{ width: 74, height: 74, borderRadius: 37, backgroundColor: "#FFD98A" }} />
+        </View>
+      </PaperPulse>
+      {/* The water + its gold light line */}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "27%", backgroundColor: "#8C4A63" }} />
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: "27%", height: 4, backgroundColor: "#FFD98A", opacity: 0.55 }} />
+      {/* The skyline silhouette, standing on the water line */}
+      <SettleIn delay={150} style={{ position: "absolute", left: 0, right: 0, bottom: "25.5%", height: 58 }}>
+        {[
+          { l: "0%", w: "7%", h: 24 }, { l: "7%", w: "5%", h: 36 }, { l: "12%", w: "6%", h: 46 },
+          { l: "18%", w: "8%", h: 28 }, { l: "26%", w: "6%", h: 19 }, { l: "32%", w: "7%", h: 33 },
+          { l: "39%", w: "8%", h: 16 }, { l: "47%", w: "8%", h: 13 }, { l: "55%", w: "6%", h: 21 },
+          { l: "61%", w: "8%", h: 38 }, { l: "69%", w: "5%", h: 27 }, { l: "74%", w: "7%", h: 50 },
+          { l: "81%", w: "6%", h: 31 }, { l: "87%", w: "7%", h: 41 }, { l: "94%", w: "6%", h: 25 },
+        ].map((b, i) => (
+          <PaperPiece key={i} style={{ position: "absolute", left: b.l as `${number}%`, bottom: 0, width: b.w as `${number}%`, height: b.h, backgroundColor: "#5D3350" }} />
+        ))}
+      </SettleIn>
+      {/* A palm at each side */}
+      <SettleIn delay={240} style={{ position: "absolute", left: "3%", bottom: 0, width: 58, height: 126 }}>
+        <PaperPiece style={{ position: "absolute", left: 25, bottom: 0, width: 7, height: 86, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "-5deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 0, bottom: 88, width: 32, height: 7, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "-26deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 8, bottom: 97, width: 30, height: 7, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "-8deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 20, bottom: 99, width: 28, height: 7, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "14deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 26, bottom: 92, width: 26, height: 7, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "30deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 14, bottom: 104, width: 22, height: 7, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "2deg" }] }} />
+      </SettleIn>
+      <SettleIn delay={320} style={{ position: "absolute", right: "3%", bottom: 0, width: 58, height: 118 }}>
+        <PaperPiece style={{ position: "absolute", left: 26, bottom: 0, width: 7, height: 80, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "5deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 26, bottom: 82, width: 32, height: 7, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "26deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 20, bottom: 91, width: 30, height: 7, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "8deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 10, bottom: 93, width: 28, height: 7, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "-14deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 6, bottom: 86, width: 26, height: 7, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "-30deg" }] }} />
+        <PaperPiece style={{ position: "absolute", left: 22, bottom: 98, width: 22, height: 7, borderRadius: 3.5, backgroundColor: "#43253F", transform: [{ rotate: "-2deg" }] }} />
+      </SettleIn>
+    </PaperSceneRoot>
+  );
+}
+
 export function PaperNewsScene() {
   return (
     <PaperSceneRoot base="#31456B">
@@ -5912,6 +5966,7 @@ const PAPER_SCENE_REGISTRY: Record<PaperSceneId, () => ReactNode> = {
   "email": PaperEmailScene,
   "daily-brief": PaperDailyBriefScene,
   "weather": PaperWeatherScene,
+  "release": PaperReleaseScene,
   "bbq": PaperBBQScene,
   "fast": PaperFastScene,
   "church": PaperChurchScene,

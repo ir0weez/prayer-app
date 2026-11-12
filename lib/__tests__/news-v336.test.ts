@@ -134,7 +134,8 @@ describe("v336 scenes", () => {
     // Jonathan approved daily-breakdown-concepts-v6, Nov 2).
     // v468: 175 — tv-boardwalk-empire joined the set (Boardwalk Empire).
     // v490: 176 — weather joined the set (the Weather door).
-    expect(ids.length).toBe(176);
+    // v509: 177 — release joined the set (the Vice Sunset).
+    expect(ids.length).toBe(177);
     expect(ids).toContain("news");
     expect(ids).toContain("email");
   });

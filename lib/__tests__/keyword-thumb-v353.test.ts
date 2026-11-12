@@ -104,7 +104,8 @@ describe("v353 — the Up Next-only thumb set is exact and self-consistent", () 
     // Jonathan approved daily-breakdown-concepts-v6, Nov 2).
     // v468: 175 — tv-boardwalk-empire joined the scene set (Boardwalk Empire).
     // v490: 176 — weather joined the scene set (the Weather door).
-    expect(specKeysOf("KEYWORD_THUMB_SPECS").length).toBe(176);
+    // v509: 177 — release joined the scene set (the Vice Sunset).
+    expect(specKeysOf("KEYWORD_THUMB_SPECS").length).toBe(177);
   });
 
   it("every thumb-only motion names a vocabulary kind inside the calm band", () => {

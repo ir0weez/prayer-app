@@ -114,6 +114,17 @@ export const KEYWORD_THUMB_SPECS: Record<string, ThumbSpec> = {
     { k: "p", d: "M8.5 3.5a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4z", f: "#FFC93C" },
     { k: "p", d: "M7 20h9.5a3.8 3.8 0 0 0 .6-7.5A5.5 5.5 0 0 0 6.4 14 3.2 3.2 0 0 0 7 20z", f: "#FFFFFF" },
   ] },
+  // v509: the Release thumb — the Vice Sunset at tile size: the
+  // low gold sun dipping into the plum water, the skyline
+  // silhouette standing on the water line, on the coral band.
+  "release": { g: "#E77E63", s: [
+    { k: "c", x: 20, y: 19, r: 7.5, f: "#FFD98A" },
+    { k: "r", x: 0, y: 26, w: 40, h: 14, f: "#8C4A63" },
+    { k: "r", x: 3, y: 20, w: 5, h: 6, f: "#5D3350" },
+    { k: "r", x: 10, y: 17, w: 4, h: 9, f: "#5D3350" },
+    { k: "r", x: 27, y: 18, w: 5, h: 8, f: "#5D3350" },
+    { k: "r", x: 34, y: 21, w: 4, h: 5, f: "#5D3350" },
+  ] },
   "email": { g: "#4C2E91", icon: "mail" },
   "bbq": { g: "#5D2E1E", icon: "outdoor-grill" },
   // v360 — THE SHEET REDRAW (Jonathan, Oct 30: "the up next icons

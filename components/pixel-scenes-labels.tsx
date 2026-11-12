@@ -1209,6 +1209,49 @@ export function PixelWeatherScene() {
   );
 }
 
+export function PixelReleaseScene() {
+  // Vice Sunset in pixels (v509): the paper scene's bands as
+  // chunky strips, a square sun hopping in steps, the skyline
+  // as stepped blocks, palms as stacked squares.
+  return (
+    <PixelSceneRoot base="#F7C8B8">
+      <Px style={{ position: "absolute", left: 0, right: 0, top: "22%", height: "25%", backgroundColor: "#F2A58E" }} />
+      <Px style={{ position: "absolute", left: 0, right: 0, top: "47%", height: "26%", backgroundColor: "#E77E63" }} />
+      {/* The square sun, hopping in steps over the water line. */}
+      <StepBob left="50%" bottom={40} width={52} height={52} distance={3} period={1500}>
+        <Px style={{ position: "absolute", left: -26, bottom: 0, width: 52, height: 52, backgroundColor: "#FFD98A" }} />
+        <Px style={{ position: "absolute", left: -16, bottom: 10, width: 32, height: 32, backgroundColor: "#FFE3AC" }} />
+      </StepBob>
+      {/* The water + its gold light line */}
+      <Px style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "27%", backgroundColor: "#8C4A63" }} />
+      <Px style={{ position: "absolute", left: 0, right: 0, bottom: "27%", height: 4, backgroundColor: "#FFD98A", opacity: 0.55 }} />
+      {/* The skyline: stepped blocks on the water line */}
+      <StepIn style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}>
+        {[
+          { l: "0%", w: "7%", h: 24 }, { l: "7%", w: "5%", h: 36 }, { l: "12%", w: "6%", h: 46 },
+          { l: "18%", w: "8%", h: 28 }, { l: "26%", w: "6%", h: 19 }, { l: "32%", w: "7%", h: 33 },
+          { l: "39%", w: "8%", h: 16 }, { l: "47%", w: "8%", h: 13 }, { l: "55%", w: "6%", h: 21 },
+          { l: "61%", w: "8%", h: 38 }, { l: "69%", w: "5%", h: 27 }, { l: "74%", w: "7%", h: 50 },
+          { l: "81%", w: "6%", h: 31 }, { l: "87%", w: "7%", h: 41 }, { l: "94%", w: "6%", h: 25 },
+        ].map((b, i) => (
+          <Px key={i} style={{ position: "absolute", left: b.l as `${number}%`, bottom: "25.5%", width: b.w as `${number}%`, height: b.h, backgroundColor: "#5D3350" }} />
+        ))}
+        {/* Palms: stacked squares, fronds stepping out and down */}
+        <Px style={{ position: "absolute", left: "9%", bottom: 0, width: 8, height: 84, backgroundColor: "#43253F" }} />
+        <Px style={{ position: "absolute", left: "4%", bottom: 84, width: 24, height: 8, backgroundColor: "#43253F" }} />
+        <Px style={{ position: "absolute", left: "2%", bottom: 76, width: 16, height: 8, backgroundColor: "#43253F" }} />
+        <Px style={{ position: "absolute", left: "10%", bottom: 92, width: 24, height: 8, backgroundColor: "#43253F" }} />
+        <Px style={{ position: "absolute", left: "13%", bottom: 84, width: 14, height: 8, backgroundColor: "#43253F" }} />
+        <Px style={{ position: "absolute", right: "9%", bottom: 0, width: 8, height: 78, backgroundColor: "#43253F" }} />
+        <Px style={{ position: "absolute", right: "4%", bottom: 78, width: 24, height: 8, backgroundColor: "#43253F" }} />
+        <Px style={{ position: "absolute", right: "2%", bottom: 70, width: 16, height: 8, backgroundColor: "#43253F" }} />
+        <Px style={{ position: "absolute", right: "10%", bottom: 86, width: 24, height: 8, backgroundColor: "#43253F" }} />
+        <Px style={{ position: "absolute", right: "13%", bottom: 78, width: 14, height: 8, backgroundColor: "#43253F" }} />
+      </StepIn>
+    </PixelSceneRoot>
+  );
+}
+
 export function PixelNewsScene() {
   return (
     <PixelSceneRoot base="#31456B">

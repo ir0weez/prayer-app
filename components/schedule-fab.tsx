@@ -3,11 +3,12 @@
  * (Jonathan's picks, Nov 8 — fab-speed-dial FAB-2 for the menu,
  * fab-plus-circle-morph-concepts-v2 for the button.)
  *
- * One component serves both add doors: Schedule (through the
- * shell bridge — lib/schedule-fab-bridge.ts / ScheduleFabHost)
- * and People (rendered by the shell directly). Same seat, same
- * motion, same feel; only the glyph's mark and the menu's items
- * differ by page.
+ * One component serves all three add doors: Schedule (through the
+ * shell bridge — lib/schedule-fab-bridge.ts / ScheduleFabHost),
+ * People (rendered by the shell directly), and Journal (v513 —
+ * through its own bridge, lib/journal-fab-bridge.ts /
+ * JournalFabHost). Same seat, same motion, same feel; only the
+ * glyph's mark and the menu's items differ by page.
  *
  * THE BUTTON stays a 56dp circle in the page's own colour dress.
  * Its glyph is the Circle morph (components/fab-circle-glyph.tsx):
@@ -192,7 +193,7 @@ export function ScheduleFab({
   fabColor: string;
   /** The glyph's stroke colour, both faces (+ and ring). */
   glyphColor: string;
-  /** The mark inside the ring: a person (People) or a check (Schedule). */
+  /** The mark inside the ring: a person (People), a check (Schedule), a pen (Journal). */
   glyphVariant: FabGlyphVariant;
   /** The scrim's family: the approved neutral dim, or the skins' deeper dark. */
   scrimTone?: "violet" | "dark";

@@ -26,6 +26,7 @@ import { AttentionBell } from "@/components/attention-bell";
 import { AppTabBar, useTabBarOccupiedHeight, type AppNavTab } from "@/components/app-tab-bar";
 import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
 import { ScheduleFabHost } from "@/components/schedule-fab-host";
+import { JournalFabHost } from "@/components/journal-fab-host";
 import { ScheduleFab, useFabPageScale } from "@/components/schedule-fab";
 import { BiblePane } from "@/components/bible-pane";
 import {
@@ -6659,6 +6660,14 @@ export default function HomeScreen() {
           registers its config through the bridge; the host renders
           nothing when the schedule tab isn't mounted. */}
       <ScheduleFabHost />
+
+      {/* v513: the Journal FAB — the same Circle morph + spring
+          menu, pen in the ring, the six entry kinds as its menu.
+          Same mount rule as Schedule's: the Journal tab registers
+          its config through its bridge (lib/journal-fab-bridge.ts)
+          and the host renders nothing unless the Journal Desk is
+          the surface showing. */}
+      <JournalFabHost />
 
       {/* v473: the People FAB — the same Circle morph + spring
           menu as Schedule's, on EVERY skin (supersedes v255: the

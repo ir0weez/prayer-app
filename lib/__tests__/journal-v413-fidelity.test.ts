@@ -160,11 +160,24 @@ describe("v413 (2) — rankedTaggedPeopleIds: the picker's Top 5 signal", () => 
   });
 });
 
-describe("v413 (1) — the footer kind link is a door to the Write Page (source pins)", () => {
+describe("v413 (1) — the kind link is a door to the Write Page (source pins)", () => {
   const tab = read("components/prayer-journal-tab.tsx");
 
-  it("the footer link opens the Write Page with the kind and draft carried in", () => {
-    expect(tab).toContain("onPress={() => setWritePage({ kind: quickKind, body: draft })}");
+  // v513 RE-BASE (2026-11-12): the footer's flat kind link — the
+  // v413 door this describe pinned — retired when Jonathan
+  // picked the Journal FAB (Concept 1, "Spring Stack"). The door
+  // itself did not change: a pick still opens the Write Page
+  // with the kind set and the Today's Page draft carried in; it
+  // is the FAB registration that carries it now (all six kinds),
+  // and the behaviour is pinned by real renders in
+  // journal-fab-v513.test.tsx. What remains pinned here: the
+  // door's shape in the tab's registration, the link's absence,
+  // and the two surviving inline openers (avatar, Long entry).
+  it("the door moved to the FAB: the registration opens the Write Page with kind + draft; the footer link is gone", () => {
+    expect(tab).toContain("setWritePage({ kind, body: draft })");
+    expect(tab).toContain("journalFabItems(jm");
+    expect(tab).not.toContain("Open the full editor");
+    expect(tab).not.toContain("onPress={() => setWritePage({ kind: quickKind, body: draft })}");
     // …the same door the other two openers are (kind preselected,
     // draft carried — nothing retyped).
     expect(tab).toContain('onPress={() => setWritePage({ kind: "entry", body: draft })}');

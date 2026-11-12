@@ -16,6 +16,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import ReAnimated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AvatarImage } from "@/components/avatar-system";
@@ -25,9 +26,10 @@ import { FastLogCard, JournalKindPost, ReachedLinesGroup, timeLabel12 } from "@/
 import { JournalPost, type JournalAuthor } from "@/components/journal-post";
 import { CalendarSheet, PersonSheet, TagSheet } from "@/components/journal-sheets";
 import { JournalWrite } from "@/components/journal-write";
+import { useFabPageScale } from "@/components/schedule-fab";
 import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from "@/components/top-fade";
-import { PaperSettle } from "@/components/paper-motion";
-import { BitSettle } from "@/components/bit-motion";
+import { PaperSettle, paperPressedLift } from "@/components/paper-motion";
+import { BitSettle, bitPressedSnap } from "@/components/bit-motion";
 import { MoodPicker, type JournalMood } from "@/components/mood-picker";
 import { useColors } from "@/hooks/use-colors";
 import { useKeyboardHeight } from "@/hooks/use-keyboard-height";
@@ -47,7 +49,6 @@ import {
   type MomentsFeedItem,
 } from "@/lib/journal-moments";
 import {
-  DESK_POST_KIND_LABELS,
   activeFastChip,
   composeDeskPost,
   deskDateLabel,
@@ -62,6 +63,8 @@ import {
   type DeskPostKind,
 } from "@/lib/journal-desk";
 import { useJournalMaterial } from "@/hooks/use-journal-material";
+import { setJournalFabConfig } from "@/lib/journal-fab-bridge";
+import { journalFabItems } from "@/lib/journal-fab";
 import type { Person } from "@/lib/prayercircle-data";
 import {
   addPrayerJournalReply,
@@ -281,9 +284,19 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
   // morph and its FAB are retired — the shell's tab bar is never
   // hidden by this tab now, so onComposeChange only ever reports
   // false.
+  // v513 (his pick + build word, Nov 12): the footer's kind link
+  // retires in its turn — the Journal gets the shared FAB
+  // (Concept 1, "Spring Stack", journal-fab-concepts-v1): the
+  // Circle morph with the pen in the ring, the six kinds springing
+  // up as circles, each one a door to the Write Page with that
+  // kind set and this card's draft carried in — the v413 door,
+  // moved to the button every other page already has. The card
+  // keeps its Post button (quick-post, plain Entry only) and its
+  // count; the avatar and the Long entry chip keep their door.
   const [draft, setDraft] = useState("");
   const quickKind: DeskPostKind = "entry";
   const [writePage, setWritePage] = useState<{ kind: DeskPostKind; body: string } | null>(null);
+  const [journalFabOpen, setJournalFabOpen] = useState(false);
   // v411 (v12): the week's question, pinned into the draft. Set
   // by tapping the question card; the X unpins it and the draft
   // stays. A post made while pinned carries the question.
@@ -307,6 +320,42 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
     });
     return () => sub.remove();
   }, [writePage, journalScreenFocused]);
+
+  // ── v513: the Journal FAB ────────────────────────────────────
+  // The button itself mounts in the shell (JournalFabHost, after
+  // the tab bar — the v295 mount rule); this tab owns its state
+  // and its picks and registers the live config with the bridge
+  // on every render, Schedule's own pattern. The config stands
+  // only while the Desk surface shows: the Write Page and the
+  // Day view take the surface whole, and the FAB leaves with the
+  // Desk. A pick closes the menu and opens the Write Page with
+  // the kind set and the Today's Page draft carried in — the
+  // retired footer link's exact door.
+  const fabPageScaleStyle = useFabPageScale(journalFabOpen);
+  const fabOnDesk = !dayViewDate && !writePage;
+  useEffect(() => {
+    if (!fabOnDesk) {
+      setJournalFabConfig(null);
+      return;
+    }
+    setJournalFabConfig({
+      open: journalFabOpen,
+      onToggle: () => setJournalFabOpen((current) => !current),
+      fabColor: skinTokens.isTerminal ? TERM_PANEL : skinTokens.isEightBit ? BIT_PURPLE : colors.primary,
+      glyphColor: skinTokens.isTerminal ? TERM_PHOS : "#FFFFFF",
+      glyphVariant: "pen",
+      scrimTone: skinTokens.isTerminal || skinTokens.isEightBit ? "dark" : "violet",
+      getFacePressedStyles: (pressed: boolean) => [
+        paperPressedLift(skinTokens, pressed, [{ scale: 0.95 }]),
+        bitPressedSnap(skinTokens, pressed, [{ scale: 0.95 }]),
+      ],
+      items: journalFabItems(jm, (kind) => {
+        setJournalFabOpen(false);
+        setWritePage({ kind, body: draft });
+      }),
+    });
+  });
+  useEffect(() => () => setJournalFabConfig(null), []);
 
   // Action sheet + reply + long-form editor state
   const [actionEntry, setActionEntry] = useState<PrayerJournalEntry | null>(null);
@@ -812,7 +861,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
   const momentsSurface = colors.surface;
   const momentsBorder = colors.border;
   return (
-    <View
+    <ReAnimated.View
       style={[
         styles.container,
         {
@@ -823,6 +872,9 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
           // (v196's rule, kept for the Desk's composer).
           paddingBottom: keyboardHeight,
         },
+        // v513: while the FAB's spring menu is open the Desk
+        // scales to .975 behind the dim (the shared FAB rule).
+        fabPageScaleStyle,
       ]}
     >
       {/* v347: edge-to-edge — the feed's frame reaches the
@@ -977,20 +1029,11 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
                     style={[styles.writeArea, { color: jm.ink }]}
                   />
                   <View style={[styles.writeFoot, { borderTopColor: jm.line }]}>
-                    {/* v413 (his ruling, Nov 2): the footer's kind
-                        link opens the full Write Page — the same
-                        door the avatar and the Long entry chip are —
-                        with the kind and the draft carried in. */}
-                    <Pressable
-                      onPress={() => setWritePage({ kind: quickKind, body: draft })}
-                      style={({ pressed }) => [styles.kindText, pressed && styles.pressed]}
-                      accessibilityRole="button"
-                      accessibilityLabel="Open the full editor"
-                    >
-                      <MaterialIcons name="edit" size={13} color={jm.deep} />
-                      <Text style={[styles.kindTextLabel, { color: jm.deep }]}>{DESK_POST_KIND_LABELS[quickKind]}</Text>
-                      <MaterialIcons name="chevron-right" size={12} color={jm.deep} />
-                    </Pressable>
+                    {/* v513: the footer's kind link is gone — the
+                        FAB is the door to the Write Page now (all
+                        six kinds, draft carried). The footer keeps
+                        the count and the Post button: quick-post,
+                        a plain Entry only, exactly as it was. */}
                     <Text style={[styles.writeCount, { color: jm.inkSoft }]}>
                       {pinnedQuestion
                         ? "Answering the week's question"
@@ -1094,7 +1137,7 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
       <TopFade color={(skinTokens.isEightBit || skinTokens.isTerminal) ? skinTokens.background ?? jm.ground : jm.ground} scrollY={fadeScrollY} topInset={insets.top} />
 
       {renderOverlays()}
-    </View>
+    </ReAnimated.View>
   );
 
   function renderOverlays() {
@@ -1575,8 +1618,6 @@ const styles = StyleSheet.create({
     paddingTop: 11,
     marginTop: 8,
   },
-  kindText: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 5, paddingHorizontal: 2 },
-  kindTextLabel: { fontSize: 12.5, fontWeight: "800" },
   writeCount: { fontSize: 11.5, fontWeight: "700", marginLeft: "auto" },
   postBtn: { borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 },
   postBtnText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },

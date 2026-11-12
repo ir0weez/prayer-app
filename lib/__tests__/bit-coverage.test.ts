@@ -114,7 +114,11 @@ describe("8-bit coverage — v203 animation pass", () => {
     // v411 re-base: the morphing composer (and its FAB face, the
     // bitPressedSnap import's reason) is retired — the Desk's
     // writing card is the composer and it settles with the head.
-    expect(journal).toContain('import { BitSettle } from "@/components/bit-motion";');
+    // v513 RE-BASE (2026-11-12): bitPressedSnap is imported
+    // again — the Journal FAB's face carries the skins' pressed
+    // treatment through the shared FAB registration, exactly as
+    // Schedule's does.
+    expect(journal).toContain('import { BitSettle, bitPressedSnap } from "@/components/bit-motion";');
     // Separators and Moment rows carry the indexed bit entrance.
     expect(count(journal, "<BitSettle index={index}>")).toBe(2);
     // The one bare BitSettle is the Desk head's wrap (masthead +

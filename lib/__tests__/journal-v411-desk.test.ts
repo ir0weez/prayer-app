@@ -491,9 +491,17 @@ describe("v411 (e) — the kind formats' dress rules (source pins)", () => {
     const quest = tab.slice(questStart, tab.indexOf("EARLIER TODAY", questStart));
     expect(quest).toContain("setPinnedQuestion");
     expect(quest).not.toContain("Answer it");
-    // The kind is chosen by a FLAT TEXT LINK, not a filled pill.
-    expect(tab).toContain("styles.kindText");
-    expect(tab).toContain("DESK_POST_KIND_LABELS[quickKind]");
+    // v513 RE-BASE (2026-11-12): the kind door is no longer a
+    // FLAT TEXT LINK in the card's footer — Jonathan picked the
+    // Journal FAB (Concept 1, "Spring Stack") and the footer's
+    // "Entry >" link retired. The door itself is unchanged (kind
+    // set, draft carried into the Write Page); it lives in the
+    // FAB registration now, its labels in lib/journal-fab.
+    expect(tab).toContain("journalFabItems(jm");
+    expect(tab).toContain('glyphVariant: "pen"');
+    expect(tab).not.toContain("styles.kindText");
+    const fabLib = read("lib/journal-fab.ts");
+    expect(fabLib).toContain("DESK_POST_KIND_LABELS[kind]");
   });
 
   it("no emoji glyphs in the Desk surfaces (icons only)", () => {

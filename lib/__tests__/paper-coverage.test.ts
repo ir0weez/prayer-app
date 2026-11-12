@@ -347,7 +347,11 @@ describe("Paper coverage — v202 animation pass", () => {
     // v411 re-base: the morphing composer (and its FAB face, the
     // paperPressedLift import's reason) is retired — the Desk's
     // writing card is the composer, settling with the page head.
-    expect(journal).toContain('import { PaperSettle } from "@/components/paper-motion";');
+    // v513 RE-BASE (2026-11-12): paperPressedLift is imported
+    // again — the Journal FAB's face carries the skins' pressed
+    // treatment through the shared FAB registration, exactly as
+    // Schedule's does.
+    expect(journal).toContain('import { PaperSettle, paperPressedLift } from "@/components/paper-motion";');
     // Rows and separators settle on first mount (index-staggered).
     expect(journal).toContain("<PaperSettle index={index} style={styles.separator}>");
     expect(journal).toContain("<PaperSettle index={index}>");

@@ -12,8 +12,11 @@
  *    clockwise from the top, starting ~160ms in over ~500ms, its
  *    group settling rotate(-5°) → 0 on a spring curve. Inside the
  *    ring, from ~500ms: on People a PERSON (head pops with an
- *    overshoot, shoulders draw); on Schedule a CHECK draws. The
- *    ring + mark IS the open state — there is no × anymore.
+ *    overshoot, shoulders draw); on Schedule a CHECK draws; on
+ *    Journal (v513) the PEN from the approved Spring Stack
+ *    drawing pops in, filled — the mockup's own pen, seated in
+ *    the ring. The ring + mark IS the open state — there is no
+ *    × anymore.
  *  - CLOSE: ring + mark fade/shrink out fast (~180ms) and the +
  *    whips back in.
  *
@@ -40,7 +43,7 @@ import ReAnimated, {
 const AnimatedCircle = ReAnimated.createAnimatedComponent(Circle);
 const AnimatedPath = ReAnimated.createAnimatedComponent(Path);
 
-export type FabGlyphVariant = "person" | "check";
+export type FabGlyphVariant = "person" | "check" | "pen";
 
 /** Draw lengths: the ring's true circumference; the marks'
  *  measured path lengths (a hair over, so a parked dash's gap
@@ -48,6 +51,10 @@ export type FabGlyphVariant = "person" | "check";
 const RING_LENGTH = 2 * Math.PI * 8.2;
 const SHOULDERS_LENGTH = 12;
 const CHECK_LENGTH = 11.5;
+/** v513: the Journal pen, copied from the approved Spring Stack
+ *  mockup's own FAB drawing (journal-fab-concepts-v1, Concept 1) —
+ *  a filled pen seated inside the ring, drawn on the 24-grid. */
+const PEN_PATH = "M8.2 15.8l.8-3.2L15.5 6a1.5 1.5 0 012.2 2.1l-6.6 6.6-3.2.8.3-.7Z";
 /** The ring's draw: delay 160ms, 500ms, the mockup's cubic-bezier(.3,0,.2,1). */
 const RING_DELAY = 160;
 const RING_MS = 500;
@@ -205,6 +212,16 @@ export function FabCircleGlyph({
     opacity: markOpacity.value,
   }));
 
+  // v513: the pen is FILLED (the mockup's own drawing), so it
+  // takes the person's pop instead of the check's draw: it fades
+  // in on the mark's channel while scaling up about the ring's
+  // centre on the head's pop channel. Parked it is opacity 0 and
+  // half-size — invisible either way (the cap-dot lesson).
+  const penProps = useAnimatedProps(() => ({
+    opacity: markOpacity.value,
+    transform: `translate(12 12) scale(${0.55 + 0.45 * headProgress.value}) translate(-12 -12)`,
+  }));
+
   const layer = { position: "absolute" as const, left: 0, top: 0, width: size, height: size };
 
   return (
@@ -247,7 +264,7 @@ export function FabCircleGlyph({
                 animatedProps={markProps}
               />
             </>
-          ) : (
+          ) : variant === "check" ? (
             <AnimatedPath
               d="M8.3 12.5 L11.0 15.1 L15.7 9.6"
               fill="none"
@@ -258,6 +275,8 @@ export function FabCircleGlyph({
               strokeDasharray={CHECK_LENGTH}
               animatedProps={markProps}
             />
+          ) : (
+            <AnimatedPath d={PEN_PATH} fill={color} animatedProps={penProps} />
           )}
         </Svg>
       </ReAnimated.View>

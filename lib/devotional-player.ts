@@ -140,6 +140,26 @@ export function consumeDevotionalExpandMorph(): boolean {
   return pending;
 }
 
+/**
+ * v499 collapse hand-off: when the full player's morph settles
+ * into the pill seat, the listen view raises this right before the
+ * route closes, and the root pill consumes it on mount to SKIP
+ * its settle-in animation — the morph surface already landed in
+ * the seat wearing the pill's geometry, so the pill must simply
+ * BE there, not arrive. One-shot, like the expand flag.
+ */
+let pillHandoffPending = false;
+
+export function requestDevotionalPillHandoff(): void {
+  pillHandoffPending = true;
+}
+
+export function consumeDevotionalPillHandoff(): boolean {
+  const pending = pillHandoffPending;
+  pillHandoffPending = false;
+  return pending;
+}
+
 export function stopDevotional(): void {
   if (player) {
     player.pause();

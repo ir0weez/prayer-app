@@ -13,6 +13,17 @@
 // .m4a in assets/audio/ + add an entry + a require in
 // lib/devotional-audio.ts.
 
+import { getChapterCount } from './bible-books';
+
+/** One movement of a chapter's devotional audio, for the player's
+ * IN THIS CHAPTER guideposts (v499): a title from HIS text and the
+ * second it begins. Times are real only where a timed source
+ * exists — see devotionalGuideposts. */
+export interface DevotionalMovement {
+  title: string;
+  startSec: number;
+}
+
 export interface Devotional {
   book: string;
   chapter: number;
@@ -26,6 +37,18 @@ export interface Devotional {
    * the NotebookLM narrations: no transcript exists yet, so the player
    * shows no follow-along words rather than inventing them. */
   paragraphs: string[];
+  /** v499: the chapter's big-idea sentence, in his own words, where
+   * a source carries one. Absent on every shipped entry — the
+   * player's big-idea line sources from here first, then the first
+   * follow-along paragraph, and renders nothing when neither
+   * exists (devotionalBigIdea). Never filled by invention. */
+  bigIdea?: string;
+  /** v499: the audio's movements with their start times, where a
+   * REAL timed source exists. Absent on every shipped entry: no
+   * timing data exists for the narrations (see the honesty note at
+   * activeParagraphIndex), so the guideposts section renders
+   * nowhere until a timed source lands (devotionalGuideposts). */
+  movements?: DevotionalMovement[];
 }
 
 export function devotionalKey(book: string, chapter: number): string {
@@ -1609,4 +1632,87 @@ export function activeParagraphIndex(
 export function formatClock(totalSec: number): string {
   const s = Math.max(0, Math.round(totalSec));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// ─── v499 player page model ─────────────────────────────────────────────────
+// The Guideposts page's information lines, sourced ONLY from what
+// the app actually holds. Each helper returns null (or a null line)
+// where no real source exists, and the page renders the line only
+// when it is non-null — nothing is ever filled in by invention.
+
+/**
+ * The chapter's big-idea sentence for the player page, from HIS
+ * text: the entry's dedicated bigIdea field where a source carries
+ * one, otherwise the first follow-along paragraph (trimmed to its
+ * first sentence when the paragraph is long). Null when the entry
+ * carries neither — every shipped entry today, whose paragraphs
+ * are empty and which carry no field — and the page then composes
+ * without the line.
+ */
+export function devotionalBigIdea(d: Devotional): string | null {
+  const field = d.bigIdea?.trim();
+  if (field) return field;
+  const first = d.paragraphs.find((p) => p.trim().length > 0)?.trim();
+  if (!first) return null;
+  if (first.length > 120) {
+    const sentence = first.match(/^[^.!?]+[.!?]/);
+    if (sentence && sentence[0].trim().length < first.length) return sentence[0].trim();
+  }
+  return first;
+}
+
+/**
+ * The chapter's guideposts (IN THIS CHAPTER movements with start
+ * times) — ONLY from the entry's movements data, which exists
+ * solely where a real timed source produced it. The narrations
+ * ship with no timing data at all (the honesty note at
+ * activeParagraphIndex: follow-along runs by proportion because
+ * "no timing data exists"), and his written commentary's sections,
+ * though real, carry no audio times — so this returns null for
+ * every shipped entry and the section renders nowhere, rather
+ * than inventing movements or times. A movements list that fails
+ * validation (fewer than two, a blank title, a time outside the
+ * duration, times not strictly increasing) also reads as absent:
+ * a broken list never renders.
+ */
+export function devotionalGuideposts(d: Devotional): DevotionalMovement[] | null {
+  const movements = d.movements;
+  if (!movements || movements.length < 2) return null;
+  let prev = -1;
+  for (const m of movements) {
+    if (!m.title.trim()) return null;
+    if (!Number.isFinite(m.startSec) || m.startSec < 0 || m.startSec >= d.durationSec) return null;
+    if (m.startSec <= prev) return null;
+    prev = m.startSec;
+  }
+  return movements.map((m) => ({ title: m.title, startSec: m.startSec }));
+}
+
+export interface DevotionalFacts {
+  /** "{Book} {chapter}:1–{last verse}" — only when the chapter's
+   * verse count is known from the app's Bible data. */
+  range: string | null;
+  /** "Chapter {n} of {the book's chapter count}". */
+  chapterLine: string;
+  /** "{duration} · a reading of his commentary". */
+  durationLine: string;
+}
+
+/**
+ * The hero row's facts column. The verse range's last verse comes
+ * from the app's Bible data (the chapter's loaded verses); until
+ * those are in hand the caller passes null and the range line is
+ * simply absent — the other two lines always hold.
+ */
+export function devotionalFacts(d: Devotional, lastVerse: number | null, durationSec: number): DevotionalFacts {
+  return {
+    range:
+      lastVerse && lastVerse > 1
+        ? `${d.book} ${d.chapter}:1–${lastVerse}`
+        : lastVerse === 1
+          ? `${d.book} ${d.chapter}:1`
+          : null,
+    chapterLine: `Chapter ${d.chapter} of ${getChapterCount(d.book)}`,
+    durationLine: `${formatClock(durationSec)} · a reading of his commentary`,
+  };
 }

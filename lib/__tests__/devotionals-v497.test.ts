@@ -19,6 +19,11 @@
 //    playing only.
 //  - STOP: the colour spreads from the Stop button (380ms), holds
 //    (250ms), slides away (400ms) — only then the session clears.
+// v499 RE-BASE (Guideposts repair): the colour pins below moved to
+// the v5 Guideposts mockup's stops (Genesis primary #A8150C on
+// ground #F6D0C8 — the family is RED now, saturation held), the
+// numeral hero is 76px, and the play circle is 64px. The motion
+// constants, the Fill, and the stop sequencing are unchanged.
 
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'fs';
@@ -44,32 +49,35 @@ describe('v497 player theme — Genesis is the drawn instance, exactly', () => {
   const genesis = devotionalPlayerTheme('Genesis', false);
 
   it('lands on every approved Genesis stop', () => {
-    expect(genesis.primary).toBe('#9C2A10');
-    expect(genesis.accent).toBe('#7A1F0D');
-    expect(genesis.track).toBe('#DFA58D');
-    expect(genesis.stopSeat).toBe('#E7B29A');
-    expect(genesis.fill).toBe('#82200A');
-    expect(genesis.fillDeep).toBe('#671806');
-    expect(genesis.pillFrom).toBe('#A83212');
-    expect(genesis.pillTo).toBe('#8F270D');
-    expect(genesis.ground).toBe('#FFF8F5');
-    expect(genesis.ink).toBe('#2B1710');
+    // v499 re-pin: the Guideposts v5 mockup's stops.
+    expect(genesis.primary).toBe('#A8150C');
+    expect(genesis.accent).toBe('#7E0E05');
+    expect(genesis.track).toBe('#E3A08D');
+    expect(genesis.stopSeat).toBe('#EBAE9C');
+    expect(genesis.fill).toBe('#8D0E07');
+    expect(genesis.fillDeep).toBe('#720A03');
+    expect(genesis.pillFrom).toBe('#B4170E');
+    expect(genesis.pillTo).toBe('#9B1209');
+    expect(genesis.ground).toBe('#F6D0C8');
+    expect(genesis.panel).toBe('#F0BCAE');
+    expect(genesis.ink).toBe('#2E0F0A');
     expect(genesis.isDark).toBe(false);
   });
 
   it('a same-section book (Deuteronomy, red section) wears the same stops', () => {
-    expect(devotionalPlayerTheme('Deuteronomy', false).primary).toBe('#9C2A10');
+    expect(devotionalPlayerTheme('Deuteronomy', false).primary).toBe('#A8150C');
   });
 
   it('every other book derives from ITS OWN hue at the same depth', () => {
     // Joshua is the orange section (#E8710A in book-colors): the
     // primary is that hue + the mockup primary's hue offset, at
     // the mockup primary's saturation and lightness.
+    // v499 re-pin: offset/S/L follow the new Genesis primary.
     const joshuaHue = hexToHsl('#E8710A').h;
-    const expected = hslToHex({ h: joshuaHue + 11.142857, s: 0.813953, l: 0.337255 });
+    const expected = hslToHex({ h: joshuaHue + 3.461538, s: 0.866667, l: 0.352941 });
     const joshua = devotionalPlayerTheme('Joshua', false);
     expect(joshua.primary).toBe(expected);
-    expect(joshua.primary).not.toBe('#9C2A10');
+    expect(joshua.primary).not.toBe('#A8150C');
     // And the sections really do separate: no two section hues
     // collapse onto the same primary.
     const primaries = ['Genesis', 'Joshua', 'Job', 'Isaiah', 'Hosea', 'Matthew', 'Romans'].map(
@@ -89,7 +97,7 @@ describe('v497 player theme — Genesis is the drawn instance, exactly', () => {
   it('dark appearance lifts the stops on a dark warm ground', () => {
     const dark = devotionalPlayerTheme('Genesis', true);
     expect(dark.isDark).toBe(true);
-    expect(dark.ground).not.toBe('#FFF8F5');
+    expect(dark.ground).not.toBe(genesis.ground); // v499 re-pin (was '#FFF8F5')
     expect(hexToHsl(dark.primary).l).toBeGreaterThan(hexToHsl(genesis.primary).l);
     expect(hexToHsl(dark.primary).h).toBeCloseTo(hexToHsl(genesis.primary).h, 0);
   });
@@ -127,8 +135,8 @@ describe('v497 constants — the picked motion numbers', () => {
 describe('v497 full player — Concept 2, in source', () => {
   const listen = read('components/devotional-listen.tsx');
 
-  it('the numeral hero: ~100px, 800 weight, in the deep primary', () => {
-    expect(listen).toContain('fontSize: 100');
+  it('the numeral hero: ~76px (v499 re-pin, was ~100px), 800 weight, in the deep primary', () => {
+    expect(listen).toContain('fontSize: 76');
     expect(listen).toContain("fontWeight: '800'");
     expect(listen).toContain('color: theme.primary');
     expect(listen).toContain('devotionalPlayerTheme(devotional.book, palette.isDark)');
@@ -139,12 +147,12 @@ describe('v497 full player — Concept 2, in source', () => {
     expect(listen).toContain('color={theme.primary} trackColor={theme.track}');
   });
 
-  it('one controls row: filled-tonal Stop pill + 72px primary play circle', () => {
+  it('one controls row: filled-tonal Stop pill + 64px primary play circle (v499 re-pin, was 72px)', () => {
     expect(listen).toContain('backgroundColor: theme.stopSeat');
     expect(listen).toContain('color: theme.accent');
-    expect(listen).toContain('width: 72');
-    expect(listen).toContain('height: 72');
-    expect(listen).toContain('borderRadius: 36');
+    expect(listen).toContain('width: 64');
+    expect(listen).toContain('height: 64');
+    expect(listen).toContain('borderRadius: 32');
     expect(listen).toContain('backgroundColor: theme.primary');
   });
 

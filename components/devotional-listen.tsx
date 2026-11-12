@@ -1,39 +1,53 @@
-// ─── Devotional player screen (v230 → v293 → v497) ─────────────────────────
-// v497 is the approved rebuild (mockups devotional-player-concepts
-// v4/v5/v8, his picks across NOV 11): the full player is Concept 2
-// "Chunky Numeral" — a plain surface ground with NO solid top bar
-// (content meets a soft fade at the top, the app-wide page rule),
-// the chapter numeral as the ONE hero at ~100px in the book's deep
-// primary, the Material wavy seek in the book colour, ONE controls
-// row (filled-tonal Stop pill + big primary circular play), and the
-// follow-along words seated quietly below, unchanged.
+// ─── Devotional player screen (v230 → v293 → v497 → v499) ──────────────────
+// v499 is the approved repair (mockup devotional-player-guideposts-v5,
+// PLAYER GUIDEPOSTS V5 · NOV 11 — "Build it — page + transition, as
+// demonstrated"), answering Jonathan's phone verdict on v497: the
+// collapse washed to a blank salmon screen and popped back into the
+// chapter, the page pushed everything to the top with the words
+// hidden away, and the family wasn't red. Four parts:
 //
-// Colours come from lib/devotional-player-theme.ts: every stop
-// derives from the book's own ROYGBIV hue at the mockup's depth
-// (Genesis, the drawn instance: primary #9C2A10, accent #7A1F0D,
-// track #DFA58D, stop seat #E7B29A on ground #FFF8F5).
+// PAGE — the Guideposts composition: a header row (kicker left, the
+// collapse chevron at the TOP RIGHT in a quiet tonal seat), the
+// title, the chapter's big-idea line under it (his own sentence,
+// only where a source carries one — lib/devotionals'
+// devotionalBigIdea), a hero row pairing the chapter numeral (~76px)
+// with a facts column ("{Book} {chapter}:1–{last} · Chapter {n} of
+// {count} · {duration} · a reading of his commentary"), the wavy
+// seek, ONE controls row (filled-tonal Stop pill at the left margin,
+// the 64px primary play EXACTLY at the page's horizontal centre),
+// the IN THIS CHAPTER guideposts where real timed movements exist
+// (devotionalGuideposts — none ship, so the section is absent
+// rather than invented), and the follow-along words flowing in the
+// page's single scroll column — no fold, no expander.
 //
-// COLLAPSE (the v4 demo's engine, ported): ONE progress value
-// (0 = full page, 1 = pill) drives every animated property of the
-// surface — its seat shrinks from full-screen to the pill's exact
-// seat (14px sides, 66px tall, radius 0 → 33), its ground
-// cross-fades to the pill's primary, the page content fades and
-// settles as it travels, and the pill's own face fades in over the
-// last stretch. A downward drag at the top of the page SCRUBS the
-// value with the finger over 300px of travel; release past 35%
-// settles into the pill (~500ms, Material emphasized
-// cubic-bezier(0.2, 0, 0, 1)), under it settles back up. On settle
-// the route closes and the root pill — already sitting in that
-// exact seat wearing those exact stops — takes over, so it reads
-// as one object changing shape, never a cut. The chevron does the
-// same morph for non-gesture users. Opening from the pill reverses
-// it (lib/devotional-player's one-shot expand-morph flag).
+// COLOURS — lib/devotional-player-theme.ts re-anchored on each
+// book's ROYGBIV band hue, saturation held (Genesis, the drawn
+// instance: primary #A8150C on ground #F6D0C8).
 //
-// STOP (his idea, sequenced): the primary spreads from the Stop
-// button across the whole surface (380ms), holds (250ms), the
+// COLLAPSE — the v5 demo's mechanism, ported: the route presents
+// transparently over the chapter (app/devotional.tsx), which stays
+// mounted and visible around the surface for the whole morph. ONE
+// progress value (0 = full page, 1 = pill) drives the surface's
+// bounds from full frame to the root pill's exact seat; the page
+// content fades/travels out over p 0 → 0.45, the pill's face fades
+// in over p 0.55 → 1, so at no point is the surface blank. A
+// downward drag at the top of the page scrubs the value over
+// 300px; release past 35% settles into the pill (~500ms, Material
+// emphasized cubic-bezier(0.2, 0, 0, 1)). On settle the listen view
+// raises the hand-off flag and THEN closes the route, so the root
+// pill — same seat, same stops — simply is there: no pop, no
+// chapter remount, no scroll jump. The chevron runs the same morph
+// for non-gesture users; opening from the pill reverses it
+// (lib/devotional-player's one-shot expand-morph flag). The
+// follow-along and guideposts subtrees are memoised, so the morph
+// never re-renders them frame by frame.
+//
+// STOP (his sequence, unchanged): the primary spreads from the
+// Stop button across the whole surface (380ms), holds (250ms), the
 // surface slides down and away (400ms) — and only then does the
-// session clear (pause, rewind, session gone: the v293 semantics,
-// unchanged, just sequenced after the animation).
+// session clear (pause, rewind, session gone: the v293 semantics).
+// After Stop, no session UI remains anywhere: the controller is
+// idle, so the pill renders nothing and the doorway relights.
 //
 // Playback still lives in the shared controller
 // (lib/devotional-player.ts), not in this screen: leaving the
@@ -42,8 +56,17 @@
 // (character-length-weighted — see lib/devotionals.ts; NOT
 // word-sync, and no UI copy claims otherwise).
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -59,18 +82,32 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { activeParagraphIndex, devotionalKey, formatClock, type Devotional } from '@/lib/devotionals';
+import {
+  activeParagraphIndex,
+  devotionalBigIdea,
+  devotionalFacts,
+  devotionalGuideposts,
+  devotionalKey,
+  formatClock,
+  type Devotional,
+  type DevotionalMovement,
+} from '@/lib/devotionals';
 import { devotionalAudioFor } from '@/lib/devotional-audio';
+import { loadChapterVerses } from '@/lib/bible-v205/verses';
 import {
   consumeDevotionalExpandMorph,
   devotionalEnded,
   openDevotional,
+  requestDevotionalPillHandoff,
   seekDevotional,
   stopDevotional,
   toggleDevotionalPlayback,
   useDevotionalPlayerState,
 } from '@/lib/devotional-player';
 import {
+  DEVOTIONAL_COLLAPSE_CONTENT_OUT_END,
+  DEVOTIONAL_COLLAPSE_CONTENT_TRAVEL_PX,
+  DEVOTIONAL_COLLAPSE_PILL_IN_START,
   DEVOTIONAL_COLLAPSE_SETTLE_MS,
   DEVOTIONAL_COLLAPSE_THRESHOLD,
   DEVOTIONAL_COLLAPSE_TRAVEL_PX,
@@ -79,20 +116,98 @@ import {
   DEVOTIONAL_STOP_SPREAD_MS,
   devotionalPlayerTheme,
 } from '@/lib/devotional-player-theme';
-import { mix } from '@/lib/color-themes';
 import { useBiblePalette } from './bible-v205/palette';
 import { useTabBarOccupiedHeight } from './app-tab-bar';
 import { WavyProgress } from './wavy-progress';
 
 const KEEP_AWAKE_TAG = 'devotional-listen';
 
-/** The v4 demo's settle curve — Material emphasized. */
+/** The demo's settle curve — Material emphasized. */
 const EMPHASIZED = Easing.bezier(0.2, 0, 0, 1);
 
 /** The pill's seat, shared with components/devotional-pill.tsx:
  * 14px sides, 66px tall, `tabBarHeight + 10` off the bottom. */
 const PILL_SIDE = 14;
 const PILL_HEIGHT = 66;
+
+// ─── The guideposts (IN THIS CHAPTER) ───────────────────────────────────────
+// Rendered only when the chapter carries real timed movements
+// (devotionalGuideposts) — with the shipped data that is never, so
+// this panel is a seat waiting for a timed source, not a promise
+// the page makes today. Memoised: the morph never re-renders it.
+const GuidepostsPanel = memo(function GuidepostsPanel(props: {
+  movements: DevotionalMovement[];
+  panel: string;
+  primary: string;
+  ink: string;
+  accent: string;
+}) {
+  return (
+    <View style={[styles.panel, { backgroundColor: props.panel }]}>
+      <Text style={[styles.panelTitle, { color: props.primary }]}>IN THIS CHAPTER</Text>
+      {props.movements.map((m, i) => (
+        <View key={`${m.startSec}-${m.title}`}>
+          <View style={styles.guideRow}>
+            <Text style={[styles.guideName, { color: props.ink }]}>{m.title}</Text>
+            <Text style={[styles.guideTime, { color: props.primary }]}>{formatClock(m.startSec)}</Text>
+          </View>
+          {i < props.movements.length - 1 ? (
+            <View style={[styles.guideDivider, { backgroundColor: props.accent }]} />
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
+});
+
+// ─── The follow-along words ─────────────────────────────────────────────────
+// The paragraphs in the page's single scroll column — no fold, no
+// expander, nothing hidden behind a button. Memoised on its inputs
+// (paragraphs, active index, the four stops it wears) so neither
+// the collapse morph nor a playback tick re-renders the words.
+const FollowAlong = memo(function FollowAlong(props: {
+  paragraphs: readonly string[];
+  activeIdx: number;
+  stopSeat: string;
+  primary: string;
+  ink: string;
+  inkSoft: string;
+  onParaLayout: (index: number, y: number) => void;
+}) {
+  const { paragraphs, activeIdx } = props;
+  if (paragraphs.length === 0) return null;
+  return (
+    <View style={styles.follow}>
+      {paragraphs.map((text, i) => {
+        const state = i === activeIdx ? 'active' : i < activeIdx ? 'done' : 'next';
+        return (
+          <View
+            key={i}
+            onLayout={(e) => props.onParaLayout(i, e.nativeEvent.layout.y)}
+            style={[
+              styles.para,
+              state === 'active'
+                ? { backgroundColor: props.stopSeat, borderLeftColor: props.primary }
+                : { borderLeftColor: 'transparent' },
+            ]}
+          >
+            <Text
+              style={[
+                styles.paraText,
+                { color: state === 'done' ? props.inkSoft : props.ink, opacity: state === 'next' ? 0.75 : 1 },
+              ]}
+            >
+              {text}
+            </Text>
+          </View>
+        );
+      })}
+      <Text style={[styles.foot, { color: props.inkSoft }]}>
+        The words follow the reading by proportion — listen, and read along.
+      </Text>
+    </View>
+  );
+});
 
 export function DevotionalListenView(props: { devotional: Devotional; onBack: () => void }) {
   const { devotional } = props;
@@ -123,6 +238,54 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const ended = mine ? devotionalEnded(playerState) : false;
   const activeIdx = activeParagraphIndex(position, duration, devotional.paragraphs);
 
+  // The page's information lines, from real sources only (see
+  // lib/devotionals): the big-idea line and the guideposts are
+  // null on every shipped entry today, and the page composes
+  // without them; the facts' verse range lands when the chapter's
+  // verses do (the app's own Bible-data path — the chapter the
+  // reader came from has them cached).
+  const bigIdea = devotionalBigIdea(devotional);
+  const guideposts = devotionalGuideposts(devotional);
+  const [lastVerse, setLastVerse] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadChapterVerses(devotional.book, devotional.chapter)
+      .then((verses) => {
+        if (live && verses.length) setLastVerse(verses[verses.length - 1].verse);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [devotional.book, devotional.chapter]);
+  const facts = devotionalFacts(devotional, lastVerse, duration);
+
+  // Reduce motion (the codebase's AccessibilityInfo seat): the
+  // morph and the stop sequence jump straight to their end states.
+  const reducedMotionRef = useRef(false);
+  const [reduceMotionKnown, setReduceMotionKnown] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((reduced) => {
+        if (live) {
+          reducedMotionRef.current = reduced;
+          setReduceMotionKnown(true);
+        }
+      })
+      .catch(() => {
+        if (live) setReduceMotionKnown(true);
+      });
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (reduced) => {
+      reducedMotionRef.current = reduced;
+    });
+    return () => {
+      live = false;
+      subscription.remove();
+    };
+  }, []);
+  const settleMs = () => (reducedMotionRef.current ? 0 : DEVOTIONAL_COLLAPSE_SETTLE_MS);
+
   // Keep the screen awake while listening; release on pause/finish.
   useEffect(() => {
     if (playing) {
@@ -140,6 +303,9 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const paraY = useRef<number[]>([]);
   const trackWidth = useRef(0);
   const scrollTopRef = useRef(true);
+  const handleParaLayout = useCallback((index: number, y: number) => {
+    paraY.current[index] = y;
+  }, []);
   useEffect(() => {
     const y = paraY.current[activeIdx];
     if (typeof y === 'number') {
@@ -158,28 +324,36 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const expandMorph = useMemo(() => consumeDevotionalExpandMorph(), []);
   const collapseP = useSharedValue(expandMorph ? 1 : 0);
   useEffect(() => {
-    if (expandMorph) {
-      collapseP.value = withTiming(0, { duration: DEVOTIONAL_COLLAPSE_SETTLE_MS, easing: EMPHASIZED });
+    if (expandMorph && reduceMotionKnown) {
+      collapseP.value = withTiming(0, { duration: settleMs(), easing: EMPHASIZED });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reduceMotionKnown]);
 
   const pillBottom = tabBarHeight + 10;
   const pillTop = screenH - pillBottom - PILL_HEIGHT;
 
-  const goBack = () => {
+  // The hand-off: raise the flag BEFORE the route closes, so the
+  // root pill mounts already settled in the seat the morph landed
+  // in — the swap is invisible.
+  const handOffAndBack = () => {
+    requestDevotionalPillHandoff();
     onBackRef.current();
   };
 
   const settleCollapse = (toPill: boolean) => {
-    collapseP.value = withTiming(toPill ? 1 : 0, { duration: DEVOTIONAL_COLLAPSE_SETTLE_MS, easing: EMPHASIZED }, (finished) => {
-      if (finished && toPill) runOnJS(goBack)();
-    });
+    collapseP.value = withTiming(
+      toPill ? 1 : 0,
+      { duration: settleMs(), easing: EMPHASIZED },
+      (finished) => {
+        if (finished && toPill) runOnJS(handOffAndBack)();
+      },
+    );
   };
 
   const minimize = () => settleCollapse(true);
 
-  // Dragging down scrubs the morph with the finger (the v4 demo:
+  // Dragging down scrubs the morph with the finger (the demo:
   // p = start + dy / 300). Only a clear downward drag AT THE TOP of
   // the page claims the gesture, so taps, the seek bar, and
   // ordinary scrolling keep working.
@@ -195,10 +369,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
           dragStartP.current = collapseP.value;
         },
         onPanResponderMove: (_e, g) => {
-          collapseP.value = Math.min(
-            1,
-            Math.max(0, dragStartP.current + g.dy / DEVOTIONAL_COLLAPSE_TRAVEL_PX),
-          );
+          collapseP.value = Math.min(1, Math.max(0, dragStartP.current + g.dy / DEVOTIONAL_COLLAPSE_TRAVEL_PX));
         },
         onPanResponderRelease: () => {
           settleCollapse(collapseP.value > DEVOTIONAL_COLLAPSE_THRESHOLD);
@@ -252,11 +423,14 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     if (stoppingRef.current) return;
     stoppingRef.current = true;
     setStopping(true);
+    // Reduce motion: no spread, no slide — the end state, now.
+    if (reducedMotionRef.current) {
+      finishStop();
+      return;
+    }
     const node = stopBtnRef.current;
     if (node && typeof node.measureInWindow === 'function') {
-      node.measureInWindow((x: number, y: number, w: number, h: number) =>
-        runStopSequence(x + w / 2, y + h / 2),
-      );
+      node.measureInWindow((x: number, y: number, w: number, h: number) => runStopSequence(x + w / 2, y + h / 2));
     } else {
       runStopSequence(52, screenH * 0.55);
     }
@@ -277,23 +451,21 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     };
   }, [theme, pillTop, pillBottom, screenH]);
 
+  // The demo's windows: content out over 0 → 0.45 (fading and
+  // drifting up), pill face in over 0.55 → 1. The surface is never
+  // blank between them — it is a coloured, shrinking surface.
   const contentStyle = useAnimatedStyle(() => {
     const p = collapseP.value;
     return {
-      opacity: interpolate(p, [0, 0.45], [1, 0]),
+      opacity: interpolate(p, [0, DEVOTIONAL_COLLAPSE_CONTENT_OUT_END], [1, 0]),
       transform: [
-        { translateY: interpolate(p, [0, 1], [0, 56]) },
-        { scale: interpolate(p, [0, 1], [1, 0.96]) },
+        { translateY: interpolate(p, [0, DEVOTIONAL_COLLAPSE_CONTENT_OUT_END], [0, -DEVOTIONAL_COLLAPSE_CONTENT_TRAVEL_PX]) },
       ],
     };
   });
 
-  const headerStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(collapseP.value, [0, 0.3], [1, 0]),
-  }));
-
   const pillFaceStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(collapseP.value, [0.6, 1], [0, 1]),
+    opacity: interpolate(collapseP.value, [DEVOTIONAL_COLLAPSE_PILL_IN_START, 1], [0, 1]),
   }));
 
   const spreadStyle = useAnimatedStyle(() => {
@@ -308,8 +480,6 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     };
   });
 
-  const tileBg = mix(theme.track, theme.ground, 0.45);
-
   return (
     <Animated.View style={[styles.surface, surfaceStyle]} {...pan.panHandlers}>
       <ScrollView
@@ -322,17 +492,43 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
         }}
         scrollEventThrottle={64}
       >
-        <Animated.View style={[styles.page, contentStyle]}>
-          {/* Concept 2 header: eyebrow context, the numeral hero,
-              the title as plain type, the commentary line. */}
-          <Text style={[styles.eyebrow, { color: theme.accent }]}>
-            {devotional.book} · Chapter {devotional.chapter}
-          </Text>
-          <Text style={[styles.numeral, { color: theme.primary }]}>{devotional.chapter}</Text>
+        <Animated.View style={[styles.page, { paddingTop: insets.top + 14 }, contentStyle]}>
+          {/* The header row: kicker left, the collapse chevron at
+              the top right in its quiet tonal seat — it runs the
+              same morph as the drag. */}
+          <View style={styles.headerRow}>
+            <Text style={[styles.kicker, { color: theme.primary }]}>
+              {devotional.book} {devotional.chapter} · Devotional
+            </Text>
+            <Pressable
+              onPress={minimize}
+              hitSlop={10}
+              style={[styles.chevronBtn, { backgroundColor: theme.stopSeat }]}
+              accessibilityLabel="Minimize player"
+            >
+              <MaterialIcons name="keyboard-arrow-down" size={18} color={theme.accent} />
+            </Pressable>
+          </View>
+
           <Text style={[styles.title, { color: theme.ink }]}>{devotional.title}</Text>
-          <Text style={[styles.sub, { color: theme.accent }]}>
-            {formatClock(devotional.durationSec)} · a reading of his commentary
-          </Text>
+
+          {/* The chapter's big-idea sentence, in his own words —
+              only where a source carries one. */}
+          {bigIdea ? (
+            <Text style={[styles.bigIdea, { color: theme.accent }]}>“{bigIdea}”</Text>
+          ) : null}
+
+          {/* The hero row: the numeral, and beside it the facts. */}
+          <View style={styles.heroRow}>
+            <Text style={[styles.numeral, { color: theme.primary }]}>{devotional.chapter}</Text>
+            <View style={styles.facts}>
+              {facts.range ? (
+                <Text style={[styles.factStrong, { color: theme.ink }]}>{facts.range}</Text>
+              ) : null}
+              <Text style={[styles.fact, { color: theme.inkSoft }]}>{facts.chapterLine}</Text>
+              <Text style={[styles.fact, { color: theme.inkSoft }]}>{facts.durationLine}</Text>
+            </View>
+          </View>
 
           {/* The Material wavy seek, in the book colour (the app's
               wavy-progress family, v339). Tap to seek, as before. */}
@@ -349,12 +545,15 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
             <WavyProgress value={duration > 0 ? position / duration : 0} color={theme.primary} trackColor={theme.track} height={14} />
           </Pressable>
           <View style={styles.times}>
-            <Text style={[styles.time, { color: theme.accent }]}>{formatClock(position)}</Text>
-            <Text style={[styles.time, { color: theme.accent }]}>{formatClock(duration)}</Text>
+            <Text style={[styles.time, { color: theme.inkSoft }]}>{formatClock(position)}</Text>
+            <Text style={[styles.time, { color: theme.inkSoft }]}>{formatClock(duration)}</Text>
           </View>
 
-          {/* ONE controls row: the filled-tonal Stop pill, the big
-              primary circular play. */}
+          {/* ONE controls row: the filled-tonal Stop pill at the
+              left margin, the big primary play EXACTLY at the
+              page's horizontal centre (absolute, not flex-grouped
+              — v497's grouped row left it wherever Stop's width
+              put it). */}
           <View style={styles.controls}>
             <Pressable
               ref={stopBtnRef}
@@ -362,7 +561,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               style={[styles.stopBtn, { backgroundColor: theme.stopSeat }]}
               accessibilityLabel="Stop"
             >
-              <MaterialIcons name="stop" size={15} color={theme.accent} />
+              <MaterialIcons name="stop" size={14} color={theme.accent} />
               <Text style={[styles.stopText, { color: theme.accent }]}>Stop</Text>
             </Pressable>
             <Pressable
@@ -370,59 +569,42 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               style={[styles.playBtn, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
               accessibilityLabel={playing ? 'Pause' : ended ? 'Play again' : 'Play'}
             >
-              <MaterialIcons
-                name={playing ? 'pause' : ended ? 'replay' : 'play-arrow'}
-                size={30}
-                color="#FFFFFF"
-              />
+              <MaterialIcons name={playing ? 'pause' : ended ? 'replay' : 'play-arrow'} size={28} color="#FFFFFF" />
             </Pressable>
           </View>
 
-          {/* The words — only where a transcript exists (none yet for
-              the Genesis narrations; the follow-along arrives with
-              them). Seated quietly below, as before. */}
-          {devotional.paragraphs.map((text, i) => {
-            const state = i === activeIdx ? 'active' : i < activeIdx ? 'done' : 'next';
-            return (
-              <View
-                key={i}
-                onLayout={(e) => {
-                  paraY.current[i] = e.nativeEvent.layout.y;
-                }}
-                style={[
-                  styles.para,
-                  state === 'active'
-                    ? { backgroundColor: theme.stopSeat, borderLeftColor: theme.primary }
-                    : { borderLeftColor: 'transparent' },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.paraText,
-                    { color: state === 'done' ? theme.inkSoft : theme.ink, opacity: state === 'next' ? 0.75 : 1 },
-                  ]}
-                >
-                  {text}
-                </Text>
-              </View>
-            );
-          })}
-          {devotional.paragraphs.length > 0 ? (
-            <Text style={[styles.foot, { color: theme.inkSoft }]}>
-              The words follow the reading by proportion — listen, and read along.
-            </Text>
+          {/* The guideposts — only where real timed movements
+              exist (none ship; see devotionalGuideposts). */}
+          {guideposts ? (
+            <GuidepostsPanel
+              movements={guideposts}
+              panel={theme.panel}
+              primary={theme.primary}
+              ink={theme.ink}
+              accent={theme.accent}
+            />
           ) : null}
-          <Text style={[styles.hint, { color: theme.inkSoft }]}>
-            Swipe down to keep listening while you study
-          </Text>
+
+          {/* The words, where a transcript exists — flowing in the
+              page's own column, nothing hidden. */}
+          <FollowAlong
+            paragraphs={devotional.paragraphs}
+            activeIdx={activeIdx}
+            stopSeat={theme.stopSeat}
+            primary={theme.primary}
+            ink={theme.ink}
+            inkSoft={theme.inkSoft}
+            onParaLayout={handleParaLayout}
+          />
+          <Text style={[styles.hint, { color: theme.inkSoft }]}>Swipe down to keep listening while you study</Text>
         </Animated.View>
       </ScrollView>
 
-      {/* The top of the page: no solid bar — content meets a soft
-          gradient fade (the app-wide page rule), and the chevron
-          tile rides over it. The chevron runs the same collapse
-          morph for non-gesture users. */}
-      <View pointerEvents="none" style={[styles.topFade, { height: insets.top + 84 }]}>
+      {/* The top of the page: no solid bar — content meets a short
+          soft gradient fade at the very top edge (the app-wide
+          page rule), above the status strip only, so the header
+          row below it stays crisp. */}
+      <View pointerEvents="none" style={[styles.topFade, { height: insets.top + 10 }]}>
         <Svg width="100%" height="100%">
           <Defs>
             <LinearGradient id="devotionalTopFade" x1="0" y1="0" x2="0" y2="1">
@@ -433,16 +615,6 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
           <Rect x="0" y="0" width="100%" height="100%" fill="url(#devotionalTopFade)" />
         </Svg>
       </View>
-      <Animated.View style={[styles.topRow, { paddingTop: insets.top + 8 }, headerStyle]}>
-        <Pressable
-          onPress={minimize}
-          hitSlop={10}
-          style={[styles.chevronTile, { backgroundColor: tileBg }]}
-          accessibilityLabel="Minimize player"
-        >
-          <MaterialIcons name="keyboard-arrow-down" size={24} color={theme.ink} />
-        </Pressable>
-      </Animated.View>
 
       {/* The pill's own face, fading in over the morph's last
           stretch so that at p = 1 the surface IS the pill; the
@@ -476,36 +648,60 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
 
 const styles = StyleSheet.create({
   surface: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, overflow: 'hidden' },
-  page: { paddingHorizontal: 20, paddingTop: 76, paddingBottom: 40 },
-  eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', marginTop: 26 },
-  numeral: { fontSize: 100, fontWeight: '800', lineHeight: 104, marginTop: 8 },
-  title: { fontSize: 24, fontWeight: '800', lineHeight: 29, marginTop: 16 },
-  sub: { fontSize: 12.5, fontWeight: '600', marginTop: 8 },
-  seekTouch: { marginTop: 30, height: 30, justifyContent: 'center' },
-  times: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  time: { fontSize: 11.5, fontWeight: '700' },
-  controls: { flexDirection: 'row', alignItems: 'center', marginTop: 30, marginBottom: 22 },
-  stopBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 18 },
-  stopText: { fontSize: 13, fontWeight: '700' },
+  page: { paddingHorizontal: 20, paddingBottom: 40 },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
+  kicker: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase', paddingTop: 8 },
+  chevronBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 25, fontWeight: '800', lineHeight: 30, marginTop: 9 },
+  bigIdea: { fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 15.5, lineHeight: 22, marginTop: 8 },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 14 },
+  numeral: { fontSize: 76, fontWeight: '800', lineHeight: 80 },
+  facts: { flex: 1 },
+  factStrong: { fontSize: 12.5, fontWeight: '700', lineHeight: 19 },
+  fact: { fontSize: 12.5, lineHeight: 19 },
+  seekTouch: { marginTop: 18, height: 30, justifyContent: 'center' },
+  times: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 3 },
+  time: { fontSize: 11.5, fontWeight: '600' },
+  controls: { position: 'relative', height: 64, marginTop: 14, marginBottom: 4 },
+  stopBtn: {
+    position: 'absolute',
+    left: 0,
+    top: (64 - 43) / 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    borderRadius: 999,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+  },
+  stopText: { fontSize: 14, fontWeight: '700' },
   playBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    marginLeft: 'auto',
+    position: 'absolute',
+    left: '50%',
+    marginLeft: -32,
+    top: 0,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
+  panel: { borderRadius: 20, paddingTop: 14, paddingHorizontal: 16, paddingBottom: 10, marginTop: 18 },
+  panelTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, marginBottom: 4 },
+  guideRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, paddingVertical: 9 },
+  guideName: { fontSize: 14.5, fontWeight: '600', flex: 1 },
+  guideTime: { fontSize: 12.5, fontWeight: '700' },
+  guideDivider: { height: StyleSheet.hairlineWidth, opacity: 0.16 },
+  follow: { marginTop: 16 },
   para: { borderLeftWidth: 3, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 10 },
   paraText: { fontSize: 17, lineHeight: 26 },
   foot: { fontSize: 11, textAlign: 'center', marginTop: 10, fontStyle: 'italic' },
   hint: { fontSize: 11, textAlign: 'center', marginTop: 18 },
   topFade: { position: 'absolute', left: 0, right: 0, top: 0 },
-  topRow: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: 16 },
-  chevronTile: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   pillFace: {
     position: 'absolute',
     left: 0,

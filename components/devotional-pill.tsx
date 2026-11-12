@@ -26,8 +26,9 @@
 // and only then does the session clear. Expanding asks the full
 // player to open through the collapse morph in reverse
 // (requestDevotionalExpandMorph), so the two surfaces read as one
-// object; when the full player closes into this seat, the pill
-// settles the last few frames (a short scale/settle on mount).
+// object; when the full player closes into this seat through the
+// v499 morph, the hand-off flag (consumeDevotionalPillHandoff)
+// suppresses any settle replay — the pill is simply there.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -46,6 +47,7 @@ import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { usePathname, useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
+  consumeDevotionalPillHandoff,
   requestDevotionalExpandMorph,
   stopDevotional,
   toggleDevotionalPlayback,
@@ -90,6 +92,30 @@ export function DevotionalPill() {
     settle.value = withTiming(1, { duration: 180, easing: EMPHASIZED });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // v499 hand-off: the pill is root-mounted and merely renders
+  // nothing while the player route is open, so the hand-off lands
+  // on the pathname transition back. When the full player's morph
+  // settled into this seat, the listen view raised the flag just
+  // before its route closed; consuming it here snaps the settle to
+  // its end state — the morph surface already landed wearing this
+  // pill's geometry exactly, so the pill simply IS there and never
+  // replays an arrival.
+  const wasOnPlayerRef = useRef(false);
+  useEffect(() => {
+    if (pathname === '/devotional') {
+      wasOnPlayerRef.current = true;
+      return;
+    }
+    if (wasOnPlayerRef.current) {
+      wasOnPlayerRef.current = false;
+      if (consumeDevotionalPillHandoff()) {
+        cancelAnimation(settle);
+        settle.value = 1;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   // The Fill's edge drift: a slow 2.1s sine while playing, frozen
   // where it stands when paused (v8's pause rule).

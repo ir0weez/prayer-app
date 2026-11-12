@@ -48,7 +48,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Easing } from 'react-native-reanimated';
@@ -157,6 +157,15 @@ import {
   type BibleSectionTone,
 } from './palette';
 import { getDevotional } from '@/lib/devotionals';
+import { getTenStops } from '@/lib/ten-stops';
+import {
+  stopMarkRoles,
+  stopMarksForChapter,
+  type StopMarkRole,
+  type TenStopMark,
+} from '@/lib/ten-stops-indicator';
+import { TenStopsRouteStrip, openTenStopsAtStop } from '@/components/ten-stops-indicator';
+import { refreshTenStopsDownload } from '@/lib/ten-stops-download';
 
 export interface ChapterPageProps {
   book: string;
@@ -376,6 +385,40 @@ export function ChapterPageView(props: ChapterPageProps) {
   const seedPalette = useBiblePalette();
   // v230: this chapter's devotional, if the registry carries one.
   const devotional = useMemo(() => getDevotional(book, chapter), [book, chapter]);
+  // v507: this book's Ten Stops tour, if the registry carries one
+  // (lib/ten-stops) — where one exists, the chapter wears the
+  // picked blend's indicator: the route strip under the cover and
+  // the margin marker at this chapter's stop passage (both below).
+  // Every other book's chapter renders exactly as before — both
+  // surfaces key off this one lookup. The download store is asked
+  // for its disk truth on mount, the TenStopsCard's pattern, so a
+  // disc tap later in the read knows whether the tour is here.
+  const router = useRouter();
+  const tenStops = useMemo(() => getTenStops(book), [book]);
+  useEffect(() => {
+    if (tenStops) void refreshTenStopsDownload(tenStops);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [book]);
+  const chapterStopMarks = useMemo(
+    () => (tenStops ? stopMarksForChapter(tenStops, chapter) : []),
+    [tenStops, chapter],
+  );
+  // The discs' door (the blend's tap behaviour): the tour opens in
+  // the player AT the stop; a tour that isn't on this phone sends
+  // the reader to the book page, where the Ten Stops card's
+  // Download lives — never a silent nothing.
+  const handleStopDoor = useCallback(
+    (mark: TenStopMark) => {
+      if (!tenStops) return;
+      if (openTenStopsAtStop(tenStops, mark)) {
+        router.push({ pathname: '/devotional', params: {} });
+      } else {
+        props.onOpenBook();
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tenStops, router],
+  );
   const { skin, motion: skinMotion, isSkinned } = useSkin();
   // v222: studio-imported chapter data (Settings → DATA → Import studio
   // pack), when one exists for this chapter; the shipped chapter stands
@@ -625,6 +668,34 @@ export function ChapterPageView(props: ChapterPageProps) {
     () => sections.map((section) => ({ section, folded: foldLeadInEntries(section.entries) })),
     [sections],
   );
+  // v507: the margin marker's seat, resolved over the folded rows
+  // this page actually renders: each row's passage span is its
+  // leads plus its host entry, and the rows a chapter stop's range
+  // touches take the marker roles (lib/ten-stops-indicator) — the
+  // head row carries the disc and the stop's name, the rail runs
+  // through the rest. Keyed by the host entry's key, which is the
+  // key the render map already speaks. Chapters with no stop (and
+  // books with no tour) get an empty map and render untouched.
+  const stopRoles = useMemo(() => {
+    const out = new Map<string, { mark: TenStopMark; role: StopMarkRole }>();
+    if (!tenStops || chapterStopMarks.length === 0) return out;
+    const spans: { key: string; start: number; end: number }[] = [];
+    for (const { folded } of foldedSections) {
+      for (const f of folded) {
+        const start = f.leads.length
+          ? Math.min(f.entry.start, ...f.leads.map((l) => l.start))
+          : f.entry.start;
+        spans.push({ key: entryKey(book, chapter, f.entry.start, f.entry.end), start, end: f.entry.end });
+      }
+    }
+    for (const mark of chapterStopMarks) {
+      for (const [rowIdx, role] of stopMarkRoles(spans, mark)) {
+        const key = spans[rowIdx].key;
+        if (!out.has(key)) out.set(key, { mark, role });
+      }
+    }
+    return out;
+  }, [foldedSections, tenStops, chapterStopMarks, book, chapter]);
   // v427: the per-host lead bundles are computed below, beside
   // entryDerived (they resolve FROM it) — see leadBundles there.
   // v210: Stories consumes the same splits as the page. With-notes
@@ -1453,6 +1524,20 @@ export function ChapterPageView(props: ChapterPageProps) {
           </Text>
         </View>
 
+        {/* ── v507: the Ten Stops route strip — the picked blend's
+            Tour Route, seated under the cover where the drawing
+            puts it (title, then the route, then the reading).
+            Only a toured book renders it; its dots are doors to
+            the tour at each stop (handleStopDoor). ── */}
+        {tenStops ? (
+          <TenStopsRouteStrip
+            entry={tenStops}
+            chapter={chapter}
+            palette={palette}
+            onStopPress={handleStopDoor}
+          />
+        ) : null}
+
         {/* ── ReStudy surface card ── */}
         {status === 'restudy' ? (
           <View style={[styles.surfCard, { backgroundColor: palette.paper2 }, palette.cardDress]}>
@@ -1666,10 +1751,16 @@ export function ChapterPageView(props: ChapterPageProps) {
                 : bubblePieces.get(entryKey(book, chapter, entry.start, entry.end));
               const pieceKey = piece ? entryKey(book, chapter, piece.start, piece.end) : null;
               const entryY = yByKey.current.get(entryKey(book, chapter, entry.start, entry.end));
+              // v507: this row's margin-marker seat, if the
+              // chapter's stop passage touches it.
+              const stopSeat = stopRoles.get(key);
               return (
               <EntryView
                 key={entry.start}
                 entry={entry}
+                stopMark={stopSeat?.mark ?? null}
+                stopMarkRole={stopSeat?.role}
+                onStopMarkPress={handleStopDoor}
                 book={book}
                 chapter={chapter}
                 verseText={verseText}
@@ -2073,6 +2164,17 @@ const EntryView = memo(function EntryView(props: {
   /** v427: the page's open-bubble key, so a LEAD piece's thread
    * knows when it is the open one (the host's rides bubbleOpen). */
   leadBubbleOpenKey?: string | null;
+  /** v507: the Ten Stops margin marker (the picked blend): on the
+   * first row of a stop's passage this carries the stop itself —
+   * the row renders the disc + head; `stopMarkRole` seats the
+   * rail on every row the passage touches (head/body/tail/
+   * single). Both absent on every other row of every chapter, and
+   * the entry renders exactly as before. The marker lives INSIDE
+   * the entry's root on purpose: the root's own onLayout is what
+   * registerY measures, so the marker can never shift a landing. */
+  stopMark?: TenStopMark | null;
+  stopMarkRole?: StopMarkRole;
+  onStopMarkPress?: (mark: TenStopMark) => void;
   people: Person[];
   profile: ProfileIdentity;
   bubbleOpen: boolean;
@@ -2608,10 +2710,19 @@ const EntryView = memo(function EntryView(props: {
   const leadSelfLines = lead ? lead.pieces.flatMap((p) => renderPieceSelfLines(p)) : [];
   const hostSelfLines = props.bubblePiece ? renderPieceSelfLines(props.bubblePiece) : [];
 
+  // v507: the margin marker's rail geometry, from this row's role
+  // in the stop's passage — the drawing's rail starts 8px into the
+  // passage on its first row and ends 6px short on its last, and
+  // runs unbroken through the rows between.
+  const stopRole = props.stopMarkRole;
+  const stopRailTop = stopRole === 'body' || stopRole === 'tail' ? 0 : 8;
+  const stopRailBottom = stopRole === 'head' || stopRole === 'body' ? 0 : 6;
+  const stopHeaded = stopRole === 'head' || stopRole === 'single';
+
   return (
     <Animated.View
       ref={entryRootRef as never}
-      style={[styles.entry, { backgroundColor: flashBg }, props.bubbleOpen ? styles.entryOpen : null]}
+      style={[styles.entry, { backgroundColor: flashBg }, props.bubbleOpen ? styles.entryOpen : null, stopRole ? styles.entryStopPad : null]}
       onLayout={(e) => {
         actions.registerY(entry, props.sectionStart, e.nativeEvent.layout.y);
         // v427: the folded lead spans register at the same top —
@@ -2623,6 +2734,36 @@ const EntryView = memo(function EntryView(props: {
             actions.registerY(le, props.sectionStart, e.nativeEvent.layout.y);
       }}
     >
+      {/* ── v507: the Ten Stops margin marker (the picked blend's
+          Margin Marker) — a rail in the book's primary down the
+          passage's left, the stop's numbered disc at its head, and
+          the stop's name above its first verse. The disc is the
+          door: the tour, opened at this stop. ── */}
+      {stopRole ? (
+        <View
+          testID={props.stopMark ? `ten-stop-rail-${props.stopMark.stop}` : undefined}
+          pointerEvents="none"
+          style={[
+            styles.stopRail,
+            { backgroundColor: palette.rasp, top: stopRailTop, bottom: stopRailBottom },
+          ]}
+        />
+      ) : null}
+      {stopHeaded && props.stopMark ? (
+        <>
+          <Pressable
+            testID={`ten-stop-disc-${props.stopMark.stop}`}
+            accessibilityLabel={`Play Ten Stops stop ${props.stopMark.stop} — ${props.stopMark.title}`}
+            onPress={() => props.onStopMarkPress?.(props.stopMark!)}
+            style={[styles.stopDisc, { backgroundColor: palette.rasp }]}
+          >
+            <Text style={styles.stopDiscNum}>{props.stopMark.stop}</Text>
+          </Pressable>
+          <Text style={[styles.stopHead, { color: palette.rasp }]}>
+            {`Stop ${props.stopMark.stop} · ${props.stopMark.title}`}
+          </Text>
+        </>
+      ) : null}
       <View
         style={[styles.entryHead, hasBubbles ? styles.entryHeadBubbled : null]}
         onLayout={(e) => {
@@ -2996,6 +3137,32 @@ const styles = StyleSheet.create({
   // padding) — tonal in With-notes, plain card in Read-only.
   sectionCard: { borderRadius: 16, paddingTop: 18, paddingHorizontal: 18, paddingBottom: 10, marginTop: 14 },
   entry: { borderRadius: 10 },
+  // v507: the margin marker's furniture, at the drawing's measure —
+  // the passage indents 30px, the 3px rail rides at its left with
+  // its centre under the 23px disc's centre, and the head is the
+  // drawing's small caps line in the book's primary.
+  entryStopPad: { paddingLeft: 30 },
+  stopRail: { position: 'absolute', left: 10, width: 3, borderRadius: 3 },
+  stopDisc: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 23,
+    height: 23,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  stopDiscNum: { color: '#FFFFFF', fontSize: 11.5, fontWeight: '800' },
+  stopHead: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginTop: 1,
+    marginBottom: 5,
+  },
   // v214: an entry whose bubbles are open lifts above its neighbours
   // so the bloomed cards paint over the verses below, mockup-style.
   // v217: zIndex only — the v214 elevation: 30 made Android paint a

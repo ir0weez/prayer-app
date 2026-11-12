@@ -929,7 +929,7 @@ function BookRow({
 
   return (
     <Pressable
-      style={[styles.bookrow, { backgroundColor: palette.paper2 }, palette.cardDress, { borderRadius: 16 }]}
+      style={[styles.bookrow, { backgroundColor: palette.paper2 }, { borderRadius: 16 }]}
       onPress={onPress}
     >
       {/* v311: the name takes its OWN line at 22px and never

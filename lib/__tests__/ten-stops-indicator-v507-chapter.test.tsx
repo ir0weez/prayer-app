@@ -297,7 +297,7 @@ describe('v507 chapter — Genesis 1 (tour registered in v508; no stop in ch. 1)
   // behaves exactly as Hebrews 7 does — the strip stands with
   // every stop ahead, but no disc, no rail, no here-caption.
   // (The unregistered-book case lives at the model level in
-  // ten-stops-indicator-v507.test.ts, on Ruth since v511.)
+  // ten-stops-indicator-v507.test.ts, on 1 Samuel since v516.)
   const html = renderChapter('Genesis', 1);
 
   it('the strip stands (no stops behind), but no disc, no rail, no here-caption', () => {

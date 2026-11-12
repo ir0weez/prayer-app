@@ -234,7 +234,10 @@ describe('v507 model — only registered books carry an indicator', () => {
     // v511 RE-BASE (2026-11-12): Joshua is registered now too.
     // Ruth — commentary complete, no tour — carries the
     // unregistered case.
-    expect(getTenStops('Ruth')).toBeNull();
+    // v516 RE-BASE (2026-11-12): Ruth is registered now too.
+    // 1 Samuel — commentary complete, no tour — carries the
+    // unregistered case.
+    expect(getTenStops('1 Samuel')).toBeNull();
     expect(getTenStops('Hebrews')).not.toBeNull();
     expect(getTenStops('Genesis')).not.toBeNull();
   });

@@ -158,6 +158,38 @@ const REGISTRY: TenStops[] = [
       { title: 'The Accusation', passage: 'Joshua 22:13-20', startSec: 1304.7 },
     ],
   },
+  {
+    book: 'Ruth',
+    title: 'Ten Stops in Ruth',
+    // The shown duration: 22:03 = 1323s. The file itself probes
+    // at 1323.2s; the registry carries 1323 so every surface
+    // says 22:03, as above.
+    durationSec: 1323,
+    sizeBytes: 6992442,
+    url: 'https://github.com/ir0weez/prayer-app/releases/download/ten-stops-library/ruth-ten-stops.m4a',
+    fileName: 'ruth-ten-stops.m4a',
+    // The ten stops (v516), from the tour's own transcript (local
+    // faster-whisper run over the phone copy, 2026-11-12): each
+    // startSec is the announcement moment, verified in order.
+    // The stops are Jonathan's session-verdict list, approved
+    // 2026-11-12 — all ten earned their seats on session
+    // singling-out, no fill picks needed. One steering call was
+    // made in the generation prompt (the Ruth 2 gleaning material
+    // centred on its grace-first heart) and named to him; his
+    // notes themselves went in whole and unedited.
+    movements: [
+      { title: 'Naomi Widowed', passage: 'Ruth 1:1-5', startSec: 98.0 },
+      { title: "Ruth's Loyalty", passage: 'Ruth 1:6-18', startSec: 285.2 },
+      { title: 'Naomi and Ruth Return', passage: 'Ruth 1:19-22', startSec: 415.5 },
+      { title: 'Ruth Meets Boaz', passage: 'Ruth 2:1-7', startSec: 487.1 },
+      { title: 'Ruth Meets Boaz', passage: 'Ruth 2:8-13', startSec: 573.8 },
+      { title: 'Ruth Meets Boaz', passage: 'Ruth 2:14-17', startSec: 647.6 },
+      { title: 'The Threshing Floor', passage: 'Ruth 3:1-5', startSec: 767.3 },
+      { title: 'The Threshing Floor', passage: 'Ruth 3:7-11', startSec: 852.3 },
+      { title: 'The Heart and Home of Boaz', passage: 'Ruth 4:1-4', startSec: 993.1 },
+      { title: 'The Heart and Home of Boaz', passage: 'Ruth 4:5-10', startSec: 1063.2 },
+    ],
+  },
 ];
 
 /** Every Ten Stops tour the app knows about (a copy — callers

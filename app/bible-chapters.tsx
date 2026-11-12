@@ -75,6 +75,20 @@
 // (lib/bible-v205/books-filter.ts); group membership is still
 // groupBooksByStudy's alone, and the state is screen-local —
 // every mount starts at All.
+// v504 (his phone verdict on v503, Nov 11): the crossfade's
+// animated wrapper must not outlive the switch. In v503 the
+// sections sat permanently inside a ReAnimated.View whose
+// animated style (opacity + scale) stayed applied at rest; on
+// Android a transformed/opacity ancestor forces the list into
+// an offscreen layer, and the book cards' elevation shadows
+// composited through it as a hard grey outline wrapped around
+// each card instead of falling softly beneath it. Now the
+// animated wrapper mounts only while a switch is in flight;
+// the moment the fade-in completes (its own withTiming
+// callback), the list drops back to the plain resting tree —
+// no animated style on any ancestor at rest, so the cards'
+// shadows render exactly as they did before v503. The motion
+// itself is untouched: same fade, same settle, same pill.
 // v325: the v305 overall reading card is replaced by the approved
 // progress header (study-progress-concepts-v3.html, Concept 3 —
 // Two Structured Rows): both tracks, their book counts and their
@@ -138,6 +152,7 @@ import {
 } from '@/lib/downloads';
 import ReAnimated, {
   Easing,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -302,6 +317,21 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   const [sectionFilter, setSectionFilter] = useState<BooksFilterKey>('all');
   const filterTargetRef = useRef<BooksFilterKey>('all');
   const filterSwapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // v504: whether a switch is in flight. The list renders inside
+  // the crossfade's animated wrapper ONLY while this is true;
+  // at rest (first mount, and after a completed switch) it
+  // renders in a plain view with no animated style at all —
+  // the v503 wrapper staying mounted at opacity 1 / scale 1 is
+  // what wrapped the book cards' shadows in a grey outline on
+  // his phone (see the header note). The sequence counter is
+  // how an interrupted switch keeps its stale completion
+  // callback from detaching the wrapper out from under the
+  // switch that replaced it.
+  const [listSwitching, setListSwitching] = useState(false);
+  const listSwitchSeqRef = useRef(0);
+  const endListSwitch = useCallback((seq: number) => {
+    if (seq === listSwitchSeqRef.current) setListSwitching(false);
+  }, []);
   const listOpacity = useSharedValue(1);
   const listScale = useSharedValue(1);
   const listAnimStyle = useAnimatedStyle(() => ({
@@ -321,7 +351,14 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     if (filterSwapTimerRef.current) clearTimeout(filterSwapTimerRef.current);
     if (reduceMotion) {
       // Reduce motion: a plain cut — no fade, no settle, the
-      // pill already jumped inside the bar.
+      // pill already jumped inside the bar. The animated
+      // wrapper never mounts on this path (v504) — and a cut
+      // landing mid-flight lands the list plain too: the
+      // sequence bump retires the old switch's completion
+      // callback, and the direct assignments below cancel its
+      // animations outright.
+      listSwitchSeqRef.current += 1;
+      setListSwitching(false);
       listOpacity.value = 1;
       listScale.value = 1;
       setSectionFilter(key);
@@ -337,12 +374,29 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       EMPHASIZED_DECELERATE_EASING[2],
       EMPHASIZED_DECELERATE_EASING[3],
     );
+    // v504: the animated wrapper mounts for the switch, and
+    // this switch's own sequence number rides the fade-in's
+    // completion callback below — the detach is driven by the
+    // animation finishing, never by a timer guess.
+    const seq = (listSwitchSeqRef.current += 1);
+    setListSwitching(true);
     listOpacity.value = withTiming(0, { duration: CONTENT_FADE_OUT_MS, easing: settle });
     filterSwapTimerRef.current = setTimeout(() => {
       setSectionFilter(key);
       listScale.value = CONTENT_SETTLE_FROM_SCALE;
       listOpacity.value = 0;
-      listOpacity.value = withTiming(1, { duration: CONTENT_FADE_IN_MS, easing: settle });
+      listOpacity.value = withTiming(
+        1,
+        { duration: CONTENT_FADE_IN_MS, easing: settle },
+        (finished) => {
+          'worklet';
+          // Opacity is 1 and scale is 1 at this point, so
+          // dropping the animated wrapper is invisible. An
+          // interrupted animation reports finished=false (and
+          // its sequence is stale anyway) — it never detaches.
+          if (finished) runOnJS(endListSwitch)(seq);
+        },
+      );
       listScale.value = withTiming(1, { duration: CONTENT_FADE_IN_MS, easing: settle });
     }, CONTENT_FADE_OUT_MS);
   };
@@ -353,6 +407,7 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     () => visibleBookSections(groups, sectionFilter),
     [groups, sectionFilter],
   );
+
   // v305: the READING aggregate over the same state — the v228 read
   // track counted by lib/bible-v205/reading-progress, a different
   // track from the study counts the sections and rows below carry.
@@ -430,6 +485,22 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     setStudyState(next);
     setResetOpen(false);
   };
+
+  // v504: the sections' content and the list wrapper's one
+  // plain style, shared by both seats inside the page below —
+  // the plain resting view and the switch's animated view —
+  // so the two trees can never drift apart; only the wrapper
+  // (and its animated style, in flight) differs. Built here,
+  // after every handler renderBookRow closes over stands.
+  const listPadStyle = sectionFilter === 'all' ? null : { paddingTop: 12 };
+  const sectionsContent = filterSections.map((section) => (
+    <View key={section.key}>
+      {section.showLabel && section.books.length ? (
+        <Text style={[styles.subhead, { color: palette.inkSoft }]}>{section.label}</Text>
+      ) : null}
+      {section.books.map(renderBookRow)}
+    </View>
+  ));
 
   const content = (
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
@@ -546,17 +617,22 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
             section under Finished, same header treatment); a
             filter renders the one group with its label off, and
             a small breathing space stands where the label's
-            rhythm was. */}
-        <ReAnimated.View style={[listAnimStyle, sectionFilter === 'all' ? null : { paddingTop: 12 }]}>
-          {filterSections.map((section) => (
-            <View key={section.key}>
-              {section.showLabel && section.books.length ? (
-                <Text style={[styles.subhead, { color: palette.inkSoft }]}>{section.label}</Text>
-              ) : null}
-              {section.books.map(renderBookRow)}
-            </View>
-          ))}
-        </ReAnimated.View>
+            rhythm was.
+            v504: the animated surface wraps the sections ONLY
+            while a switch is in flight. At rest the same sections
+            render in a plain view — no animated style on any
+            ancestor — so the book cards' elevation shadows fall
+            exactly as they did before v503; selectFilter drops
+            the wrapper the moment the fade-in completes, when
+            opacity and scale are both 1, so the handoff itself
+            is invisible. */}
+        {listSwitching ? (
+          <ReAnimated.View style={[listAnimStyle, listPadStyle]}>
+            {sectionsContent}
+          </ReAnimated.View>
+        ) : (
+          <View style={listPadStyle}>{sectionsContent}</View>
+        )}
 
         {/* v265: in the pane, the pane container carries the tab
             bar's clearance once — only the breathing room stays. */}

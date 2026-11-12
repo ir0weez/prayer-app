@@ -247,15 +247,28 @@ describe('v241 — Books screen first paint, dark scheme + Classic (his phone st
   rig.scheme = 'dark';
   const html = renderToString(React.createElement(BibleBooksScreen)).replace(/<!-- -->/g, '');
 
-  it('paints the topbar: title, back affordance and the Study Queue pill', () => {
-    expect(html).toContain('Bible');
+  it('paints the header: the plain tab title and the Study Queue pill in its row', () => {
+    // v514 RE-BASE (2026-11-12): this pin was named for the
+    // topbar — back chevron, "Bible" title, the pill at the
+    // row's end. v514 retired the topbar and the masthead for
+    // the plain tab header (his pick, bible-header-aligned-
+    // v1.html): the "Study" title with the date under it, and
+    // the Study Queue pill seated in that title row. The
+    // chevron's absence is part of the new contract.
+    expect(html).toContain('Study');
     expect(html).toContain('Study Queue');
-    expect(html).toContain('icon:arrow-back');
+    expect(html).not.toContain('icon:arrow-back');
   });
 
   it('paints the header — and no on-paper legend or marks (v422)', () => {
-    expect(html).toContain('Your Books');
-    expect(html).toContain('PrayerCircle');
+    // v514 RE-BASE (2026-11-12): the masthead this pin proved
+    // ("Your Books" under the "PrayerCircle · Bible" eyebrow)
+    // is retired; the header's standing proof is the plain
+    // "Study" title, and the masthead's words must NOT paint.
+    // The v422 negatives below stand exactly as written.
+    expect(html).toContain('Study');
+    expect(html).not.toContain('Your Books');
+    expect(html).not.toContain('PrayerCircle · Bible');
     // v422 re-base (his word, Nov 2 — "get rid of this on paper
     // thing"): the legend chip that painted "On paper" here is
     // removed, and no row carries an on-paper mark.
@@ -288,7 +301,10 @@ describe('v241 — Books screen first paint, light scheme + Classic', () => {
   const html = renderToString(React.createElement(BibleBooksScreen)).replace(/<!-- -->/g, '');
 
   it('renders the same full list, ink clearing 4.5:1 on the light paper', () => {
-    expect(html).toContain('Your Books');
+    // v514 RE-BASE (2026-11-12): the header proof was the
+    // masthead's "Your Books"; the plain tab header's "Study"
+    // title is the standing proof now (see the dark block).
+    expect(html).toContain('Study');
     for (const book of Object.keys(CHAPTER_COUNTS)) expect(html).toContain(book);
     const paper = renderedPaper(html);
     expect(paper).toBe(expectedGround('light'));

@@ -204,8 +204,11 @@ describe('v241 — zero books across all three sections renders the guard, not a
     expect(html).not.toContain('of 150 complete');
   });
 
-  it('the rest of the screen still paints (topbar + header)', () => {
+  it('the rest of the screen still paints (header + queue pill)', () => {
     expect(html).toContain('Study Queue');
-    expect(html).toContain('Your Books');
+    // v514 RE-BASE (2026-11-12): the header proof was the
+    // masthead's "Your Books"; v514's plain tab header paints
+    // its "Study" title in the same standing place.
+    expect(html).toContain('Study');
   });
 });

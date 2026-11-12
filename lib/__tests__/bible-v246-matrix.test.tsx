@@ -235,6 +235,7 @@ import { getThemedPalette, ACCENT_THEMES } from '../color-themes';
 import { getSkinTokens, hexContrast } from '../skin-themes';
 import { resolveBibleInk } from '../bible-v205/palette-ink';
 import { deriveBibleAccents } from '../bible-v205/palette-accents';
+import { buildBiblePalette } from '../../components/bible-v205/palette';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -323,7 +324,11 @@ describe('v246 — the Bible matrix: skin × accent × scheme', () => {
 
           const books = renderToString(React.createElement(BibleBooksScreen)).replace(/<!-- -->/g, '');
           expectRootUngated(books, `${label} Books`);
-          expect(books).toContain('Your Books');
+          // v514 RE-BASE (2026-11-12): the Books paint proof was
+          // the masthead's "Your Books"; v514 retired the
+          // masthead for the plain tab header, whose "Study"
+          // title is the standing proof.
+          expect(books).toContain('Study');
           expect(books).toContain('Genesis');
           expect(books).toContain('Revelation');
 
@@ -476,8 +481,11 @@ describe('v248 — the Bible follows the skin and the chosen color', () => {
           expect(contentRootStyle(stories), `${label}: stories root paints its paper`).toBeTruthy();
 
           // (b) the headline accents ARE the palette's primary token:
-          // the chapter progress thread wears it, the Books kicker
-          // reads in it, and the old fixed raspberry is gone.
+          // the chapter progress thread wears it, the Books header's
+          // accent word reads in its derivation, and the old fixed
+          // raspberry is gone. (v514: the Books accent word is the
+          // Study Queue pill's — the masthead kicker it used to be
+          // is retired; see the RE-BASE at the pin itself.)
           //
           // RE-BASED by v341 (his ruling, Oct 29: the wavy progress
           // bar, everywhere — the look off his Pixel's system-update
@@ -509,9 +517,21 @@ describe('v248 — the Bible follows the skin and the chosen color', () => {
           ).toBe(colors.primary);
           expect(chapter, `${label}: no fixed raspberry in the chapter`).not.toContain(OLD_RASPBERRY_CSS);
           expect(books, `${label}: no fixed raspberry in the books`).not.toContain(OLD_RASPBERRY_CSS);
-          const kicker = renderedTextColor(books, 'PrayerCircle · Bible');
-          expect(kicker, `${label}: kicker color`).toBe(colors.primary.toUpperCase());
-          expect(kicker, `${label}: kicker is not the old raspberry`).not.toBe('#C2255C');
+          // v514 RE-BASE (2026-11-12): the Books half of this
+          // proof rode the masthead's kicker ("PrayerCircle ·
+          // Bible" in palette.rasp — the primary itself). The
+          // masthead is retired; the header's seed-family text is
+          // now the Study Queue pill's word, which wears
+          // palette.raspDeep. The expectation is the palette
+          // builder's own raspDeep for this cell's colors — the
+          // claim is the one this block has always made: the
+          // Books header's accent text IS this cell's palette
+          // derivation, never a fixed hue.
+          const pillWord = renderedTextColor(books, 'Study Queue');
+          expect(pillWord, `${label}: queue pill word color`).toBe(
+            buildBiblePalette(colors).raspDeep.toUpperCase(),
+          );
+          expect(pillWord, `${label}: queue pill word is not the old raspberry`).not.toBe('#C2255C');
 
           // (c) RE-BASED by v250 (his ruling, Oct 25 15:50: the
           // Bible gets the Material makeover, "match the color I

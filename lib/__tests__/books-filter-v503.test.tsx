@@ -190,7 +190,12 @@ describe('v503 — the chip bar stands in the All first paint', () => {
   });
 
   it('the bar sits under the header and above the first book row', () => {
-    const header = html.indexOf('Your Books');
+    // v514 RE-BASE (2026-11-12): the anchor was the masthead's
+    // "Your Books" — v514 retired the masthead for the plain tab
+    // header. The anchor is now the header row's last element,
+    // its Study Queue pill: the bar must sit under the whole
+    // header, exactly the claim this pin has always made.
+    const header = html.indexOf('Study Queue');
     const bar = html.indexOf('aria-label="All books"');
     const firstRow = html.indexOf('Genesis');
     expect(header).toBeGreaterThan(-1);

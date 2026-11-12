@@ -314,14 +314,22 @@ describe("v265 source pins — load-once / focus-refresh survive the move", () =
     expect(chapter).toContain('key={`${book}-${chapter}`}');
   });
 
-  it("(g) Books' load-once data (labels) still loads on mount only — pane or route", () => {
+  it("(g) Books carries no labels load anymore (v514) — and never loads the coverage", () => {
     // v422 re-base (his word, Nov 2): the mount effect no longer
     // loads the handwritten coverage — it fed only the on-paper
     // marks removed in that pass. The labels load-once behaviour
     // this pin guards is unchanged; the coverage store itself is
     // untouched and still loads wherever else it is read.
-    expect(chapters).toContain("labels load ONCE, on mount");
-    expect(chapters).toContain("loadUserLabels().then((l) => live && setLabels(l));");
+    // v514 RE-BASE (2026-11-12): the labels load itself is now
+    // retired — its only consumer on this screen was the
+    // masthead's possessive ("{possessive} Books"), and v514
+    // retired the masthead for the plain tab header. There is no
+    // load-once labels behaviour left to guard; what stands is
+    // the retirement (no labels load on mount OR on focus) and
+    // the v422 half of the original pin. The user-labels store
+    // itself is untouched and still loads wherever else it is
+    // read.
+    expect(chapters).not.toContain("loadUserLabels");
     expect(chapters).not.toContain("loadHandwritten");
   });
 });

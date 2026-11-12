@@ -97,6 +97,29 @@
 // The rows' tallies all come from rewards.ts bookChapterTallies,
 // whose written + toWrite = chapter count invariant retires the
 // "1 of 4 written · 4 to write" double count.
+// v514 (his pick, Nov 12 — bible-header-aligned-v1.html, "That
+// works"): this screen's header comes in line with the other
+// tabs. The pushed-page topbar (back chevron, "Bible", the
+// Jump-to-Book list icon, the Study Queue pill's old seat) and
+// the centered masthead (the "PrayerCircle · Bible" eyebrow over
+// "{possessive} Books") are both gone. In the masthead's seat,
+// at the head of the header cluster, stands the plain tab header
+// the People and More pages wear: the title "Study" at 27/800
+// with today's date under it (the same toLocaleDateString the
+// shell's app bars print), and the Study Queue pill at the row's
+// right in its standing tonal dress, opening the same queue door
+// as before. The header row carries the tray clearance the
+// topbar used to (inPane ? 8 : insets.top + 8) now that the bar
+// is gone. The back chevron's pane behaviour was nav.exit() — a
+// hop back to the previous tab, which the tab bar already
+// covers — so nothing is stranded by its going. The labels load
+// goes with the masthead: the possessive was its only consumer
+// on this screen (the v422 precedent — the user-labels store
+// itself is untouched). The Jump to Book sheet keeps its other
+// door: the Personal Study card's arrival (openBookNav / the
+// pane nonce). Everything below the header — progress card,
+// Restudy and Downloaded audio cards, the filter seat and its
+// sticky bookkeeping, the sections — is untouched.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -139,10 +162,6 @@ import { BibleScreenBoundary } from '@/components/bible-v205/screen-boundary';
 import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 import { useBiblePalette, useBookBiblePalette, type BiblePalette } from '@/components/bible-v205/palette';
 import { TopFade, topFadeScrollHandler, useTopFadeScrollY } from '@/components/top-fade';
-import {
-  loadUserLabels,
-  type UserLabels,
-} from '@/lib/bible-v205/user-labels';
 import { bibleShellParamsForRoute, type BiblePaneNav } from '@/lib/bible-pane';
 import {
   downloadsCardModel,
@@ -223,7 +242,6 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   // study state — an import landed from Settings changes which
   // chapters carry notes, hence Written membership and row counts.
   const [studioImports, setStudioImports] = useState<StudioImportsMap>({});
-  const [labels, setLabels] = useState<UserLabels | null>(null);
   // v305: the reading reset's confirmation — the card's quiet door
   // opens this; nothing clears until he confirms here.
   const [resetOpen, setResetOpen] = useState(false);
@@ -259,23 +277,10 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     return reloadStudyState();
   }, [inPane, paneFocused, reloadStudyState]);
 
-  // v263: labels load ONCE, on mount. They only ever change from
-  // the profile, so re-reading them on every focus was pure cost
-  // on the tab-switch path: extra storage loads and full 66-row
-  // re-renders landed inside the switch's first frames every time
-  // he hopped People → Study. A refocus now costs one load and one
-  // re-render, and unrelated re-renders (the sheets opening) reuse
-  // the memoized grouping below.
-  // v422: this effect also loaded the handwritten coverage, which
-  // fed only the on-paper marks removed in this pass — the load
-  // goes with them. The coverage store itself is untouched.
-  useEffect(() => {
-    let live = true;
-    loadUserLabels().then((l) => live && setLabels(l));
-    return () => {
-      live = false;
-    };
-  }, []);
+  // v514: the labels load that stood here is retired with the
+  // masthead — the possessive in "{possessive} Books" was its
+  // only consumer on this screen (see the banner note). The
+  // user-labels store itself is untouched.
 
   // v222: all 66 books, from the study store alone. v322: FOUR
   // sections — Finished (fully read) and Written (fully written)
@@ -419,7 +424,6 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   // all four sections is impossible in a healthy build, so it gets a
   // visible word (below) instead of an empty page.
   const totalBooks = groups.current.length + groups.finished.length + groups.written.length + groups.notStarted.length;
-  const possessive = labels?.possessive ?? 'Your';
 
   const renderBookRow = (book: string) => (
     <BookRow
@@ -504,28 +508,6 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
 
   const content = (
     <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
-      <View style={[styles.topbar, { borderBottomColor: palette.line, paddingTop: inPane ? 8 : insets.top + 8 }]}>
-        <Pressable onPress={goBack} hitSlop={10} style={{ padding: 2 }}>
-          <MaterialIcons name="arrow-back" size={21} color={palette.ink} />
-        </Pressable>
-        <Text style={[styles.topTitle, { color: palette.ink }]}>Bible</Text>
-        <Pressable
-          onPress={() => setBookNavOpen(true)}
-          hitSlop={8}
-          style={{ padding: 2 }}
-          accessibilityRole="button"
-          accessibilityLabel="Jump to Book"
-        >
-          <MaterialIcons name="list" size={21} color={palette.ink} />
-        </Pressable>
-        <Pressable
-          onPress={openQueue}
-          style={[styles.queueBtn, { backgroundColor: palette.band }, palette.btnDress]}
-        >
-          <Text style={[styles.queueBtnText, { color: palette.raspDeep }]}>Study Queue</Text>
-        </Pressable>
-      </View>
-
       <View style={{ flex: 1 }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.page} onScroll={topFadeScrollHandler(fadeScrollY)} scrollEventThrottle={16} stickyHeaderIndices={[1]}>
         {/* v503: the header cluster is ONE child of the scroll
@@ -542,9 +524,29 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
             a flattened child shifts every index under it and the
             reserved seat stops matching the painted one. */}
         <View collapsable={false}>
-        <View style={styles.vhead}>
-          <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
-          <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{possessive} Books</Text>
+        {/* v514: the plain tab header, in the masthead's seat
+            (see the banner note) — the People/More measure:
+            title 27/800, today's date 12.5/600 beneath it, the
+            Study Queue pill at the row's right in its standing
+            dress (band ground, raspDeep word, btnDress), wired
+            to the same openQueue door the topbar pill used.
+            The row's top padding is the tray clearance the
+            retired topbar carried — flat 8 in the pane (the
+            shell has applied the inset), the full inset as a
+            standalone route. */}
+        <View style={[styles.tabHead, { paddingTop: inPane ? 8 : insets.top + 8 }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.tabTitle, { color: palette.ink }]}>Study</Text>
+            <Text style={[styles.tabDate, { color: palette.inkSoft }]}>
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </Text>
+          </View>
+          <Pressable
+            onPress={openQueue}
+            style={[styles.queueBtn, { backgroundColor: palette.band }, palette.btnDress]}
+          >
+            <Text style={[styles.queueBtnText, { color: palette.raspDeep }]}>Study Queue</Text>
+          </Pressable>
         </View>
 
         {/* v325: the approved progress header replaces the v305
@@ -672,7 +674,10 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       </ScrollView>
       {/* v334: the top fade (his Oct 29 ruling, all pages) — the
           list dissolves under the Bible palette's paper at the top
-          of the scroll view, below the fixed topbar. */}
+          of the scroll view. v514: the fixed topbar it used to sit
+          below is retired — the fade is scroll-linked and rests
+          at opacity 0, so the standing header is never washed at
+          rest; it dissolves like every other tab's as it scrolls. */}
       <TopFade color={palette.paper} scrollY={fadeScrollY} topInset={insets.top} />
       </View>
 
@@ -1004,8 +1009,15 @@ function BookRow({
 }
 
 const styles = StyleSheet.create({
-  topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 9, borderBottomWidth: 1 },
-  topTitle: { fontSize: 16, fontWeight: '700', flex: 1 },
+  // v514: the plain tab header — the People/More measure (title
+  // 27/800 at −0.5 tracking, the date 12.5/600 one point under
+  // it), the row bottom-aligned so the Study Queue pill seats
+  // against the date line the way People's bell seats against
+  // its own. (The top padding that clears the tray is applied
+  // inline — it depends on the seat, pane vs route.)
+  tabHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  tabTitle: { fontSize: 27, fontWeight: '800', letterSpacing: -0.5 },
+  tabDate: { fontSize: 12.5, fontWeight: '600', marginTop: 1 },
   // v250: topbar actions are tonal pills, not outlines.
   queueBtn: { borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
   queueBtnText: { fontSize: 13, fontWeight: '600' },
@@ -1022,10 +1034,6 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  vhead: { alignItems: 'center', paddingTop: 26 },
-  kicker: { fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '700', textAlign: 'center' },
-  h2: { fontSize: 34, fontWeight: '700', letterSpacing: -0.6, marginTop: 8, textAlign: 'center' },
-  vsub: { fontSize: 13.5, lineHeight: 21, textAlign: 'center', marginTop: 14, paddingHorizontal: 6 },
   subhead: { fontSize: 12, letterSpacing: 1.8, textTransform: 'uppercase', fontWeight: '700', paddingTop: 26, paddingBottom: 12 },
   emptyGuard: { alignItems: 'center', paddingTop: 34, paddingHorizontal: 8 },
   emptyTitle: { fontSize: 19, fontWeight: '800', letterSpacing: -0.4, textAlign: 'center' },

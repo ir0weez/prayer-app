@@ -543,11 +543,20 @@ describe('v222 WS3 — Books list: all 66, sections (v322: four, split by channe
   it('the Books view renders the sections and the row furniture', () => {
     const src = readFileSync(join(process.cwd(), 'app', 'bible-chapters.tsx'), 'utf8');
     expect(src).toContain('groupBooksByStudy');
-    expect(src).toContain('>Current<');
-    expect(src).toContain('>Finished<');
-    // v322: writing gets its own section header on the page.
-    expect(src).toContain('>Written<');
-    expect(src).toContain('>Not Started<');
+    // v503 RE-BASE (his picks, Nov 11 — the section filter): the
+    // section headers are no longer literal JSX text in the
+    // screen; the labels live in the filter model
+    // (lib/bible-v205/books-filter.ts BOOK_SECTIONS) and render
+    // from visibleBookSections — the same four headers on the
+    // same page (v322: writing keeps its own), pinned at the
+    // model here and on the rendered page in
+    // books-filter-v503.test.tsx.
+    const model = readFileSync(join(process.cwd(), 'lib', 'bible-v205', 'books-filter.ts'), 'utf8');
+    expect(src).toContain('visibleBookSections(groups, sectionFilter)');
+    expect(model).toContain("{ key: 'current', label: 'Current' }");
+    expect(model).toContain("{ key: 'finished', label: 'Finished' }");
+    expect(model).toContain("{ key: 'written', label: 'Written' }");
+    expect(model).toContain("{ key: 'notStarted', label: 'Not Started' }");
     expect(src).toContain('CurrentPill');
     // v422 re-base (his word, Nov 2 — "get rid of this on paper
     // thing"): the row marks this pin asserted are removed from

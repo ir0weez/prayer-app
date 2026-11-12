@@ -175,12 +175,28 @@ describe('v322 — Books sections: Finished counts the read ones', () => {
 
   it('the Books screen renders a Written section under Finished, and the guard counts all four', () => {
     const src = readFileSync(join(process.cwd(), 'app', 'bible-chapters.tsx'), 'utf8');
-    expect(src).toContain('>Finished<');
-    expect(src).toContain('>Written<');
-    expect(src).toContain('groups.written.map(renderBookRow)');
+    // v503 RE-BASE (his picks, Nov 11 — the section filter): the
+    // four section labels no longer stand as literal JSX text in
+    // the screen; they live in the filter model
+    // (lib/bible-v205/books-filter.ts BOOK_SECTIONS) and the
+    // screen renders the sections from visibleBookSections. What
+    // this pin guards — a Written section standing on the page
+    // under Finished, rows rendered per section — is unchanged;
+    // it is asserted at the model now, and the rendered page
+    // itself is pinned in books-filter-v503.test.tsx /
+    // books-filter-v503-interactive.test.tsx.
+    const model = readFileSync(join(process.cwd(), 'lib', 'bible-v205', 'books-filter.ts'), 'utf8');
+    expect(src).toContain('visibleBookSections(groups, sectionFilter)');
+    expect(src).toContain('section.books.map(renderBookRow)');
+    expect(model).toContain("{ key: 'finished', label: 'Finished' }");
+    expect(model).toContain("{ key: 'written', label: 'Written' }");
     // Section order on the page: Finished, then Written, then Not Started.
-    expect(src.indexOf('>Finished<')).toBeLessThan(src.indexOf('>Written<'));
-    expect(src.indexOf('>Written<')).toBeLessThan(src.indexOf('>Not Started<'));
+    expect(model.indexOf("{ key: 'finished', label: 'Finished' }")).toBeLessThan(
+      model.indexOf("{ key: 'written', label: 'Written' }"),
+    );
+    expect(model.indexOf("{ key: 'written', label: 'Written' }")).toBeLessThan(
+      model.indexOf("{ key: 'notStarted', label: 'Not Started' }"),
+    );
     // v424 RE-BASE (his Concept 2 pick, Nov 2): the Restudy
     // section the v421 pin named is retired — Restudy's books are
     // no longer pulled out of the other four, so the sum counts

@@ -382,9 +382,16 @@ describe('v206 — the Notion seed is cleared; only app progress counts', () => 
     expect(booksWithProgress(marked, canon)).toEqual(['1 John']);
     const src = readFileSync(join(process.cwd(), 'app', 'bible-chapters.tsx'), 'utf8');
     expect(src).toContain('groupBooksByStudy');
-    expect(src).toContain('>Current<');
-    expect(src).toContain('>Finished<');
-    expect(src).toContain('>Not Started<');
+    // v503 RE-BASE (his picks, Nov 11 — the section filter): the
+    // section names render from the filter model's BOOK_SECTIONS
+    // (lib/bible-v205/books-filter.ts) via visibleBookSections,
+    // not from literal JSX text in the screen; the sections and
+    // their names on the page are unchanged.
+    const filterModel = readFileSync(join(process.cwd(), 'lib', 'bible-v205', 'books-filter.ts'), 'utf8');
+    expect(src).toContain('visibleBookSections(groups, sectionFilter)');
+    expect(filterModel).toContain("{ key: 'current', label: 'Current' }");
+    expect(filterModel).toContain("{ key: 'finished', label: 'Finished' }");
+    expect(filterModel).toContain("{ key: 'notStarted', label: 'Not Started' }");
     expect(src).not.toContain('Study progress');
     expect(src).not.toContain('The rest of the canon');
     expect(src).not.toContain('databases');

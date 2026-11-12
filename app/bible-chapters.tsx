@@ -59,6 +59,22 @@
 // download's book family (v420 book colours); title and line keep
 // the page ink, exactly as the Restudy card keeps its own. The
 // card opens the Downloads page (app/bible-downloads.tsx).
+// v503 (his picks, Nov 11): a chip row where the first section
+// label sat (books-section-filter-v1.html) — All · Current ·
+// Finished · Written · Not Started — so the sections filter with
+// a tap instead of endless scrolling. All is the page exactly as
+// it stood; a section chip stands that one group alone, its own
+// label dropped (the lit chip says it). The row pins to the top
+// of the scroll area while the header cards scroll away beneath
+// it. The switch runs Motion 3, "Travelling Pill"
+// (books-filter-motion-v4.html): the selected chip's fill is ONE
+// pill that slides and stretches to the tapped chip (380ms,
+// Material emphasized — components/bible-v205/books-filter-bar),
+// while the list crossfades — out over 120ms, back in settling
+// from scale 0.98 over 300ms. The filter's model is pure
+// (lib/bible-v205/books-filter.ts); group membership is still
+// groupBooksByStudy's alone, and the state is screen-local —
+// every mount starts at All.
 // v325: the v305 overall reading card is replaced by the approved
 // progress header (study-progress-concepts-v3.html, Concept 3 —
 // Two Structured Rows): both tracks, their book counts and their
@@ -68,7 +84,7 @@
 // whose written + toWrite = chapter count invariant retires the
 // "1 of 4 written · 4 to write" double count.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -120,6 +136,21 @@ import {
   useDownloadedAudio,
   type DownloadsCardModel,
 } from '@/lib/downloads';
+import ReAnimated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { BooksFilterBar, useReduceMotionEnabled } from '@/components/bible-v205/books-filter-bar';
+import {
+  CONTENT_FADE_IN_MS,
+  CONTENT_FADE_OUT_MS,
+  CONTENT_SETTLE_FROM_SCALE,
+  EMPHASIZED_DECELERATE_EASING,
+  visibleBookSections,
+  type BooksFilterKey,
+} from '@/lib/bible-v205/books-filter';
 
 const CANON = Object.keys(CHAPTER_COUNTS);
 
@@ -259,6 +290,69 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     () => downloadsCardModel(downloadedAudio),
     [downloadedAudio],
   );
+  // v503: the section filter. Two seats for one fact — the CHIP
+  // selection moves at the tap (the travelling pill and the lit
+  // label never wait), while the SECTION on the page swaps only
+  // once the list's 120ms fade-out has run, so the eye never sees
+  // a hard cut mid-list. Both start at All on every mount; the
+  // ref is the tap's target, which is what a repeated tap on the
+  // same chip no-ops against (even mid-fade).
+  const reduceMotion = useReduceMotionEnabled();
+  const [chipSelection, setChipSelection] = useState<BooksFilterKey>('all');
+  const [sectionFilter, setSectionFilter] = useState<BooksFilterKey>('all');
+  const filterTargetRef = useRef<BooksFilterKey>('all');
+  const filterSwapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listOpacity = useSharedValue(1);
+  const listScale = useSharedValue(1);
+  const listAnimStyle = useAnimatedStyle(() => ({
+    opacity: listOpacity.value,
+    transform: [{ scale: listScale.value }],
+  }));
+  useEffect(
+    () => () => {
+      if (filterSwapTimerRef.current) clearTimeout(filterSwapTimerRef.current);
+    },
+    [],
+  );
+  const selectFilter = (key: BooksFilterKey) => {
+    if (key === filterTargetRef.current) return;
+    filterTargetRef.current = key;
+    setChipSelection(key);
+    if (filterSwapTimerRef.current) clearTimeout(filterSwapTimerRef.current);
+    if (reduceMotion) {
+      // Reduce motion: a plain cut — no fade, no settle, the
+      // pill already jumped inside the bar.
+      listOpacity.value = 1;
+      listScale.value = 1;
+      setSectionFilter(key);
+      return;
+    }
+    // Motion 3's list half: out over 120ms, then the swap, then
+    // back in from scale 0.98 over 300ms on emphasized
+    // decelerate. The easing is built here, in the handler —
+    // never during render (see books-filter-bar's note).
+    const settle = Easing.bezier(
+      EMPHASIZED_DECELERATE_EASING[0],
+      EMPHASIZED_DECELERATE_EASING[1],
+      EMPHASIZED_DECELERATE_EASING[2],
+      EMPHASIZED_DECELERATE_EASING[3],
+    );
+    listOpacity.value = withTiming(0, { duration: CONTENT_FADE_OUT_MS, easing: settle });
+    filterSwapTimerRef.current = setTimeout(() => {
+      setSectionFilter(key);
+      listScale.value = CONTENT_SETTLE_FROM_SCALE;
+      listOpacity.value = 0;
+      listOpacity.value = withTiming(1, { duration: CONTENT_FADE_IN_MS, easing: settle });
+      listScale.value = withTiming(1, { duration: CONTENT_FADE_IN_MS, easing: settle });
+    }, CONTENT_FADE_OUT_MS);
+  };
+  // v503: the sections the list renders — All is groupBooksByStudy
+  // exactly as the page has always rendered it; a filter stands
+  // one group alone, label off (lib/bible-v205/books-filter.ts).
+  const filterSections = useMemo(
+    () => visibleBookSections(groups, sectionFilter),
+    [groups, sectionFilter],
+  );
   // v305: the READING aggregate over the same state — the v228 read
   // track counted by lib/bible-v205/reading-progress, a different
   // track from the study counts the sections and rows below carry.
@@ -362,7 +456,15 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
       </View>
 
       <View style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.page} onScroll={topFadeScrollHandler(fadeScrollY)} scrollEventThrottle={16}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.page} onScroll={topFadeScrollHandler(fadeScrollY)} scrollEventThrottle={16} stickyHeaderIndices={[1]}>
+        {/* v503: the header cluster is ONE child of the scroll
+            view (title, progress, the Restudy and Downloaded
+            audio cards, the zero-books guard), so the sticky
+            index below is stable however many of its conditional
+            cards stand: child 0 = this cluster, child 1 = the
+            filter bar, which pins to the top while the cluster
+            scrolls away beneath it. */}
+        <View>
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
           <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{possessive} Books</Text>
@@ -423,28 +525,38 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
             </Pressable>
           </View>
         ) : null}
+        </View>
 
-        {groups.current.length ? (
-          <Text style={[styles.subhead, { color: palette.inkSoft }]}>Current</Text>
-        ) : null}
-        {groups.current.map(renderBookRow)}
+        {/* v503: the filter bar, seated where the first section
+            label sat — directly under the header cards, above
+            the groups — and pinned by the scroll view's sticky
+            index (child 1) so switching sections is always one
+            tap away, however far down the list he has scrolled. */}
+        <BooksFilterBar
+          palette={palette}
+          selected={chipSelection}
+          onSelect={selectFilter}
+          reduceMotion={reduceMotion}
+        />
 
-        {groups.finished.length ? (
-          <Text style={[styles.subhead, { color: palette.inkSoft }]}>Finished</Text>
-        ) : null}
-        {groups.finished.map(renderBookRow)}
-
-        {/* v322: writing-complete books keep a section of their
-            own, right under Finished — same header treatment. */}
-        {groups.written.length ? (
-          <Text style={[styles.subhead, { color: palette.inkSoft }]}>Written</Text>
-        ) : null}
-        {groups.written.map(renderBookRow)}
-
-        {groups.notStarted.length ? (
-          <Text style={[styles.subhead, { color: palette.inkSoft }]}>Not Started</Text>
-        ) : null}
-        {groups.notStarted.map(renderBookRow)}
+        {/* v503: the sections, inside the crossfade's one surface
+            (Motion 3: the whole list moves as one — no per-card
+            stagger). All renders the four groups with their
+            labels exactly as before (v322: Written keeps its own
+            section under Finished, same header treatment); a
+            filter renders the one group with its label off, and
+            a small breathing space stands where the label's
+            rhythm was. */}
+        <ReAnimated.View style={[listAnimStyle, sectionFilter === 'all' ? null : { paddingTop: 12 }]}>
+          {filterSections.map((section) => (
+            <View key={section.key}>
+              {section.showLabel && section.books.length ? (
+                <Text style={[styles.subhead, { color: palette.inkSoft }]}>{section.label}</Text>
+              ) : null}
+              {section.books.map(renderBookRow)}
+            </View>
+          ))}
+        </ReAnimated.View>
 
         {/* v265: in the pane, the pane container carries the tab
             bar's clearance once — only the breathing room stays. */}

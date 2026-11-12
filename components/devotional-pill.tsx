@@ -53,6 +53,7 @@ import {
   toggleDevotionalPlayback,
   useDevotionalPlayerState,
 } from '@/lib/devotional-player';
+import { devotionalContextLine } from '@/lib/devotionals';
 import {
   DEVOTIONAL_FILL_DRIFT_MS,
   DEVOTIONAL_FILL_DRIFT_PX,
@@ -136,6 +137,13 @@ export function DevotionalPill() {
   const expand = () => {
     if (!devotional || stoppingRef.current) return;
     requestDevotionalExpandMorph();
+    // A book-level tour (v501) has no chapter params to pass — the
+    // route resolves it from the live session instead, the seat it
+    // already has for exactly this landing.
+    if (devotional.bookLevel) {
+      router.push({ pathname: '/devotional', params: {} });
+      return;
+    }
     router.push({
       pathname: '/devotional',
       params: { book: devotional.book, chapter: String(devotional.chapter) },
@@ -294,7 +302,7 @@ export function DevotionalPill() {
               {devotional.title}
             </Text>
             <Text style={styles.ctx} numberOfLines={1}>
-              {devotional.book} {devotional.chapter} · Devotional
+              {devotionalContextLine(devotional)}
             </Text>
           </Pressable>
           <Pressable

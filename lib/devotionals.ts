@@ -29,8 +29,19 @@ export interface Devotional {
   chapter: number;
   title: string;
   /** Bundled audio asset filename in assets/audio/ (the require() itself
-   * lives in lib/devotional-audio.ts so this module stays import-pure). */
+   * lives in lib/devotional-audio.ts so this module stays import-pure).
+   * For a book-level entry (bookLevel) this instead names the
+   * downloaded file in the app's ten-stops/ folder — no bundled
+   * asset exists for it, and devotionalAudioFor never resolves it. */
   audioFile: string;
+  /** v501: a BOOK-level narration — a Ten Stops tour (lib/ten-stops.ts)
+   * rather than one chapter's devotional. chapter carries 0 as a
+   * deliberate non-chapter marker: no chapter numeral, verse range
+   * or chapter count is ever derived from it (devotionalFacts and
+   * devotionalContextLine branch on this flag), and the audio is a
+   * downloaded local file, never a bundled asset. Absent (chapter
+   * devotional) on every registry entry. */
+  bookLevel?: boolean;
   /** Fallback duration (seconds) until the player reports the real one. */
   durationSec: number;
   /** The spoken script, paragraph by paragraph, verbatim — EMPTY for
@@ -1688,11 +1699,26 @@ export function devotionalGuideposts(d: Devotional): DevotionalMovement[] | null
   return movements.map((m) => ({ title: m.title, startSec: m.startSec }));
 }
 
+/**
+ * The player's context line for a devotional — the one string the
+ * pill and the player page share, so the two surfaces can never
+ * disagree about what is playing: "{Book} {chapter} · Devotional"
+ * for a chapter's devotional, "{Book} · Ten Stops" for a book-level
+ * tour (v501), which has no chapter to name.
+ */
+export function devotionalContextLine(d: Devotional): string {
+  return d.bookLevel ? `${d.book} · Ten Stops` : `${d.book} ${d.chapter} · Devotional`;
+}
+
 export interface DevotionalFacts {
   /** "{Book} {chapter}:1–{last verse}" — only when the chapter's
-   * verse count is known from the app's Bible data. */
+   * verse count is known from the app's Bible data. For a
+   * book-level tour (v501), "{Book} · the whole book" — the scope
+   * line that honestly takes the range's seat. */
   range: string | null;
-  /** "Chapter {n} of {the book's chapter count}". */
+  /** "Chapter {n} of {the book's chapter count}". For a book-level
+   * tour, "Ten stops" — what the narration is, not a count of
+   * chapters it does not have. */
   chapterLine: string;
   /** "{duration} · a reading of his commentary". */
   durationLine: string;
@@ -1705,6 +1731,16 @@ export interface DevotionalFacts {
  * simply absent — the other two lines always hold.
  */
 export function devotionalFacts(d: Devotional, lastVerse: number | null, durationSec: number): DevotionalFacts {
+  if (d.bookLevel) {
+    // v501: a book-level tour has no verse range and no chapter to
+    // count, and none is fabricated — the facts say what it IS:
+    // the whole book, in ten stops, at its real duration.
+    return {
+      range: `${d.book} · the whole book`,
+      chapterLine: 'Ten stops',
+      durationLine: `${formatClock(durationSec)} · a reading of his commentary`,
+    };
+  }
   return {
     range:
       lastVerse && lastVerse > 1

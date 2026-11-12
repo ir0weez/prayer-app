@@ -55,6 +55,15 @@
 // transcript exists, follow the audio by PROPORTION
 // (character-length-weighted — see lib/devotionals.ts; NOT
 // word-sync, and no UI copy claims otherwise).
+//
+// v501: the same page serves a book-level Ten Stops tour
+// (Devotional.bookLevel, lib/ten-stops.ts). Nothing about the tour
+// is fabricated into chapter shape: the hero seat carries the
+// BOOK's name, not a numeral; the facts say the whole book, ten
+// stops, the real duration (devotionalFacts branches); the context
+// line reads "{Book} · Ten Stops" (devotionalContextLine). Its
+// audio is the downloaded local file, and with no transcript the
+// follow-along simply never renders — as for the narrations.
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -85,6 +94,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import {
   activeParagraphIndex,
   devotionalBigIdea,
+  devotionalContextLine,
   devotionalFacts,
   devotionalGuideposts,
   devotionalKey,
@@ -93,6 +103,8 @@ import {
   type DevotionalMovement,
 } from '@/lib/devotionals';
 import { devotionalAudioFor } from '@/lib/devotional-audio';
+import { getTenStops } from '@/lib/ten-stops';
+import { tenStopsLocalSource } from '@/lib/ten-stops-download';
 import { loadChapterVerses } from '@/lib/bible-v205/verses';
 import {
   consumeDevotionalExpandMorph,
@@ -221,11 +233,24 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const onBackRef = useRef(props.onBack);
   onBackRef.current = props.onBack;
 
-  // Load this chapter's devotional into the shared player. A different
-  // chapter replaces the source and plays; the same chapter (a reopen
-  // from the pill) is left exactly as it is.
+  // Load this devotional into the shared player. A different
+  // devotional replaces the source and plays; the same one (a reopen
+  // from the pill) is left exactly as it is. The source is the
+  // caller's resolver (the controller stays source-agnostic): the
+  // bundled asset for a chapter's devotional, or — for a book-level
+  // Ten Stops tour (v501) — the downloaded local file, resolved only
+  // when a disk check has found it complete (tenStopsLocalSource).
+  const tenStopsEntry = devotional.bookLevel ? getTenStops(devotional.book) : null;
   useEffect(() => {
-    openDevotional(devotional, devotionalAudioFor(devotional.book, devotional.chapter));
+    openDevotional(
+      devotional,
+      devotional.bookLevel
+        ? tenStopsEntry
+          ? tenStopsLocalSource(tenStopsEntry)
+          : null
+        : devotionalAudioFor(devotional.book, devotional.chapter),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [devotional]);
 
   const mine =
@@ -248,6 +273,9 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const guideposts = devotionalGuideposts(devotional);
   const [lastVerse, setLastVerse] = useState<number | null>(null);
   useEffect(() => {
+    // A book-level tour has no chapter to load verses for — its
+    // facts never carry a verse range (devotionalFacts branches).
+    if (devotional.bookLevel) return;
     let live = true;
     loadChapterVerses(devotional.book, devotional.chapter)
       .then((verses) => {
@@ -257,7 +285,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     return () => {
       live = false;
     };
-  }, [devotional.book, devotional.chapter]);
+  }, [devotional.book, devotional.chapter, devotional.bookLevel]);
   const facts = devotionalFacts(devotional, lastVerse, duration);
 
   // Reduce motion (the codebase's AccessibilityInfo seat): the
@@ -497,9 +525,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               the top right in its quiet tonal seat — it runs the
               same morph as the drag. */}
           <View style={styles.headerRow}>
-            <Text style={[styles.kicker, { color: theme.primary }]}>
-              {devotional.book} {devotional.chapter} · Devotional
-            </Text>
+            <Text style={[styles.kicker, { color: theme.primary }]}>{devotionalContextLine(devotional)}</Text>
             <Pressable
               onPress={minimize}
               hitSlop={10}
@@ -518,9 +544,20 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
             <Text style={[styles.bigIdea, { color: theme.accent }]}>“{bigIdea}”</Text>
           ) : null}
 
-          {/* The hero row: the numeral, and beside it the facts. */}
+          {/* The hero row: the numeral, and beside it the facts.
+              A book-level tour (v501) has no numeral to show — the
+              BOOK's name takes the hero seat instead, set smaller
+              so a word fits where a number stood. */}
           <View style={styles.heroRow}>
-            <Text style={[styles.numeral, { color: theme.primary }]}>{devotional.chapter}</Text>
+            <Text
+              style={[
+                styles.numeral,
+                { color: theme.primary },
+                devotional.bookLevel ? styles.numeralBook : null,
+              ]}
+            >
+              {devotional.bookLevel ? devotional.book : devotional.chapter}
+            </Text>
             <View style={styles.facts}>
               {facts.range ? (
                 <Text style={[styles.factStrong, { color: theme.ink }]}>{facts.range}</Text>
@@ -628,7 +665,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
             {devotional.title}
           </Text>
           <Text style={styles.pillCtx} numberOfLines={1}>
-            {devotional.book} {devotional.chapter} · Devotional
+            {devotionalContextLine(devotional)}
           </Text>
         </View>
         <View style={styles.pillSeat}>
@@ -656,6 +693,9 @@ const styles = StyleSheet.create({
   bigIdea: { fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 15.5, lineHeight: 22, marginTop: 8 },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 14 },
   numeral: { fontSize: 76, fontWeight: '800', lineHeight: 80 },
+  // v501: the book-level hero — a book's name at a measure a word
+  // can carry, in the numeral's seat and colour.
+  numeralBook: { fontSize: 34, lineHeight: 40 },
   facts: { flex: 1 },
   factStrong: { fontSize: 12.5, fontWeight: '700', lineHeight: 19 },
   fact: { fontSize: 12.5, lineHeight: 19 },

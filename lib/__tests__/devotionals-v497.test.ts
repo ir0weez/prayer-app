@@ -174,7 +174,10 @@ describe('v497 full player — Concept 2, in source', () => {
     // The surface morphs INTO the pill seat and the pill face
     // fades in over the last stretch.
     expect(listen).toContain('interpolateColor');
-    expect(listen).toContain('· Devotional');
+    // (v501 re-base: the pill face's "… · Devotional" context moved
+    // into the shared devotionalContextLine — same words for every
+    // chapter devotional, from one source.)
+    expect(listen).toContain('devotionalContextLine(devotional)');
     // Opened from the pill, it mounts as the pill and settles open.
     expect(listen).toContain('consumeDevotionalExpandMorph');
   });
@@ -207,7 +210,10 @@ describe('v497 pill — P1 + The Fill, in source', () => {
     expect(pill).toContain("backgroundColor: '#FFFFFF'");
     expect(pill).toContain('fontSize: 13.5');
     expect(pill).toContain("color: 'rgba(255,255,255,0.68)'");
-    expect(pill).toContain('· Devotional');
+    // (v501 re-base: the context line moved into the shared
+    // devotionalContextLine — same "… · Devotional" words for every
+    // chapter devotional, from one source.)
+    expect(pill).toContain('devotionalContextLine(devotional)');
     expect(pill).toContain('elevation: 12');
   });
 

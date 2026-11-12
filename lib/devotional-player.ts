@@ -12,7 +12,7 @@
 // passed in by callers so this module stays require-free.
 
 import { useSyncExternalStore } from 'react';
-import { createAudioPlayer, type AudioPlayer, type AudioStatus } from 'expo-audio';
+import { createAudioPlayer, type AudioPlayer, type AudioSource, type AudioStatus } from 'expo-audio';
 import { devotionalKey, type Devotional } from './devotionals';
 
 export interface DevotionalPlayerState {
@@ -67,7 +67,7 @@ function onStatus(status: AudioStatus) {
   emit({ devotional: state.devotional, playing: status.playing, positionSec, durationSec });
 }
 
-function ensurePlayer(source: number): AudioPlayer {
+function ensurePlayer(source: AudioSource): AudioPlayer {
   if (!player) {
     player = createAudioPlayer(source, { updateInterval: 250 });
     player.addListener('playbackStatusUpdate', onStatus);
@@ -77,13 +77,18 @@ function ensurePlayer(source: number): AudioPlayer {
 }
 
 /**
- * Load a chapter's devotional into the shared player (the full player
- * screen calls this on mount). A DIFFERENT chapter replaces the source
- * and plays from the top. The SAME chapter is left exactly as it is —
+ * Load a devotional into the shared player (the full player
+ * screen calls this on mount). A DIFFERENT devotional replaces the source
+ * and plays from the top. The SAME one is left exactly as it is —
  * reopening the player (from the pill, or the chapter door) never
  * restarts or unpauses a narration the reader paused.
+ *
+ * The source is whatever the caller's resolver holds: a bundled
+ * asset number for a chapter's devotional, or a { uri } local file
+ * for a book-level Ten Stops tour (v501) — the controller is
+ * source-agnostic, exactly as it is require-free.
  */
-export function openDevotional(devotional: Devotional, source: number | null): boolean {
+export function openDevotional(devotional: Devotional, source: AudioSource): boolean {
   if (source == null) return false;
   const p = ensurePlayer(source);
   const current = state.devotional;

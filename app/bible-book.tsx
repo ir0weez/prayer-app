@@ -62,6 +62,8 @@ import {
 } from '@/lib/bible-v205/rewards';
 import { STATUS_LABEL } from '@/components/bible-v205/blocks';
 import { BookCompleteCelebration } from '@/components/bible-v205/celebration';
+import { TenStopsCard } from '@/components/ten-stops-card';
+import { getTenStops } from '@/lib/ten-stops';
 import {
   cellDressFor,
   chapterLabel,
@@ -106,6 +108,10 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
     ? props.pane.book
     : typeof params.book === 'string' && params.book ? params.book : 'Genesis';
   const total = chapterCountFor(book);
+  // v501: a book's Ten Stops tour, where one exists (lib/ten-stops)
+  // — null for every other book, and their pages render exactly as
+  // before: the entry below simply never appears.
+  const tenStops = getTenStops(book);
   // v420: the page's own content wears the book's ROYGBIV colour
   // (bookPal); the seed palette above stays for the shared chrome —
   // the top bar with its Study Queue pill — and the PDF theme.
@@ -322,6 +328,9 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
           ) : null}
           {total} {total === 1 ? 'chapter' : 'chapters'}
         </Text>
+        {/* v501: the Ten Stops entry — the top of the chapter list,
+            before chapter 1, for the books that have a tour. */}
+        {tenStops ? <TenStopsCard entry={tenStops} palette={bookPal} /> : null}
         {/* v313: the grid at the drawing's measure — rows of five,
             10px gaps both ways, each cell flexing to the row (the
             last row pads with invisible spacers so its cells keep

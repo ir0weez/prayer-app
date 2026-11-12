@@ -26,6 +26,7 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import {
   devotionalBigIdea,
+  devotionalContextLine,
   devotionalFacts,
   devotionalGuideposts,
   devotionalRegistry,
@@ -68,7 +69,12 @@ describe('v499 page — header, in source', () => {
     expect(listen).not.toContain('topRow');
     expect(listen).not.toContain('headerStyle');
     // The kicker carries the chapter context, uppercased by style.
-    expect(listen).toContain("{devotional.book} {devotional.chapter} · Devotional");
+    // (v501 re-base: the string moved into lib/devotionals'
+    // devotionalContextLine, shared with the pill so the two
+    // surfaces can never disagree — for a chapter's devotional it
+    // returns exactly the string pinned here before.)
+    expect(listen).toContain('devotionalContextLine(devotional)');
+    expect(devotionalContextLine(genesis12)).toBe('Genesis 12 · Devotional');
     expect(listen).toContain("textTransform: 'uppercase'");
   });
 

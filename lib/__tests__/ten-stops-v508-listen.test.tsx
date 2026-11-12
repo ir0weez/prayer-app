@@ -73,6 +73,13 @@ vi.mock('react-native', () => ({
     addEventListener: () => ({ remove: () => undefined }),
   },
   PanResponder: { create: () => ({ panHandlers: {} }) },
+  // v510 rig update (2026-11-12): the listen view now registers
+  // a hardware-back close as well (its behaviour is pinned in
+  // devotional-player-v510.test.tsx); the rig doubles it
+  // inertly, like the other natives it doesn't exercise.
+  BackHandler: {
+    addEventListener: () => ({ remove: () => undefined }),
+  },
   useWindowDimensions: () => ({ width: 390, height: 844 }),
 }));
 

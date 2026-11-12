@@ -73,10 +73,32 @@
 // under the guideposts, segments grouped under their stops, the
 // spoken segment lit, every segment a seek door. See
 // TranscriptPanel below.
+//
+// v510: two fixes from Jonathan's phone (Nov 12, on v508). The
+// transcript follow-along fought him: the camera yanked the page
+// back down to the spoken segment while he was trying to scroll
+// away, and it seated that segment hard against the top edge.
+// Now the camera yields the moment he drags the page and stays
+// his for DEVOTIONAL_FOLLOW_RESUME_MS after his scroll ends (a
+// tap on a guidepost or a transcript line — a seek — re-engages
+// it at once), and the active segment seats a third of the
+// screen down from the top edge (followScrollTarget). And
+// closing the page killed the audio outright: every close path
+// now ends at the pill with the session untouched — Android
+// back runs the same hand-off as the chevron instead of popping
+// the route bare, the page content is untouchable while a
+// collapse is in flight (mid-morph the content is faded out but
+// was still tappable, so a stray tap on the invisible Stop seat
+// could run the Stop sequence and clear the session the close
+// was only supposed to minimise), and an interrupted settle
+// into the pill still completes the close instead of stranding
+// a frozen half-shrunk surface. Stop — and only Stop — still
+// ends a session.
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
+  BackHandler,
   PanResponder,
   Pressable,
   ScrollView,
@@ -155,6 +177,22 @@ const EMPHASIZED = Easing.bezier(0.2, 0, 0, 1);
  * 14px sides, 66px tall, `tabBarHeight + 10` off the bottom. */
 const PILL_SIDE = 14;
 const PILL_HEIGHT = 66;
+
+// ─── The follow-along camera (v510) ─────────────────────────────────────────
+// How long the page stays the reader's after his own scrolling
+// ends before the follow-along camera may move it again. A tap
+// on a guidepost or a transcript line (a seek) re-engages the
+// camera immediately — the grace period is only for hands-off
+// reading, never a lockout.
+export const DEVOTIONAL_FOLLOW_RESUME_MS = 6000;
+
+/** The scroll offset that seats an element (at content offset
+ * elementY) a third of the viewport below the top edge — v508's
+ * seat pinned it 24px under the edge, which read as "too high"
+ * on Jonathan's phone. Clamped at the top of the page. */
+export function followScrollTarget(elementY: number, viewportHeight: number): number {
+  return Math.max(0, Math.round(elementY - viewportHeight / 3));
+}
 
 // ─── The guideposts (IN THIS CHAPTER) ───────────────────────────────────────
 // Rendered only when the session carries real timed movements
@@ -452,12 +490,6 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const handleParaLayout = useCallback((index: number, y: number) => {
     paraY.current[index] = y;
   }, []);
-  useEffect(() => {
-    const y = paraY.current[activeIdx];
-    if (typeof y === 'number') {
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true });
-    }
-  }, [activeIdx]);
 
   // The same follow-the-voice for the transcript: segment offsets
   // are measured within the transcript panel, the panel's own
@@ -470,17 +502,120 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const handleTranscriptPanelLayout = useCallback((y: number) => {
     transcriptTop.current = y;
   }, []);
+
+  // ── v510: the follow-along camera yields to the reader ──────
+  // v508's camera scrolled on EVERY active-segment change, so a
+  // reader scrolling up to leave was yanked back down to the
+  // voice on the next segment boundary — the fight in Jonathan's
+  // Nov 12 report. Now a drag of the page suspends the camera
+  // (the highlighting keeps following; only the camera parks),
+  // and it stays parked until DEVOTIONAL_FOLLOW_RESUME_MS after
+  // his scrolling ends or a seek re-engages it at once. When the
+  // grace lapses the camera first returns to the segment being
+  // spoken, then follows as before.
+  const followSuspendedRef = useRef(false);
+  const lastManualScrollAtRef = useRef(0);
+  const followResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeParaRef = useRef(activeIdx);
+  const activeSegRef = useRef(activeSegIdx);
+
+  const scrollToActive = useCallback(() => {
+    const seg = activeSegRef.current;
+    if (seg >= 0) {
+      const y = segY.current[seg];
+      if (typeof y === 'number') {
+        scrollRef.current?.scrollTo({ y: followScrollTarget(transcriptTop.current + y, screenH), animated: true });
+        return;
+      }
+    }
+    const y = paraY.current[activeParaRef.current];
+    if (typeof y === 'number') {
+      scrollRef.current?.scrollTo({ y: followScrollTarget(y, screenH), animated: true });
+    }
+  }, [screenH]);
+
+  const engageFollow = useCallback(() => {
+    followSuspendedRef.current = false;
+    if (followResumeTimerRef.current) {
+      clearTimeout(followResumeTimerRef.current);
+      followResumeTimerRef.current = null;
+    }
+  }, []);
+
+  const armFollowResume = useCallback(() => {
+    if (followResumeTimerRef.current) clearTimeout(followResumeTimerRef.current);
+    followResumeTimerRef.current = setTimeout(() => {
+      followResumeTimerRef.current = null;
+      // Only resume if the grace has truly lapsed since his LAST
+      // scroll — a drag that ended a moment ago re-arms instead.
+      if (Date.now() - lastManualScrollAtRef.current >= DEVOTIONAL_FOLLOW_RESUME_MS) {
+        followSuspendedRef.current = false;
+        scrollToActive();
+      }
+    }, DEVOTIONAL_FOLLOW_RESUME_MS);
+  }, [scrollToActive]);
+
+  const suspendFollow = useCallback(() => {
+    followSuspendedRef.current = true;
+    lastManualScrollAtRef.current = Date.now();
+    armFollowResume();
+  }, [armFollowResume]);
+
+  // A fling keeps gliding after the finger lifts: the grace
+  // clock runs from the END of his scroll, not the grab.
+  const noteManualScrollEnd = useCallback(() => {
+    if (!followSuspendedRef.current) return;
+    lastManualScrollAtRef.current = Date.now();
+    armFollowResume();
+  }, [armFollowResume]);
+
+  useEffect(
+    () => () => {
+      if (followResumeTimerRef.current) clearTimeout(followResumeTimerRef.current);
+    },
+    [],
+  );
+
   useEffect(() => {
-    if (activeSegIdx < 0) return;
+    activeParaRef.current = activeIdx;
+    if (followSuspendedRef.current) return;
+    const y = paraY.current[activeIdx];
+    if (typeof y === 'number') {
+      scrollRef.current?.scrollTo({ y: followScrollTarget(y, screenH), animated: true });
+    }
+  }, [activeIdx, screenH]);
+
+  useEffect(() => {
+    activeSegRef.current = activeSegIdx;
+    if (activeSegIdx < 0 || followSuspendedRef.current) return;
     const y = segY.current[activeSegIdx];
     if (typeof y === 'number') {
-      scrollRef.current?.scrollTo({ y: Math.max(0, transcriptTop.current + y - 24), animated: true });
+      scrollRef.current?.scrollTo({
+        y: followScrollTarget(transcriptTop.current + y, screenH),
+        animated: true,
+      });
     }
-  }, [activeSegIdx]);
+  }, [activeSegIdx, screenH]);
 
   const seek = (fraction: number) => {
-    if (duration > 0) seekDevotional(Math.max(0, Math.min(1, fraction)) * duration);
+    if (duration > 0) {
+      // A deliberate jump on the seek bar is a "take me there" —
+      // the follow camera re-engages with it.
+      engageFollow();
+      seekDevotional(Math.max(0, Math.min(1, fraction)) * duration);
+    }
   };
+
+  // The panels' seek door (a guidepost, a transcript line): the
+  // same seek, and the same re-engagement — tapping a line is
+  // the reader asking the camera to follow again.
+  const seekAndFollow = useCallback(
+    (sec: number) => {
+      engageFollow();
+      seekDevotional(sec);
+    },
+    [engageFollow],
+  );
 
   // ── The collapse morph ──────────────────────────────────────────
   // Opened from the pill, the surface mounts ALREADY at p = 1 (the
@@ -498,6 +633,20 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const pillBottom = tabBarHeight + 10;
   const pillTop = screenH - pillBottom - PILL_HEIGHT;
 
+  // v510: a close in flight. While the surface collapses, the
+  // page content is NOT touchable (the ScrollView's
+  // pointerEvents below): mid-morph the words fade out over
+  // p 0 → 0.45 but the controls stayed live, so a stray tap on
+  // the seat the Stop button was fading from could run the Stop
+  // sequence — the close then cleared the session it was only
+  // supposed to minimise, and the pill was gone with it.
+  const [closing, setClosing] = useState(false);
+  // Every new morph driver (a settle, a drag grabbing the
+  // surface) bumps this epoch. A settle callback whose epoch has
+  // moved on was superseded; it must not hand off under the
+  // reader's finger.
+  const morphEpochRef = useRef(0);
+
   // The hand-off: raise the flag BEFORE the route closes, so the
   // root pill mounts already settled in the seat the morph landed
   // in — the swap is invisible.
@@ -507,11 +656,21 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   };
 
   const settleCollapse = (toPill: boolean) => {
+    const epoch = ++morphEpochRef.current;
+    setClosing(toPill);
     collapseP.value = withTiming(
       toPill ? 1 : 0,
       { duration: settleMs(), easing: EMPHASIZED },
       (finished) => {
-        if (finished && toPill) runOnJS(handOffAndBack)();
+        // v510: an interrupted settle into the pill still
+        // completes the close — a frozen half-shrunk surface is
+        // a dead end — UNLESS a newer driver superseded it (a
+        // drag grabbing the surface, a settle back open): the
+        // epoch says which. Either way the close is a collapse
+        // only: the session is never touched here.
+        if (toPill && (finished || morphEpochRef.current === epoch)) {
+          runOnJS(handOffAndBack)();
+        }
       },
     );
   };
@@ -530,6 +689,11 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
         onMoveShouldSetPanResponderCapture: (_e, g) =>
           !stoppingRef.current && scrollTopRef.current && g.dy > 24 && g.dy > Math.abs(g.dx) * 1.6,
         onPanResponderGrant: () => {
+          // v510: grabbing the surface supersedes any settle in
+          // flight (its callback must not hand off under the
+          // finger) and the page is the reader's again.
+          morphEpochRef.current += 1;
+          setClosing(false);
           cancelAnimation(collapseP);
           dragStartP.current = collapseP.value;
         },
@@ -546,6 +710,29 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
+
+  // ── v510: Android back is a close, and a close is a collapse ──
+  // The hardware back / edge-swipe used to pop the route bare —
+  // no morph, no hand-off flag, the one exit that never passed
+  // through the pill seat. Now back runs the same hand-off as
+  // every other close (flag raised, then the route closes, the
+  // root pill is simply there, the session untouched) and the
+  // gesture is consumed. While the Stop sequence runs it owns
+  // the exit, so back is swallowed rather than doubled.
+  const backCloseRef = useRef<() => void>(() => undefined);
+  backCloseRef.current = () => {
+    if (stoppingRef.current) return;
+    handOffAndBack();
+  };
+  useEffect(() => {
+    const sub = BackHandler?.addEventListener('hardwareBackPress', () => {
+      backCloseRef.current();
+      return true;
+    });
+    return () => {
+      sub?.remove();
+    };
+  }, []);
 
   // ── Stop: spread → hold → slide away → clear ────────────────────
   const spread = useSharedValue(0);
@@ -652,6 +839,10 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
         style={{ flex: 1 }}
         contentContainerStyle={{ flexGrow: 1 }}
         scrollEnabled={!stopping}
+        pointerEvents={closing || stopping ? 'none' : 'auto'}
+        onScrollBeginDrag={suspendFollow}
+        onScrollEndDrag={noteManualScrollEnd}
+        onMomentumScrollEnd={noteManualScrollEnd}
         onScroll={(e) => {
           scrollTopRef.current = e.nativeEvent.contentOffset.y <= 2;
         }}
@@ -759,7 +950,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               ink={theme.ink}
               inkSoft={theme.inkSoft}
               accent={theme.accent}
-              onSeek={seekDevotional}
+              onSeek={seekAndFollow}
             />
           ) : null}
 
@@ -776,7 +967,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               ink={theme.ink}
               inkSoft={theme.inkSoft}
               stopSeat={theme.stopSeat}
-              onSeek={seekDevotional}
+              onSeek={seekAndFollow}
               onSegLayout={handleSegLayout}
               onPanelLayout={handleTranscriptPanelLayout}
             />

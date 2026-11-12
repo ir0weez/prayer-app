@@ -210,7 +210,16 @@ describe('v506 Ten Stops guideposts — the transcript’s timings, in the playe
   it('the panel heads the tour THE TEN STOPS, shows passages, and every row seeks', () => {
     const listen = read('components/devotional-listen.tsx');
     expect(listen).toContain("heading={devotional.bookLevel ? 'THE TEN STOPS' : 'IN THIS CHAPTER'}");
-    expect(listen).toContain('onSeek={seekDevotional}');
+    // v510 RE-BASE (2026-11-12): the panels' seek door routes
+    // through seekAndFollow now — the same controller seek, plus
+    // the follow camera's re-engagement (a guidepost or
+    // transcript tap is the reader asking the camera to follow
+    // again, v510's yield fix). The seek itself is unchanged:
+    // seekAndFollow's body calls seekDevotional(sec) — pinned
+    // here so the indirection can never quietly become a
+    // different seek.
+    expect(listen).toContain('onSeek={seekAndFollow}');
+    expect(listen).toContain('seekDevotional(sec)');
     expect(listen).toContain('onPress={() => props.onSeek(m.startSec)}');
     expect(listen).toContain('{m.passage ? (');
   });

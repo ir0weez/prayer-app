@@ -16,9 +16,13 @@
 // seek, ONE controls row (filled-tonal Stop pill at the left margin,
 // the 64px primary play EXACTLY at the page's horizontal centre),
 // the IN THIS CHAPTER guideposts where real timed movements exist
-// (devotionalGuideposts — none ship, so the section is absent
-// rather than invented), and the follow-along words flowing in the
-// page's single scroll column — no fold, no expander.
+// (devotionalGuideposts — no chapter carries any, so for chapters
+// the section is absent rather than invented; v506: the Ten Stops
+// tour's transcript timings DO land, and its panel — headed
+// THE TEN STOPS — lists the ten stops, each row a tap-to-seek
+// door to that stop's first second), and the follow-along words
+// flowing in the page's single scroll column — no fold, no
+// expander.
 //
 // COLOURS — lib/devotional-player-theme.ts re-anchored on each
 // book's ROYGBIV band hue, saturation held (Genesis, the drawn
@@ -143,26 +147,45 @@ const PILL_SIDE = 14;
 const PILL_HEIGHT = 66;
 
 // ─── The guideposts (IN THIS CHAPTER) ───────────────────────────────────────
-// Rendered only when the chapter carries real timed movements
-// (devotionalGuideposts) — with the shipped data that is never, so
-// this panel is a seat waiting for a timed source, not a promise
-// the page makes today. Memoised: the morph never re-renders it.
+// Rendered only when the session carries real timed movements
+// (devotionalGuideposts) — for chapters that is still never, so
+// there the panel stays a seat waiting for a timed source. v506:
+// the Ten Stops tour's transcript timings landed, so a book-level
+// session's panel lists its ten stops under THE TEN STOPS. Every
+// row is a door: a tap seeks the narration to that movement's
+// first second (the controller's own seek path — source-agnostic,
+// so a tour seeks exactly as a chapter would). A movement's
+// passage, where the source names one, rides under its title.
+// Memoised: the morph never re-renders it.
 const GuidepostsPanel = memo(function GuidepostsPanel(props: {
   movements: DevotionalMovement[];
+  heading: string;
   panel: string;
   primary: string;
   ink: string;
+  inkSoft: string;
   accent: string;
+  onSeek: (sec: number) => void;
 }) {
   return (
     <View style={[styles.panel, { backgroundColor: props.panel }]}>
-      <Text style={[styles.panelTitle, { color: props.primary }]}>IN THIS CHAPTER</Text>
+      <Text style={[styles.panelTitle, { color: props.primary }]}>{props.heading}</Text>
       {props.movements.map((m, i) => (
         <View key={`${m.startSec}-${m.title}`}>
-          <View style={styles.guideRow}>
-            <Text style={[styles.guideName, { color: props.ink }]}>{m.title}</Text>
+          <Pressable
+            style={styles.guideRow}
+            onPress={() => props.onSeek(m.startSec)}
+            accessibilityRole="button"
+            accessibilityLabel={`Play from ${m.title}`}
+          >
+            <View style={styles.guideTextCol}>
+              <Text style={[styles.guideName, { color: props.ink }]}>{m.title}</Text>
+              {m.passage ? (
+                <Text style={[styles.guidePassage, { color: props.inkSoft }]}>{m.passage}</Text>
+              ) : null}
+            </View>
             <Text style={[styles.guideTime, { color: props.primary }]}>{formatClock(m.startSec)}</Text>
-          </View>
+          </Pressable>
           {i < props.movements.length - 1 ? (
             <View style={[styles.guideDivider, { backgroundColor: props.accent }]} />
           ) : null}
@@ -611,14 +634,18 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
           </View>
 
           {/* The guideposts — only where real timed movements
-              exist (none ship; see devotionalGuideposts). */}
+              exist (no chapter's do; the Ten Stops tour's ten
+              stops do, v506 — see devotionalGuideposts). */}
           {guideposts ? (
             <GuidepostsPanel
               movements={guideposts}
+              heading={devotional.bookLevel ? 'THE TEN STOPS' : 'IN THIS CHAPTER'}
               panel={theme.panel}
               primary={theme.primary}
               ink={theme.ink}
+              inkSoft={theme.inkSoft}
               accent={theme.accent}
+              onSeek={seekDevotional}
             />
           ) : null}
 
@@ -732,8 +759,10 @@ const styles = StyleSheet.create({
   },
   panel: { borderRadius: 20, paddingTop: 14, paddingHorizontal: 16, paddingBottom: 10, marginTop: 18 },
   panelTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, marginBottom: 4 },
-  guideRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, paddingVertical: 9 },
-  guideName: { fontSize: 14.5, fontWeight: '600', flex: 1 },
+  guideRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 9 },
+  guideTextCol: { flex: 1 },
+  guideName: { fontSize: 14.5, fontWeight: '600' },
+  guidePassage: { fontSize: 12.5, fontWeight: '500', marginTop: 1 },
   guideTime: { fontSize: 12.5, fontWeight: '700' },
   guideDivider: { height: StyleSheet.hairlineWidth, opacity: 0.16 },
   follow: { marginTop: 16 },

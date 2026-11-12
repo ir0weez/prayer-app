@@ -12,8 +12,14 @@
 // passed in by callers so this module stays require-free.
 
 import { useSyncExternalStore } from 'react';
-import { createAudioPlayer, type AudioPlayer, type AudioSource, type AudioStatus } from 'expo-audio';
-import { devotionalKey, type Devotional } from './devotionals';
+import {
+  createAudioPlayer,
+  setAudioModeAsync,
+  type AudioPlayer,
+  type AudioSource,
+  type AudioStatus,
+} from 'expo-audio';
+import { devotionalContextLine, devotionalKey, type Devotional } from './devotionals';
 
 export interface DevotionalPlayerState {
   /** The loaded devotional, or null when no session is live. */
@@ -77,6 +83,63 @@ function ensurePlayer(source: AudioSource): AudioPlayer {
 }
 
 /**
+ * v506 — BACKGROUND PLAYBACK. Jonathan hit this on his phone
+ * (Nov 11): the narration stopped when he left the app WITHOUT
+ * closing it. expo-audio's AudioMode.shouldPlayInBackground
+ * defaults to false, and this controller never asked for an audio
+ * mode at all (the app's only setAudioModeAsync call is the People
+ * tab's pop sound, silent-mode only). The library's Android side
+ * maps the flag to staysActiveInBackground and its manifest
+ * already declares the foreground-service permissions — the mode
+ * is the whole missing piece. Set on EVERY openDevotional call
+ * (cheap, idempotent), so a fresh app start that reopens the same
+ * devotional gets it too. Fire-and-forget: a mode the OS refuses
+ * must never break the playback it was asked to protect.
+ */
+function activateBackgroundAudio(): void {
+  try {
+    const pending = setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true });
+    if (pending && typeof pending.catch === 'function') {
+      pending.catch(() => undefined);
+    }
+  } catch {
+    // Never break playback over an audio-mode refusal.
+  }
+}
+
+/**
+ * v506 — LOCK SCREEN. Where the installed expo-audio offers it
+ * (1.1.1 does), the session also takes the lock-screen controls,
+ * wearing honest metadata only: the entry's own title, and the
+ * shared context line ("Hebrews · Ten Stops" / "Genesis 12 ·
+ * Devotional") as the album line — nothing invented. Garnish,
+ * not load-bearing: guarded so a player without the API (or an
+ * OS that refuses) plays on exactly as before.
+ */
+function activateLockScreen(p: AudioPlayer, devotional: Devotional): void {
+  try {
+    if (typeof p.setActiveForLockScreen === 'function') {
+      p.setActiveForLockScreen(true, {
+        title: devotional.title,
+        albumTitle: devotionalContextLine(devotional),
+      });
+    }
+  } catch {
+    // Lock-screen controls are garnish — never break playback.
+  }
+}
+
+function deactivateLockScreen(p: AudioPlayer): void {
+  try {
+    if (typeof p.setActiveForLockScreen === 'function') {
+      p.setActiveForLockScreen(false);
+    }
+  } catch {
+    // See activateLockScreen.
+  }
+}
+
+/**
  * Load a devotional into the shared player (the full player
  * screen calls this on mount). A DIFFERENT devotional replaces the source
  * and plays from the top. The SAME one is left exactly as it is —
@@ -90,7 +153,9 @@ function ensurePlayer(source: AudioSource): AudioPlayer {
  */
 export function openDevotional(devotional: Devotional, source: AudioSource): boolean {
   if (source == null) return false;
+  activateBackgroundAudio();
   const p = ensurePlayer(source);
+  activateLockScreen(p, devotional);
   const current = state.devotional;
   if (current && devotionalKey(current.book, current.chapter) === devotionalKey(devotional.book, devotional.chapter)) {
     return true;
@@ -169,6 +234,8 @@ export function stopDevotional(): void {
   if (player) {
     player.pause();
     void player.seekTo(0);
+    // v506: a stopped session leaves the lock screen too.
+    deactivateLockScreen(player);
   }
   if (state.devotional) emit(IDLE);
 }

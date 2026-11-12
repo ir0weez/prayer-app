@@ -15,7 +15,7 @@
 // a book. Hebrews' 18:30 middle cut is that cut — the 52-minute
 // Full Tour stays a library master, not an app download.
 
-import { formatClock, type Devotional } from './devotionals';
+import { formatClock, type Devotional, type DevotionalMovement } from './devotionals';
 
 export interface TenStops {
   book: string;
@@ -30,6 +30,11 @@ export interface TenStops {
   url: string;
   /** The file's name, on the host and in the app's ten-stops/ folder. */
   fileName: string;
+  /** The tour's ten stops as player guideposts (v506): his titles
+   * and passages, each with the second it begins in the audio —
+   * real only where a timed source (a transcript of the tour
+   * itself) produced them. */
+  movements: DevotionalMovement[];
 }
 
 const REGISTRY: TenStops[] = [
@@ -44,6 +49,24 @@ const REGISTRY: TenStops[] = [
     sizeBytes: 5854696,
     url: 'https://github.com/ir0weez/prayer-app/releases/download/ten-stops-library/hebrews-ten-stops.m4a',
     fileName: 'hebrews-ten-stops.m4a',
+    // The ten stops (v506), from the tour's own transcript (local
+    // faster-whisper run over the 18:30 app cut, 2026-11-11):
+    // each startSec is the moment that stop is ANNOUNCED by name
+    // in the audio, verified stop-by-stop in order against the
+    // transcript text. Titles and passages are Jonathan's, from
+    // his Ten Stops skeleton — nothing here is derived or guessed.
+    movements: [
+      { title: 'Lower Than Angels', passage: 'Hebrews 2:5-8', startSec: 109.3 },
+      { title: 'Grace For Sin', passage: 'Hebrews 4:14-16', startSec: 206.2 },
+      { title: 'Growing In Wisdom', passage: 'Hebrews 5:11-14', startSec: 312.0 },
+      { title: 'Growing In Faith', passage: 'Hebrews 6:1-8', startSec: 401.9 },
+      { title: 'Old Vs. New', passage: 'Hebrews 8:8-9', startSec: 496.0 },
+      { title: 'Power In the Blood', passage: 'Hebrews 9:15-22', startSec: 605.8 },
+      { title: 'Hold Fast to Jesus', passage: 'Hebrews 10:23', startSec: 690.3 },
+      { title: 'Proven By Faith', passage: 'Hebrews 11:3-12', startSec: 776.3 },
+      { title: 'Give Peace', passage: 'Hebrews 12:14-17', startSec: 862.9 },
+      { title: 'Focus on Love', passage: 'Hebrews 13:1-7', startSec: 959.3 },
+    ],
   },
 ];
 
@@ -76,11 +99,13 @@ export function formatTenStopsSize(sizeBytes: number): string {
  * The tour as a devotional-player session: a BOOK-level Devotional
  * (lib/devotionals' bookLevel) — the book's name where a chapter
  * numeral would sit, no verse facts, no follow-along paragraphs
- * (no transcript exists for the tours, so the player shows none,
- * exactly as it does for the chapter narrations). chapter is 0,
- * the deliberate non-chapter marker; the session's identity still
- * keys on book + chapter, so a tour and a chapter of the same book
- * can never be mistaken for each other.
+ * (the player shows none, exactly as it does for the chapter
+ * narrations). The tour DOES carry guideposts (v506): the ten
+ * stops ride through as movements, so the player's guideposts
+ * panel lists them and a tap seeks to the stop's first second.
+ * chapter is 0, the deliberate non-chapter marker; the session's
+ * identity still keys on book + chapter, so a tour and a chapter
+ * of the same book can never be mistaken for each other.
  */
 export function tenStopsAsDevotional(entry: TenStops): Devotional {
   return {
@@ -91,5 +116,6 @@ export function tenStopsAsDevotional(entry: TenStops): Devotional {
     durationSec: entry.durationSec,
     paragraphs: [],
     bookLevel: true,
+    movements: entry.movements.map((m) => ({ ...m })),
   };
 }

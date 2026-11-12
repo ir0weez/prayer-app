@@ -18,10 +18,15 @@ import { getChapterCount } from './bible-books';
 /** One movement of a chapter's devotional audio, for the player's
  * IN THIS CHAPTER guideposts (v499): a title from HIS text and the
  * second it begins. Times are real only where a timed source
- * exists — see devotionalGuideposts. */
+ * exists — see devotionalGuideposts. v506: a movement may also
+ * carry the passage it covers, where the timed source names one —
+ * the Ten Stops stops each carry theirs (his skeleton's passages);
+ * the panel shows it under the title when present, and chapter
+ * behaviour is unchanged when it is absent. */
 export interface DevotionalMovement {
   title: string;
   startSec: number;
+  passage?: string;
 }
 
 export interface Devotional {
@@ -55,10 +60,13 @@ export interface Devotional {
    * exists (devotionalBigIdea). Never filled by invention. */
   bigIdea?: string;
   /** v499: the audio's movements with their start times, where a
-   * REAL timed source exists. Absent on every shipped entry: no
-   * timing data exists for the narrations (see the honesty note at
-   * activeParagraphIndex), so the guideposts section renders
-   * nowhere until a timed source lands (devotionalGuideposts). */
+   * REAL timed source exists. Absent on every shipped CHAPTER
+   * entry: no timing data exists for the narrations (see the
+   * honesty note at activeParagraphIndex), so their guideposts
+   * section renders nowhere (devotionalGuideposts). The one timed
+   * source that exists today is the Ten Stops Hebrews transcript
+   * (v506) — carried not here but on the book-level session entry
+   * built in lib/ten-stops.ts. */
   movements?: DevotionalMovement[];
 }
 
@@ -1680,11 +1688,13 @@ export function devotionalBigIdea(d: Devotional): string | null {
  * activeParagraphIndex: follow-along runs by proportion because
  * "no timing data exists"), and his written commentary's sections,
  * though real, carry no audio times — so this returns null for
- * every shipped entry and the section renders nowhere, rather
- * than inventing movements or times. A movements list that fails
- * validation (fewer than two, a blank title, a time outside the
- * duration, times not strictly increasing) also reads as absent:
- * a broken list never renders.
+ * every shipped CHAPTER entry and the section renders nowhere,
+ * rather than inventing movements or times. The one real source
+ * is the Ten Stops Hebrews transcript (v506): the tour's session
+ * entry carries its ten stops, and this returns them. A movements
+ * list that fails validation (fewer than two, a blank title, a
+ * time outside the duration, times not strictly increasing) also
+ * reads as absent: a broken list never renders.
  */
 export function devotionalGuideposts(d: Devotional): DevotionalMovement[] | null {
   const movements = d.movements;
@@ -1696,7 +1706,12 @@ export function devotionalGuideposts(d: Devotional): DevotionalMovement[] | null
     if (m.startSec <= prev) return null;
     prev = m.startSec;
   }
-  return movements.map((m) => ({ title: m.title, startSec: m.startSec }));
+  // A movement's passage rides through only where the source
+  // carries one — absent stays absent, so a chapter movement's
+  // shape is exactly what it was before v506.
+  return movements.map((m) =>
+    m.passage ? { title: m.title, startSec: m.startSec, passage: m.passage } : { title: m.title, startSec: m.startSec },
+  );
 }
 
 /**

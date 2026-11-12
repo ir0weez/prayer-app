@@ -356,10 +356,21 @@ describe('v501 book-level player session', () => {
     });
   });
 
-  it('no big-idea line and no guideposts are invented for the tour', () => {
+  it('no big-idea line is invented for the tour — and its guideposts are the transcript’s, not inventions', () => {
+    // RE-BASE (v506, 2026-11-11): this pin originally expected
+    // devotionalGuideposts(tour) to be null, on the v501 premise
+    // that no timed source existed for the tour. That premise
+    // ended when the tour's own transcript was produced and its
+    // ten stop timings verified in order — the stops are real
+    // data now, carried on the registry entry, so the guideposts
+    // read as the ten stops. The big-idea half is unchanged: no
+    // source carries one, so no line is invented.
     const d = tenStopsAsDevotional(HEBREWS);
     expect(devotionalBigIdea(d)).toBeNull();
-    expect(devotionalGuideposts(d)).toBeNull();
+    const guideposts = devotionalGuideposts(d);
+    expect(guideposts).toHaveLength(10);
+    expect(guideposts![0]).toEqual({ title: 'Lower Than Angels', passage: 'Hebrews 2:5-8', startSec: 109.3 });
+    expect(guideposts![9]).toEqual({ title: 'Focus on Love', passage: 'Hebrews 13:1-7', startSec: 959.3 });
   });
 
   it('the context line is shared by pill and page, per level', () => {

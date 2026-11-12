@@ -29,6 +29,16 @@ export interface DevotionalMovement {
   passage?: string;
 }
 
+/** One spoken segment of a Ten Stops tour's transcript (v508):
+ * the second it begins and its words, from the tour's own
+ * word-timed transcript (lib/ten-stops-transcripts.ts). Segment
+ * level is the transcript's own grain — the follow-along lights
+ * the segment being spoken, never a claim of word-level sync. */
+export interface DevotionalTranscriptSegment {
+  startSec: number;
+  text: string;
+}
+
 export interface Devotional {
   book: string;
   chapter: number;
@@ -63,11 +73,19 @@ export interface Devotional {
    * REAL timed source exists. Absent on every shipped CHAPTER
    * entry: no timing data exists for the narrations (see the
    * honesty note at activeParagraphIndex), so their guideposts
-   * section renders nowhere (devotionalGuideposts). The one timed
-   * source that exists today is the Ten Stops Hebrews transcript
-   * (v506) — carried not here but on the book-level session entry
-   * built in lib/ten-stops.ts. */
+   * section renders nowhere (devotionalGuideposts). The timed
+   * sources that exist are the Ten Stops tour transcripts (v506
+   * Hebrews; v508 Genesis + Deuteronomy) — carried not here but
+   * on the book-level session entries built in lib/ten-stops.ts. */
   movements?: DevotionalMovement[];
+  /** v508: the session's transcript segments, where a REAL
+   * transcript exists — the Ten Stops tours only (their own
+   * word-timed transcripts, lib/ten-stops-transcripts.ts),
+   * carried on the book-level session the same way movements
+   * are. Absent on every chapter entry: no transcript exists for
+   * the narrations, so the player's TRANSCRIPT section renders
+   * nowhere for them — the words are never invented. */
+  transcriptSegments?: readonly DevotionalTranscriptSegment[];
 }
 
 export function devotionalKey(book: string, chapter: number): string {

@@ -16,6 +16,7 @@
 // Full Tour stays a library master, not an app download.
 
 import { formatClock, type Devotional, type DevotionalMovement } from './devotionals';
+import { tenStopsTranscript } from './ten-stops-transcripts';
 
 export interface TenStops {
   book: string;
@@ -68,6 +69,66 @@ const REGISTRY: TenStops[] = [
       { title: 'Focus on Love', passage: 'Hebrews 13:1-7', startSec: 959.3 },
     ],
   },
+  {
+    book: 'Genesis',
+    title: 'Ten Stops in Genesis',
+    // The shown duration: 22:45 = 1365s. The file itself probes
+    // at 1365.7s; the registry carries 1365 so every surface
+    // says 22:45 (NotebookLM's own shown length for the tour),
+    // as Hebrews carries its shown 1110.
+    durationSec: 1365,
+    sizeBytes: 7199654,
+    url: 'https://github.com/ir0weez/prayer-app/releases/download/ten-stops-library/genesis-ten-stops.m4a',
+    fileName: 'genesis-ten-stops.m4a',
+    // The ten stops (v508), from the tour's own transcript (local
+    // faster-whisper run over the phone copy, 2026-11-11): each
+    // startSec is the moment that stop is ANNOUNCED in the audio,
+    // verified stop-by-stop in order. The stops are the list
+    // Jonathan locked from the daily check-in sessions' verdicts
+    // on his best writing — his titles, his passages.
+    movements: [
+      { title: 'The Family of Seth', passage: 'Genesis 5:6-32', startSec: 88.9 },
+      { title: 'The Purpose of Grace', passage: 'Genesis 6:8-22', startSec: 231.5 },
+      { title: "God's Covenant With Noah", passage: 'Genesis 9:1-17', startSec: 377.6 },
+      { title: 'God Makes Abraham', passage: 'Genesis 17:1-8', startSec: 525.3 },
+      { title: 'The Lord Provides Himself', passage: 'Genesis 22:3-14', startSec: 632.7 },
+      { title: 'A Split in Family Values', passage: 'Genesis 25:24-28', startSec: 759.3 },
+      { title: 'Israel Is Born', passage: 'Genesis 32:22-32', startSec: 875.5 },
+      { title: 'The Favorite Child', passage: 'Genesis 37:1-4', startSec: 1005.3 },
+      { title: 'Joseph Reveals Himself', passage: 'Genesis 45:1-15', startSec: 1098.2 },
+      { title: 'God Meant It For Good', passage: 'Genesis 50:15-21', startSec: 1188.5 },
+    ],
+  },
+  {
+    book: 'Deuteronomy',
+    title: 'Ten Stops in Deuteronomy',
+    // The shown duration: 20:11 = 1211s. The file itself probes
+    // at 1211.5s; the registry carries 1211 so every surface
+    // says 20:11 (NotebookLM's own shown length), as above.
+    durationSec: 1211,
+    sizeBytes: 6394966,
+    url: 'https://github.com/ir0weez/prayer-app/releases/download/ten-stops-library/deuteronomy-ten-stops.m4a',
+    fileName: 'deuteronomy-ten-stops.m4a',
+    // The ten stops (v508), from the tour's own transcript (local
+    // faster-whisper run over the phone copy, 2026-11-11): each
+    // startSec is the announcement moment, verified in order.
+    // The stops are Jonathan's session-verdict list, approved
+    // 2026-11-11, with the two steering calls he delegated
+    // verified in the audio (Stop 7 carries no busy-work
+    // provision framing; Stop 5 centres on God's presence).
+    movements: [
+      { title: "Israel's Refusal to Enter the Land", passage: 'Deuteronomy 1:19-33', startSec: 103.0 },
+      { title: 'Turning Away Is Easy', passage: 'Deuteronomy 4:9-14', startSec: 292.2 },
+      { title: 'The Great Commandment', passage: 'Deuteronomy 6:1-9', startSec: 477.3 },
+      { title: "A Reminder About God's Leadership", passage: 'Deuteronomy 11:1-7', startSec: 608.7 },
+      { title: 'One Place of Worship', passage: 'Deuteronomy 12:2-14', startSec: 723.1 },
+      { title: 'God Provides', passage: 'Deuteronomy 16:9-12', startSec: 809.0 },
+      { title: 'God Provides', passage: 'Deuteronomy 18:6-8', startSec: 905.3 },
+      { title: 'Stoning Children', passage: 'Deuteronomy 21:18-21', startSec: 988.0 },
+      { title: 'Unto You A God', passage: 'Deuteronomy 29:10-13', startSec: 1067.8 },
+      { title: 'A Future Rebuilding', passage: 'Deuteronomy 30:1-10', startSec: 1118.0 },
+    ],
+  },
 ];
 
 /** Every Ten Stops tour the app knows about (a copy — callers
@@ -103,11 +164,15 @@ export function formatTenStopsSize(sizeBytes: number): string {
  * narrations). The tour DOES carry guideposts (v506): the ten
  * stops ride through as movements, so the player's guideposts
  * panel lists them and a tap seeks to the stop's first second.
- * chapter is 0, the deliberate non-chapter marker; the session's
+ * v508: it also carries its transcript (lib/ten-stops-
+ * transcripts.ts) — the tour's own words at segment level, for
+ * the player's TRANSCRIPT follow-along. chapter is 0, the
+ * deliberate non-chapter marker; the session's
  * identity still keys on book + chapter, so a tour and a chapter
  * of the same book can never be mistaken for each other.
  */
 export function tenStopsAsDevotional(entry: TenStops): Devotional {
+  const transcript = tenStopsTranscript(entry.book);
   return {
     book: entry.book,
     chapter: 0,
@@ -117,5 +182,6 @@ export function tenStopsAsDevotional(entry: TenStops): Devotional {
     paragraphs: [],
     bookLevel: true,
     movements: entry.movements.map((m) => ({ ...m })),
+    ...(transcript ? { transcriptSegments: transcript } : {}),
   };
 }

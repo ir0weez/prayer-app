@@ -227,9 +227,13 @@ describe('v507 model — the route tones derive from the book primary', () => {
 // ─── Only registered books ──────────────────────────────────────────────────
 
 describe('v507 model — only registered books carry an indicator', () => {
-  it('Genesis has no registry entry, so no surface can ever ask for its marks', () => {
-    expect(getTenStops('Genesis')).toBeNull();
+  it('an unregistered book has no entry, so no surface can ever ask for its marks', () => {
+    // v508 RE-BASE (2026-11-11): Genesis held this seat in v507;
+    // it is registered now. Joshua — commentary complete, no
+    // tour — carries the unregistered case.
+    expect(getTenStops('Joshua')).toBeNull();
     expect(getTenStops('Hebrews')).not.toBeNull();
+    expect(getTenStops('Genesis')).not.toBeNull();
   });
 });
 

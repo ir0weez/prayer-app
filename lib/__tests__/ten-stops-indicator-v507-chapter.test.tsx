@@ -16,8 +16,10 @@
 //    (verse 23's own entry) in Hebrews 10;
 //  - a chapter with no stop: the strip stands, no disc, no rail,
 //    no here-caption;
-//  - an untoured book (Genesis): no strip, no disc, no rail —
-//    the page renders exactly as before.
+//  - an untoured book: no strip, no disc, no rail — the page
+//    renders exactly as before (Genesis held this case in v507;
+//    v508 registered its tour, so Genesis 1 now pins the
+//    toured-book/no-stop-chapter case at the foot of this file).
 //
 // The render rig is v427's (SSR first paint, react-native-web),
 // unchanged.
@@ -287,15 +289,23 @@ describe('v507 chapter — Hebrews 7 (no stop)', () => {
   });
 });
 
-// ─── Genesis — an untoured book ─────────────────────────────────────────────
+// ─── Genesis 1 — a toured book's chapter with no stop ───────────────────────
 
-describe('v507 chapter — Genesis 1 (no tour)', () => {
+describe('v507 chapter — Genesis 1 (tour registered in v508; no stop in ch. 1)', () => {
+  // v508 RE-BASE (2026-11-11): this block pinned Genesis as an
+  // untoured book in v507. Genesis has a tour now, so chapter 1
+  // behaves exactly as Hebrews 7 does — the strip stands with
+  // every stop ahead, but no disc, no rail, no here-caption.
+  // (The unregistered-book case lives at the model level in
+  // ten-stops-indicator-v507.test.ts, on Joshua.)
   const html = renderChapter('Genesis', 1);
 
-  it('no indicator anywhere: no strip, no disc, no rail', () => {
-    expect(html).not.toContain('ten-stops-route-strip');
+  it('the strip stands (no stops behind), but no disc, no rail, no here-caption', () => {
+    expect(html).toContain('ten-stops-route-strip');
+    expect(html).toContain('0 stops behind you');
+    for (let s = 1; s <= 10; s++) expect(html).toContain(`ten-stop-route-dot-${s}`);
+    expect(html).not.toContain('ten-stop-route-here');
     expect(html).not.toContain('ten-stop-disc-');
     expect(html).not.toContain('ten-stop-rail-');
-    expect(html).not.toContain('stops behind you');
   });
 });

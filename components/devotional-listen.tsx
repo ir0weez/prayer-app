@@ -66,8 +66,13 @@
 // BOOK's name, not a numeral; the facts say the whole book, ten
 // stops, the real duration (devotionalFacts branches); the context
 // line reads "{Book} · Ten Stops" (devotionalContextLine). Its
-// audio is the downloaded local file, and with no transcript the
-// follow-along simply never renders — as for the narrations.
+// audio is the downloaded local file.
+//
+// v508: the tours carry their transcripts (the follow-along the
+// chapter narrations still honestly lack) — the TRANSCRIPT panel
+// under the guideposts, segments grouped under their stops, the
+// spoken segment lit, every segment a seek door. See
+// TranscriptPanel below.
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -108,6 +113,11 @@ import {
 } from '@/lib/devotionals';
 import { devotionalAudioFor } from '@/lib/devotional-audio';
 import { getTenStops } from '@/lib/ten-stops';
+import {
+  activeTenStopsTranscriptSegment,
+  tenStopsTranscriptRows,
+  type TenStopsTranscriptRow,
+} from '@/lib/ten-stops-transcripts';
 import { tenStopsLocalSource } from '@/lib/ten-stops-download';
 import { loadChapterVerses } from '@/lib/bible-v205/verses';
 import {
@@ -191,6 +201,76 @@ const GuidepostsPanel = memo(function GuidepostsPanel(props: {
           ) : null}
         </View>
       ))}
+    </View>
+  );
+});
+
+// ─── The transcript follow-along (v508, Ten Stops sessions only) ────────────
+// Owed to Jonathan explicitly: the transcript TEXT in the player,
+// not just the guidepost timings the transcript produced. A tour
+// session carries its own word-timed transcript at segment level
+// (Devotional.transcriptSegments); under the guideposts, this
+// panel lays the segments out grouped under their stop (the
+// pre-Stop-1 words under an Introduction header), each segment a
+// tap-to-seek door, the segment being spoken lit in the book's
+// washed seat — the follow-along's own active-paragraph dress,
+// no new vocabulary. The page's scroll follows the voice to the
+// active segment, as it does for paragraphs. Chapter sessions
+// carry no transcript, so the section renders nowhere for them.
+const TranscriptPanel = memo(function TranscriptPanel(props: {
+  rows: TenStopsTranscriptRow[];
+  activeIdx: number;
+  panel: string;
+  primary: string;
+  ink: string;
+  inkSoft: string;
+  stopSeat: string;
+  onSeek: (sec: number) => void;
+  onSegLayout: (index: number, y: number) => void;
+  onPanelLayout: (y: number) => void;
+}) {
+  return (
+    <View
+      style={[styles.panel, { backgroundColor: props.panel }]}
+      onLayout={(e) => props.onPanelLayout(e.nativeEvent.layout.y)}
+    >
+      <Text style={[styles.panelTitle, { color: props.primary }]}>TRANSCRIPT</Text>
+      {props.rows.map((row, i) =>
+        row.kind === 'header' ? (
+          <View key={`h-${i}`} style={styles.transcriptHead}>
+            <Text style={[styles.guideName, { color: props.primary }]}>{row.label}</Text>
+            {row.passage ? (
+              <Text style={[styles.guidePassage, { color: props.inkSoft }]}>{row.passage}</Text>
+            ) : null}
+          </View>
+        ) : (
+          <Pressable
+            key={`s-${row.index}`}
+            onLayout={(e) => props.onSegLayout(row.index, e.nativeEvent.layout.y)}
+            style={[
+              styles.transcriptSeg,
+              row.index === props.activeIdx
+                ? { backgroundColor: props.stopSeat, borderLeftColor: props.primary }
+                : { borderLeftColor: 'transparent' },
+            ]}
+            onPress={() => props.onSeek(row.startSec)}
+            accessibilityRole="button"
+            accessibilityLabel={`Play from ${formatClock(row.startSec)}`}
+          >
+            <Text
+              style={[
+                styles.paraText,
+                {
+                  color: row.index < props.activeIdx ? props.inkSoft : props.ink,
+                  opacity: row.index > props.activeIdx ? 0.75 : 1,
+                },
+              ]}
+            >
+              {row.text}
+            </Text>
+          </Pressable>
+        ),
+      )}
     </View>
   );
 });
@@ -294,6 +374,21 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   // reader came from has them cached).
   const bigIdea = devotionalBigIdea(devotional);
   const guideposts = devotionalGuideposts(devotional);
+  // v508: the tour's transcript follow-along — the session's own
+  // segments grouped under their stops, and the segment the
+  // position is inside. Book-level sessions only (chapter
+  // entries carry no transcriptSegments, so this stays null and
+  // the section renders nowhere for them).
+  const transcriptRows = useMemo(
+    () =>
+      devotional.bookLevel && devotional.transcriptSegments?.length && guideposts
+        ? tenStopsTranscriptRows(devotional.transcriptSegments, guideposts)
+        : null,
+    [devotional, guideposts],
+  );
+  const activeSegIdx = transcriptRows
+    ? activeTenStopsTranscriptSegment(devotional.transcriptSegments!, position)
+    : -1;
   const [lastVerse, setLastVerse] = useState<number | null>(null);
   useEffect(() => {
     // A book-level tour has no chapter to load verses for — its
@@ -363,6 +458,25 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
       scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true });
     }
   }, [activeIdx]);
+
+  // The same follow-the-voice for the transcript: segment offsets
+  // are measured within the transcript panel, the panel's own
+  // offset within the page — together they are the scroll seat.
+  const segY = useRef<number[]>([]);
+  const transcriptTop = useRef(0);
+  const handleSegLayout = useCallback((index: number, y: number) => {
+    segY.current[index] = y;
+  }, []);
+  const handleTranscriptPanelLayout = useCallback((y: number) => {
+    transcriptTop.current = y;
+  }, []);
+  useEffect(() => {
+    if (activeSegIdx < 0) return;
+    const y = segY.current[activeSegIdx];
+    if (typeof y === 'number') {
+      scrollRef.current?.scrollTo({ y: Math.max(0, transcriptTop.current + y - 24), animated: true });
+    }
+  }, [activeSegIdx]);
 
   const seek = (fraction: number) => {
     if (duration > 0) seekDevotional(Math.max(0, Math.min(1, fraction)) * duration);
@@ -649,6 +763,25 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
             />
           ) : null}
 
+          {/* The transcript (v508) — a tour's own words at
+              segment level, grouped under their stops, the
+              spoken segment lit; a tap on any segment seeks
+              there. Tours only: chapter sessions carry none. */}
+          {transcriptRows ? (
+            <TranscriptPanel
+              rows={transcriptRows}
+              activeIdx={activeSegIdx}
+              panel={theme.panel}
+              primary={theme.primary}
+              ink={theme.ink}
+              inkSoft={theme.inkSoft}
+              stopSeat={theme.stopSeat}
+              onSeek={seekDevotional}
+              onSegLayout={handleSegLayout}
+              onPanelLayout={handleTranscriptPanelLayout}
+            />
+          ) : null}
+
           {/* The words, where a transcript exists — flowing in the
               page's own column, nothing hidden. */}
           <FollowAlong
@@ -765,6 +898,14 @@ const styles = StyleSheet.create({
   guidePassage: { fontSize: 12.5, fontWeight: '500', marginTop: 1 },
   guideTime: { fontSize: 12.5, fontWeight: '700' },
   guideDivider: { height: StyleSheet.hairlineWidth, opacity: 0.16 },
+  transcriptHead: { marginTop: 14, marginBottom: 6 },
+  transcriptSeg: {
+    borderLeftWidth: 3,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 6,
+  },
   follow: { marginTop: 16 },
   para: { borderLeftWidth: 3, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 10 },
   paraText: { fontSize: 17, lineHeight: 26 },

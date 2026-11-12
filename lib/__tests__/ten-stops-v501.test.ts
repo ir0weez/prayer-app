@@ -125,9 +125,13 @@ async function startAndPark() {
 // ─── The registry ───────────────────────────────────────────────────────────
 
 describe('v501 Ten Stops registry', () => {
-  it('carries exactly one tour today: Hebrews, at the hosted facts', () => {
+  it('carries the tours at their hosted facts, Hebrews first', () => {
+    // v508 RE-BASE (2026-11-11): v501 shipped with exactly one
+    // tour (Hebrews). Genesis and Deuteronomy were generated,
+    // verified and hosted the same way and registered in v508 —
+    // the registry now holds three; Hebrews still leads.
     const all = tenStopsRegistry();
-    expect(all.length).toBe(1);
+    expect(all.length).toBe(3);
     const e = all[0];
     expect(e.book).toBe('Hebrews');
     expect(e.title).toBe('Ten Stops in Hebrews');
@@ -154,7 +158,10 @@ describe('v501 Ten Stops registry', () => {
   });
 
   it('books without a tour get null — no entry, no dead door', () => {
-    expect(getTenStops('Genesis')).toBeNull();
+    // v508 RE-BASE (2026-11-11): Genesis held this null seat in
+    // v501; it has a tour now. Joshua (commentary complete, no
+    // tour) carries the null case instead.
+    expect(getTenStops('Joshua')).toBeNull();
     expect(getTenStops('Romans')).toBeNull();
     expect(getTenStops('Not A Book')).toBeNull();
   });

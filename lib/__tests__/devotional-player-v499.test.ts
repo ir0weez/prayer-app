@@ -41,9 +41,8 @@ import {
   DEVOTIONAL_COLLAPSE_PILL_IN_START,
   DEVOTIONAL_COLLAPSE_THRESHOLD,
   devotionalMorphBounds,
-  devotionalMorphContentOpacity,
   devotionalMorphContentTranslateY,
-  devotionalMorphPillFaceOpacity,
+  devotionalMorphPillFaceTranslateY,
   devotionalPlayerTheme,
 } from '../devotional-player-theme';
 import { BOOK_HUE_LIGHT, bookHueFor } from '../bible-v205/book-colors';
@@ -293,25 +292,33 @@ describe('v499 transition — the demo’s mapping', () => {
     expect(DEVOTIONAL_COLLAPSE_THRESHOLD).toBe(0.35);
   });
 
-  it('content opacity and travel follow the out-window', () => {
-    expect(devotionalMorphContentOpacity(0)).toBe(1);
-    expect(devotionalMorphContentOpacity(0.225)).toBeCloseTo(0.5, 6);
-    expect(devotionalMorphContentOpacity(0.45)).toBe(0);
-    expect(devotionalMorphContentOpacity(1)).toBe(0);
+  // v512 RE-BASE (2026-11-12): the two opacity mappings this
+  // block pinned are RETIRED — Jonathan, on the v510 build:
+  // "Why does the player have this fade when it's going down?
+  // Shouldn't it just stay the same red color?" The morph is
+  // position-only now: the content keeps its 14px travel, and
+  // the pill face reveals by sliding up into the seat over the
+  // same 0.55 → 1 window. The windows themselves (0.45 / 0.55 /
+  // 14px) are unchanged and still pinned above.
+  it('content travel follows the out-window (position only — the v499 fade is retired)', () => {
     expect(devotionalMorphContentTranslateY(0)).toBeCloseTo(0, 6);
     expect(devotionalMorphContentTranslateY(0.225)).toBeCloseTo(-7, 6);
     expect(devotionalMorphContentTranslateY(0.45)).toBe(-14);
+    expect(devotionalMorphContentTranslateY(1)).toBe(-14);
   });
 
-  it('the pill face follows the in-window — and the surface is never blank between the windows', () => {
-    expect(devotionalMorphPillFaceOpacity(0)).toBe(0);
-    expect(devotionalMorphPillFaceOpacity(0.55)).toBe(0);
-    expect(devotionalMorphPillFaceOpacity(0.775)).toBeCloseTo(0.5, 6);
-    expect(devotionalMorphPillFaceOpacity(1)).toBe(1);
-    // At the midpoint neither layer is up: what shows is the
-    // coloured surface itself, mid-shrink — by design, not a gap.
-    expect(devotionalMorphContentOpacity(0.5)).toBe(0);
-    expect(devotionalMorphPillFaceOpacity(0.5)).toBe(0);
+  it('the pill face reveals by position over the in-window — and between the windows the surface is solid colour', () => {
+    // A seat of 66px: parked a full seat-height down until the
+    // window opens, home at the pill.
+    expect(devotionalMorphPillFaceTranslateY(0, 66)).toBe(66);
+    expect(devotionalMorphPillFaceTranslateY(0.55, 66)).toBe(66);
+    expect(devotionalMorphPillFaceTranslateY(0.775, 66)).toBeCloseTo(33, 6);
+    expect(devotionalMorphPillFaceTranslateY(1, 66)).toBe(0);
+    // At the midpoint the content has fully travelled and the
+    // face is still parked: what shows is the coloured surface
+    // itself, mid-shrink — solid by construction, not a fade.
+    expect(devotionalMorphContentTranslateY(0.5)).toBe(-14);
+    expect(devotionalMorphPillFaceTranslateY(0.5, 66)).toBe(66);
   });
 
   it('bounds land EXACTLY on the pill seat at p = 1 and the full frame at p = 0', () => {
@@ -413,7 +420,11 @@ describe('v499 post-Stop cleanliness', () => {
     walk(join(root, 'components'));
     expect([...consumers].sort()).toEqual(['app/devotional.tsx', 'components/devotional-listen.tsx', 'components/devotional-pill.tsx']);
     // The pill renders nothing without a session.
+    // v512 RE-BASE (2026-11-12): the second disjunct moved from
+    // the router's pathname to the controller's view-open fact —
+    // the pathname gate is the Fix 1 root cause (the pill never
+    // stood after a drag-collapse on Jonathan's phone).
     const pill = read('components/devotional-pill.tsx');
-    expect(pill).toContain("if (!devotional || pathname === '/devotional') return null;");
+    expect(pill).toContain('if (!devotional || playerViewOpen) return null;');
   });
 });

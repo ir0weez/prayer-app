@@ -65,13 +65,19 @@ vi.mock('@/lib/devotional-player', () => ({
   consumeDevotionalPillHandoff: () => false,
   requestDevotionalPillHandoff: player.pillHandoff,
   useDevotionalPlayerState: () => player.state,
+  // v512 RE-BASE (2026-11-12): the controller gained the
+  // view-open registration (Fix 1) — the listen view registers
+  // on mount/unmount, the pill reads it. This rig's pill tests
+  // drive it through nav.viewOpen below.
+  setDevotionalPlayerViewOpen: () => undefined,
+  useDevotionalPlayerViewOpen: () => nav.viewOpen,
 }));
 
 // ─── The scroll + back doubles ──────────────────────────────────────────────
 
 const scroll = vi.hoisted(() => ({ to: [] as { y: number; animated?: boolean }[] }));
 const back = vi.hoisted(() => ({ handler: null as null | (() => boolean) }));
-const nav = vi.hoisted(() => ({ pathname: '/bible-downloads' }));
+const nav = vi.hoisted(() => ({ pathname: '/bible-downloads', viewOpen: false }));
 
 vi.mock('expo-router', () => ({
   usePathname: () => nav.pathname,
@@ -418,6 +424,11 @@ describe('v510 pill — present wherever the player was opened from, gone only o
 
   async function renderPill(pathname: string) {
     nav.pathname = pathname;
+    // v512 RE-BASE (2026-11-12): the pill no longer reads the
+    // pathname at all — the contexts below differ only in the
+    // controller's view-open fact now; pathname rides along as a
+    // bystander to prove it has no say.
+    nav.viewOpen = false;
     player.state = { devotional: SESSION, playing: true, positionSec: 120, durationSec: SESSION.durationSec };
     let renderer!: ReactTestRenderer;
     await act(async () => {
@@ -436,8 +447,18 @@ describe('v510 pill — present wherever the player was opened from, gone only o
     expect(texts(renderer.root)).toContain(SESSION.title);
   });
 
-  it('renders nothing while the full player route is open', async () => {
-    const renderer = await renderPill('/devotional');
+  it('renders nothing while the full player view is open', async () => {
+    // v512 RE-BASE (2026-11-12): this test pinned "gone on the
+    // player" through pathname '/devotional'. Fix 1 moved the
+    // gate to the controller's view-open fact — the same
+    // guarantee, stated in the state that actually decides it.
+    nav.pathname = '/devotional';
+    nav.viewOpen = true;
+    player.state = { devotional: SESSION, playing: true, positionSec: 120, durationSec: SESSION.durationSec };
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<DevotionalPill />);
+    });
     expect(renderer.toJSON()).toBeNull();
   });
 });

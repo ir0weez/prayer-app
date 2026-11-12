@@ -145,7 +145,7 @@ export function BooksFilterBar({
   };
 
   return (
-    <View style={[styles.bar, { backgroundColor: palette.paper, borderColor: palette.line }]}>
+    <View style={styles.bar}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -232,18 +232,15 @@ function FilterChip({
 }
 
 const styles = StyleSheet.create({
-  // The demo's bar: a translucent strip with hairlines — here the
-  // page paper itself (it must read solid when stuck: the list
-  // scrolls beneath it), hairlines in the page line colour. The
-  // strip bleeds past the page's 16px content padding by negative
-  // margin (the demo's bar is full-width; its own row padding
-  // below restores the 16px inset for the chips themselves).
-  bar: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    marginHorizontal: -16,
-    marginTop: 16,
-  },
+  // v512: geometry-free. The seat this bar sits in on the Books
+  // page — the bleed past the page's 16px content padding, the
+  // paper ground, the hairlines, the 16px above it — is carried
+  // by the sticky host View in bible-chapters.tsx, because RN's
+  // sticky wrapper measures and takes over the DIRECT child's
+  // style: the seat must live on that child itself, not inside a
+  // component below it. The bar's own row padding below restores
+  // the 16px inset for the chips themselves.
+  bar: {},
   rowContent: { paddingHorizontal: 16, paddingVertical: 11 },
   rowInner: { flexDirection: 'row', gap: 7, position: 'relative' },
   pill: { position: 'absolute', left: 0, borderRadius: 999 },

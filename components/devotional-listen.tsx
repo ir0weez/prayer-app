@@ -109,6 +109,7 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
+  Extrapolation,
   cancelAnimation,
   interpolate,
   interpolateColor,
@@ -148,6 +149,7 @@ import {
   openDevotional,
   requestDevotionalPillHandoff,
   seekDevotional,
+  setDevotionalPlayerViewOpen,
   stopDevotional,
   toggleDevotionalPlayback,
   useDevotionalPlayerState,
@@ -382,6 +384,22 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   // Ten Stops tour (v501) — the downloaded local file, resolved only
   // when a disk check has found it complete (tenStopsLocalSource).
   const tenStopsEntry = devotional.bookLevel ? getTenStops(devotional.book) : null;
+
+  // v512: register this view's openness with the controller.
+  // The pill renders from that fact (a live session and no open
+  // player view), so the cleanup below — which runs on EVERY way
+  // this view can close: chevron, Android back, drag-collapse,
+  // an interrupted gesture, a bare route pop by any path — is
+  // what stands the pill back up, with no dependence on the
+  // morph completing, on a hand-off flag, or on the router's
+  // pathname catching up.
+  useEffect(() => {
+    setDevotionalPlayerViewOpen(true);
+    return () => {
+      setDevotionalPlayerViewOpen(false);
+    };
+  }, []);
+
   useEffect(() => {
     openDevotional(
       devotional,
@@ -518,6 +536,11 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const followResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeParaRef = useRef(activeIdx);
   const activeSegRef = useRef(activeSegIdx);
+  // v512: the React mirror of the parked camera — it seats the
+  // Catch up button (below), which exists only while the camera
+  // is parked. The ref stays the logic's source of truth; this
+  // state is set at exactly the moments the ref flips.
+  const [followParked, setFollowParked] = useState(false);
 
   const scrollToActive = useCallback(() => {
     const seg = activeSegRef.current;
@@ -536,6 +559,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
 
   const engageFollow = useCallback(() => {
     followSuspendedRef.current = false;
+    setFollowParked(false);
     if (followResumeTimerRef.current) {
       clearTimeout(followResumeTimerRef.current);
       followResumeTimerRef.current = null;
@@ -550,6 +574,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
       // scroll — a drag that ended a moment ago re-arms instead.
       if (Date.now() - lastManualScrollAtRef.current >= DEVOTIONAL_FOLLOW_RESUME_MS) {
         followSuspendedRef.current = false;
+        setFollowParked(false);
         scrollToActive();
       }
     }, DEVOTIONAL_FOLLOW_RESUME_MS);
@@ -557,6 +582,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
 
   const suspendFollow = useCallback(() => {
     followSuspendedRef.current = true;
+    setFollowParked(true);
     lastManualScrollAtRef.current = Date.now();
     armFollowResume();
   }, [armFollowResume]);
@@ -635,11 +661,12 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
 
   // v510: a close in flight. While the surface collapses, the
   // page content is NOT touchable (the ScrollView's
-  // pointerEvents below): mid-morph the words fade out over
-  // p 0 → 0.45 but the controls stayed live, so a stray tap on
-  // the seat the Stop button was fading from could run the Stop
-  // sequence — the close then cleared the session it was only
-  // supposed to minimise, and the pill was gone with it.
+  // pointerEvents below): mid-morph the words travel up over
+  // p 0 → 0.45 (v512: travel only — the fade is gone) but the
+  // controls stayed live, so a stray tap on the seat the Stop
+  // button was leaving could run the Stop sequence — the close
+  // then cleared the session it was only supposed to minimise,
+  // and the pill was gone with it.
   const [closing, setClosing] = useState(false);
   // Every new morph driver (a settle, a drag grabbing the
   // surface) bumps this epoch. A settle callback whose epoch has
@@ -803,13 +830,19 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     };
   }, [theme, pillTop, pillBottom, screenH]);
 
-  // The demo's windows: content out over 0 → 0.45 (fading and
-  // drifting up), pill face in over 0.55 → 1. The surface is never
-  // blank between them — it is a coloured, shrinking surface.
+  // The demo's windows, re-drawn v512: NO opacity anywhere in
+  // this morph (Jonathan: "Why does the player have this fade
+  // when it's going down? Shouldn't it just stay the same red
+  // color?"). Content out over 0 → 0.45 by its 14px travel alone
+  // — the shrinking surface retires it — and the pill face in
+  // over 0.55 → 1 by SLIDING up into the seat, not fading: it is
+  // seat-proportioned, bottom-anchored inside the surface and
+  // clipped by it, parked a seat-height below its seat until the
+  // window opens, fully opaque throughout. Bounds, position and
+  // colour are all the morph moves now.
   const contentStyle = useAnimatedStyle(() => {
     const p = collapseP.value;
     return {
-      opacity: interpolate(p, [0, DEVOTIONAL_COLLAPSE_CONTENT_OUT_END], [1, 0]),
       transform: [
         { translateY: interpolate(p, [0, DEVOTIONAL_COLLAPSE_CONTENT_OUT_END], [0, -DEVOTIONAL_COLLAPSE_CONTENT_TRAVEL_PX]) },
       ],
@@ -817,7 +850,13 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   });
 
   const pillFaceStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(collapseP.value, [DEVOTIONAL_COLLAPSE_PILL_IN_START, 1], [0, 1]),
+    transform: [
+      {
+        translateY:
+          PILL_HEIGHT *
+          (1 - interpolate(collapseP.value, [DEVOTIONAL_COLLAPSE_PILL_IN_START, 1], [0, 1], Extrapolation.CLAMP)),
+      },
+    ],
   }));
 
   const spreadStyle = useAnimatedStyle(() => {
@@ -1004,10 +1043,38 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
         </Svg>
       </View>
 
-      {/* The pill's own face, fading in over the morph's last
-          stretch so that at p = 1 the surface IS the pill; the
-          route then closes into the root pill in the same seat. */}
-      <Animated.View pointerEvents="none" style={[styles.pillFace, pillFaceStyle]}>
+      {/* v512: Catch up — Jonathan's ask (Nov 12): "a 'Jump' or
+          'Catch Up' button at the bottom of the screen that takes
+          you right to where the transcript currently is." It
+          exists ONLY while the follow camera is parked (the v510
+          yield state): hidden while follow is live, and never
+          offered when the session has no follow-along at all.
+          Tapping it rides the same seat math the camera uses —
+          the currently-spoken segment/paragraph a third down —
+          and re-engages follow immediately. Dressed in the
+          player's own chrome: the book family's primary, the
+          pill's capsule shape, white on it. */}
+      {followParked && !closing && !stopping && (transcriptRows != null || devotional.paragraphs.length > 0) ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Catch up to the audio"
+          onPress={() => {
+            engageFollow();
+            scrollToActive();
+          }}
+          style={[styles.catchUp, { bottom: insets.bottom + 16, backgroundColor: theme.primary }]}
+        >
+          <MaterialIcons name="my-location" size={18} color="#FFFFFF" />
+          <Text style={styles.catchUpLabel}>Catch up</Text>
+        </Pressable>
+      ) : null}
+
+      {/* The pill's own face, sliding up into the seat over the
+          morph's last stretch (v512: a position reveal, no fade —
+          the face wears the opaque primary throughout) so that at
+          p = 1 the surface IS the pill; the route then closes
+          into the root pill in the same seat. */}
+      <Animated.View pointerEvents="none" style={[styles.pillFace, { backgroundColor: theme.primary }, pillFaceStyle]}>
         <View style={styles.pillDisc}>
           <MaterialIcons name={playing ? 'pause' : 'play-arrow'} size={20} color={theme.primary} />
         </View>
@@ -1103,12 +1170,33 @@ const styles = StyleSheet.create({
   foot: { fontSize: 11, textAlign: 'center', marginTop: 10, fontStyle: 'italic' },
   hint: { fontSize: 11, textAlign: 'center', marginTop: 18 },
   topFade: { position: 'absolute', left: 0, right: 0, top: 0 },
+  catchUp: {
+    position: 'absolute',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    elevation: 6,
+    shadowColor: '#000000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    zIndex: 5,
+  },
+  catchUpLabel: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  // v512: seat-proportioned — a pill-height strip anchored to the
+  // surface's BOTTOM edge (not an absolute fill), so the slide-up
+  // reveal seats the face exactly where the pill lands, and the
+  // surface's own overflow clips the parked strip below its floor.
   pillFace: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 0,
     bottom: 0,
+    height: 66,
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 14,

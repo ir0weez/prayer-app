@@ -42,12 +42,13 @@ export const DEVOTIONAL_COLLAPSE_THRESHOLD = 0.35;
  * cubic-bezier(0.2, 0, 0, 1) (the demo's 500ms tween). */
 export const DEVOTIONAL_COLLAPSE_SETTLE_MS = 500;
 /** Collapse: the page content is fully out by this fraction of the
- * morph (the v5 demo's render(): content fades over p 0 → 0.45). */
+ * morph (the v5 demo's render(): content left over p 0 → 0.45 —
+ * a fade in the demo, position-only travel since v512). */
 export const DEVOTIONAL_COLLAPSE_CONTENT_OUT_END = 0.45;
 /** Collapse: the pill face starts arriving at this fraction and is
- * fully in at 1 (the v5 demo: pill face over p 0.55 → 1). Between
- * the two windows the surface is mid-morph — coloured, bounded,
- * never blank. */
+ * fully in at 1 (the v5 demo: pill face over p 0.55 → 1 — a fade
+ * in the demo, a slide-up reveal since v512). Between the two
+ * windows the surface is mid-morph — coloured, bounded, solid. */
 export const DEVOTIONAL_COLLAPSE_PILL_IN_START = 0.55;
 /** Collapse: the page content drifts up by this many px as it
  * leaves (the v5 demo's −14px). */
@@ -83,31 +84,44 @@ export function devotionalFillFraction(positionSec: number, durationSec: number)
   return Math.min(1, Math.max(0, positionSec / durationSec));
 }
 
-// ─── The morph's mapping (v499, ported from the v5 demo) ────────────────────
+// ─── The morph's mapping (v499, ported from the v5 demo; v512: no fades) ────
 // One progress value (0 = full page, 1 = pill) drives the collapse.
-// These pure forms pin the demo's windows so the screen's animated
-// styles and the tests read the same numbers.
+// These pure forms pin the windows so the screen's animated styles
+// and the tests read the same numbers.
+//
+// v512 (Jonathan's ruling, Nov 12): "Why does the player have this
+// fade when it's going down? Shouldn't it just stay the same red
+// color?" — the morph carries NO opacity interpolation anywhere
+// now. The surface is bounds and colour only (ground → primary),
+// fully solid from the first frame to the pill; the page content
+// keeps its 14px travel but never fades (it is the surface
+// shrinking over it that retires it); the pill face REVEALS by
+// position — it slides up into the seat over the same window the
+// fade used to occupy. The two v499 opacity mappings are retired.
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-/** Page content opacity over the morph: 1 at the page, 0 by
- * p = DEVOTIONAL_COLLAPSE_CONTENT_OUT_END, gone — not fading —
- * for the rest of the travel. */
-export function devotionalMorphContentOpacity(p: number): number {
-  return 1 - clamp01(p / DEVOTIONAL_COLLAPSE_CONTENT_OUT_END);
-}
-
 /** Page content travel over the morph: up by the demo's 14px
- * across the same window it fades in. */
+ * across the out-window — position only since v512 (the content
+ * used to fade across this window too; Jonathan ruled the fade
+ * out). */
 export function devotionalMorphContentTranslateY(p: number): number {
   return -DEVOTIONAL_COLLAPSE_CONTENT_TRAVEL_PX * clamp01(p / DEVOTIONAL_COLLAPSE_CONTENT_OUT_END);
 }
 
-/** Pill-face opacity over the morph: 0 until
- * DEVOTIONAL_COLLAPSE_PILL_IN_START, 1 at the pill. */
-export function devotionalMorphPillFaceOpacity(p: number): number {
-  return clamp01((p - DEVOTIONAL_COLLAPSE_PILL_IN_START) / (1 - DEVOTIONAL_COLLAPSE_PILL_IN_START));
+/** The pill face's reveal over the morph, as a downward offset in
+ * px: a full seat-height below its seat until
+ * DEVOTIONAL_COLLAPSE_PILL_IN_START, home (0) at the pill. The
+ * face is seat-proportioned and bottom-anchored inside the
+ * shrinking surface, clipped by it — parked a seat-height down it
+ * sits wholly below the surface's bottom edge (off-frame while
+ * the surface is page-sized, under the floor of the seat as the
+ * surface lands), and it slides up into the seat over the window.
+ * Position only; the face is fully opaque at every p. */
+export function devotionalMorphPillFaceTranslateY(p: number, seatHeightPx: number): number {
+  const t = clamp01((p - DEVOTIONAL_COLLAPSE_PILL_IN_START) / (1 - DEVOTIONAL_COLLAPSE_PILL_IN_START));
+  return seatHeightPx * (1 - t);
 }
 
 export interface DevotionalMorphSeat {

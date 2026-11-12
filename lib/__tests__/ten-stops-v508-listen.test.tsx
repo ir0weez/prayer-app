@@ -52,6 +52,9 @@ vi.mock('@/lib/devotional-player', () => ({
   consumeDevotionalExpandMorph: () => false,
   requestDevotionalPillHandoff: () => undefined,
   useDevotionalPlayerState: () => player.state,
+  // v512 RE-BASE (2026-11-12): the listen view now registers its
+  // openness with the controller on mount/unmount (Fix 1).
+  setDevotionalPlayerViewOpen: () => undefined,
 }));
 
 // ─── The native / animated neighbours ───────────────────────────────────────

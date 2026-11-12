@@ -58,6 +58,48 @@ export function useDevotionalPlayerState(): DevotionalPlayerState {
   return useSyncExternalStore(subscribe, getDevotionalPlayerSnapshot, getDevotionalPlayerSnapshot);
 }
 
+// ─── Is the full player view open? (v512) ───────────────────────────────────
+// The pill's existence used to be gated on expo-router's
+// pathname — a router-side PROXY for "the player route is not
+// open". On Jonathan's phone (Nov 12, on v510) the drag-collapse
+// closed the player surface and the audio kept playing, but the
+// pill never appeared: the session was alive in this controller
+// while nothing in the controller itself recorded that the view
+// had closed, so the pill's visibility hung entirely on router
+// state propagating back through the transparent-modal pop —
+// the one link in the chain the drag path could not guarantee.
+// The controller now owns the fact directly: the listen view
+// registers itself on mount and unregisters on unmount (its
+// cleanup runs on EVERY close path — chevron, back, drag,
+// interrupted gesture, a bare route pop by any hand), and the
+// pill renders from session state alone: a live session AND no
+// open player view. No hand-off flag, no animation completion,
+// no pathname is consulted.
+let playerViewOpen = false;
+const viewOpenListeners = new Set<() => void>();
+
+export function setDevotionalPlayerViewOpen(open: boolean): void {
+  if (playerViewOpen === open) return;
+  playerViewOpen = open;
+  for (const l of viewOpenListeners) l();
+}
+
+export function getDevotionalPlayerViewOpen(): boolean {
+  return playerViewOpen;
+}
+
+function subscribeViewOpen(listener: () => void): () => void {
+  viewOpenListeners.add(listener);
+  return () => {
+    viewOpenListeners.delete(listener);
+  };
+}
+
+/** React view over the player-view-open fact. */
+export function useDevotionalPlayerViewOpen(): boolean {
+  return useSyncExternalStore(subscribeViewOpen, getDevotionalPlayerViewOpen, getDevotionalPlayerViewOpen);
+}
+
 /** True when the loaded narration has run out (and isn't playing). */
 export function devotionalEnded(s: DevotionalPlayerState): boolean {
   return !!s.devotional && !s.playing && s.durationSec > 0 && s.positionSec >= s.durationSec - 0.25;

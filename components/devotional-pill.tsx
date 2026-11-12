@@ -4,6 +4,12 @@
 // route is not open. Tapping it (or swiping up) returns to the
 // full player; its Stop ends the session.
 //
+// v512: "the full player is not open" is now the controller's own
+// fact (lib/devotional-player's view-open registration, driven by
+// the listen view's mount/unmount), NOT the router's pathname —
+// the pathname gate is what left Jonathan's phone (Nov 12) with
+// the audio playing and no pill anywhere after a drag-collapse.
+//
 // v497 is the approved rebuild (mockups devotional-player-concepts
 // v5/v7/v8, his picks across NOV 11): the pill wears design P1 —
 // the WHOLE pill filled with the book's deep primary (a same-family
@@ -44,7 +50,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import { usePathname, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   consumeDevotionalPillHandoff,
@@ -52,6 +58,7 @@ import {
   stopDevotional,
   toggleDevotionalPlayback,
   useDevotionalPlayerState,
+  useDevotionalPlayerViewOpen,
 } from '@/lib/devotional-player';
 import { devotionalContextLine } from '@/lib/devotionals';
 import {
@@ -73,7 +80,14 @@ const PILL_HEIGHT = 66;
 export function DevotionalPill() {
   const state = useDevotionalPlayerState();
   const palette = useBiblePalette();
-  const pathname = usePathname();
+  // v512: the pill stands on the CONTROLLER's facts alone — a
+  // live session and no open player view (the listen view
+  // registers its openness in lib/devotional-player on mount /
+  // unmount). It no longer reads the router's pathname: on
+  // Jonathan's phone the drag-collapse closed the player and
+  // the audio played on, but the pill — gated on the pathname
+  // flipping away from the player route — never stood.
+  const playerViewOpen = useDevotionalPlayerViewOpen();
   const router = useRouter();
   const tabBarHeight = useTabBarOccupiedHeight();
 
@@ -94,29 +108,33 @@ export function DevotionalPill() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // v499 hand-off: the pill is root-mounted and merely renders
-  // nothing while the player route is open, so the hand-off lands
-  // on the pathname transition back. When the full player's morph
-  // settled into this seat, the listen view raised the flag just
-  // before its route closed; consuming it here snaps the settle to
-  // its end state — the morph surface already landed wearing this
-  // pill's geometry exactly, so the pill simply IS there and never
-  // replays an arrival.
-  const wasOnPlayerRef = useRef(false);
+  // v499 hand-off, re-seated v512: the pill is root-mounted and
+  // merely renders nothing while the player view is open, so the
+  // hand-off lands on the view's close — the controller's
+  // view-open fact flipping back to false, which EVERY close path
+  // produces (the listen view's unmount cleanup), pathname never
+  // consulted. When the full player's morph settled into this
+  // seat, the listen view raised the flag just before its route
+  // closed; consuming it here snaps the settle to its end state —
+  // the morph surface already landed wearing this pill's geometry
+  // exactly, so the pill simply IS there and never replays an
+  // arrival. The flag only ever suppresses the settle replay; it
+  // has never gated whether the pill stands, and still doesn't.
+  const wasPlayerOpenRef = useRef(false);
   useEffect(() => {
-    if (pathname === '/devotional') {
-      wasOnPlayerRef.current = true;
+    if (playerViewOpen) {
+      wasPlayerOpenRef.current = true;
       return;
     }
-    if (wasOnPlayerRef.current) {
-      wasOnPlayerRef.current = false;
+    if (wasPlayerOpenRef.current) {
+      wasPlayerOpenRef.current = false;
       if (consumeDevotionalPillHandoff()) {
         cancelAnimation(settle);
         settle.value = 1;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [playerViewOpen]);
 
   // The Fill's edge drift: a slow 2.1s sine while playing, frozen
   // where it stands when paused (v8's pause rule).
@@ -241,7 +259,7 @@ export function DevotionalPill() {
     };
   });
 
-  if (!devotional || pathname === '/devotional') return null;
+  if (!devotional || playerViewOpen) return null;
 
   const edgeLeft = progress * pillW - 8;
 

@@ -533,9 +533,15 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
             audio cards, the zero-books guard), so the sticky
             index below is stable however many of its conditional
             cards stand: child 0 = this cluster, child 1 = the
-            filter bar, which pins to the top while the cluster
-            scrolls away beneath it. */}
-        <View>
+            filter bar's seat, which pins to the top while the
+            cluster scrolls away beneath it.
+            v512: the cluster, the seat and the sections wrapper
+            all carry collapsable={false} — Fabric's view
+            flattening must never merge or drop one of them,
+            because the sticky bookkeeping counts NATIVE children:
+            a flattened child shifts every index under it and the
+            reserved seat stops matching the painted one. */}
+        <View collapsable={false}>
         <View style={styles.vhead}>
           <Text style={[styles.kicker, { color: palette.rasp }]}>PrayerCircle · Bible</Text>
           <Text style={[styles.h2, { color: palette.ink }, palette.h2Size != null ? { fontSize: palette.h2Size } : null]}>{possessive} Books</Text>
@@ -602,13 +608,37 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
             label sat — directly under the header cards, above
             the groups — and pinned by the scroll view's sticky
             index (child 1) so switching sections is always one
-            tap away, however far down the list he has scrolled. */}
-        <BooksFilterBar
-          palette={palette}
-          selected={chipSelection}
-          onSelect={selectFilter}
-          reduceMotion={reduceMotion}
-        />
+            tap away, however far down the list he has scrolled.
+            v512 (the gap fix): the sticky child is this dedicated
+            SEAT, not the bar component. RN's ScrollViewStickyHeader
+            takes over the direct child's style onto its animated
+            wrapper and measures the child's own box; the bar used
+            to BE that child while keeping its bleed margins,
+            paper ground and hairlines on a View INSIDE itself, so
+            the seat RN reserved (wrapper height including the
+            bar's internal 16px top margin) was never the seat the
+            bar painted (its strip bleeding −16 beyond the
+            wrapper) — and the sections under it inherited the
+            mismatch as the tall dead band under the filter row in
+            Jonathan's Nov 12 screenshot. The seat now carries the
+            geometry itself — 16px above, the full-bleed −16
+            sides, the paper ground, both hairlines — so the seat
+            RN measures, reserves and pins IS the seat that paints,
+            and the list stands directly under it. */}
+        <View
+          collapsable={false}
+          style={[
+            styles.filterSeat,
+            { backgroundColor: palette.paper, borderTopColor: palette.line, borderBottomColor: palette.line },
+          ]}
+        >
+          <BooksFilterBar
+            palette={palette}
+            selected={chipSelection}
+            onSelect={selectFilter}
+            reduceMotion={reduceMotion}
+          />
+        </View>
 
         {/* v503: the sections, inside the crossfade's one surface
             (Motion 3: the whole list moves as one — no per-card
@@ -627,11 +657,13 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
             opacity and scale are both 1, so the handoff itself
             is invisible. */}
         {listSwitching ? (
-          <ReAnimated.View style={[listAnimStyle, listPadStyle]}>
+          <ReAnimated.View collapsable={false} style={[listAnimStyle, listPadStyle]}>
             {sectionsContent}
           </ReAnimated.View>
         ) : (
-          <View style={listPadStyle}>{sectionsContent}</View>
+          <View collapsable={false} style={listPadStyle}>
+            {sectionsContent}
+          </View>
         )}
 
         {/* v265: in the pane, the pane container carries the tab
@@ -978,6 +1010,18 @@ const styles = StyleSheet.create({
   queueBtn: { borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
   queueBtnText: { fontSize: 13, fontWeight: '600' },
   page: { paddingHorizontal: 16, paddingBottom: 10 },
+  // v512: the filter bar's sticky seat — the geometry the bar
+  // itself used to carry inside the sticky child (16px above,
+  // the full-bleed −16 sides, hairlines top and bottom; the
+  // paper ground and line colour come from the palette inline).
+  // RN's sticky wrapper takes over THIS view's style and measures
+  // THIS view's box, so measured seat and painted seat are one.
+  filterSeat: {
+    marginTop: 16,
+    marginHorizontal: -16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   vhead: { alignItems: 'center', paddingTop: 26 },
   kicker: { fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', fontWeight: '700', textAlign: 'center' },
   h2: { fontSize: 34, fontWeight: '700', letterSpacing: -0.6, marginTop: 8, textAlign: 'center' },

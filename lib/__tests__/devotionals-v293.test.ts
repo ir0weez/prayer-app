@@ -170,7 +170,12 @@ describe('v293 doors and player wiring', () => {
     const pill = read('components/devotional-pill.tsx');
     expect(pill).toContain('toggleDevotionalPlayback');
     expect(pill).toContain('stopDevotional');
-    expect(pill).toContain("pathname === '/devotional'");
+    // v512 RE-BASE (2026-11-12): this asserted the pill hid on
+    // the player route's pathname. The gate is now the
+    // controller's view-open fact (Fix 1 — the pathname gate left
+    // the pill stranded after a drag-collapse).
+    expect(pill).toContain('useDevotionalPlayerViewOpen');
+    expect(pill).toContain('if (!devotional || playerViewOpen) return null;');
   });
 
   it('the route never defaults to Genesis 1 — params or live session only', () => {

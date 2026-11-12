@@ -35,7 +35,7 @@ export interface TenStopsDownloadResumable {
  * needs — nothing more, so a test double stays a page long. */
 export interface TenStopsFileSystem {
   documentDirectory: string | null;
-  getInfoAsync: (path: string) => Promise<{ exists: boolean; size?: number }>;
+  getInfoAsync: (path: string) => Promise<{ exists: boolean; size?: number; modificationTime?: number }>;
   makeDirectoryAsync: (path: string, options?: { intermediates?: boolean }) => Promise<void>;
   deleteAsync: (path: string, options?: { idempotent?: boolean }) => Promise<void>;
   createDownloadResumable: (
@@ -82,6 +82,17 @@ function tenStopsFileSystem(): TenStopsFileSystem | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * v502: the surface this module resolves — the test override when
+ * one is set, the real legacy module otherwise. Shared with
+ * lib/downloads.ts so the Downloads page reads the same disk
+ * through the same door (its registry × disk-truth list can never
+ * diverge from the per-book states above).
+ */
+export function tenStopsFileSystemSurface(): TenStopsFileSystem | null {
+  return tenStopsFileSystem();
 }
 
 /** The ten-stops/ directory URI inside the app's documents, or

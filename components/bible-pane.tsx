@@ -22,6 +22,7 @@ import BibleBooksScreen from "@/app/bible-chapters";
 import BibleBookScreen from "@/app/bible-book";
 import BibleChapterScreen from "@/app/bible-chapter";
 import BibleQueueScreen from "@/app/bible-queue";
+import BibleDownloadsScreen from "@/app/bible-downloads";
 import { useTabBarOccupiedHeight } from "@/components/app-tab-bar";
 import {
   biblePaneRouteKey,
@@ -80,6 +81,12 @@ export function BiblePane({
             return (
               <View key={key} style={entryStyle}>
                 <BibleQueueScreen pane={{ nav, focused }} />
+              </View>
+            );
+          case "downloads":
+            return (
+              <View key={key} style={entryStyle}>
+                <BibleDownloadsScreen pane={{ nav, focused }} />
               </View>
             );
         }

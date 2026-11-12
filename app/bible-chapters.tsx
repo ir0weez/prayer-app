@@ -49,6 +49,16 @@
 // included). The screen loads the imports map on focus and hands
 // it to both the grouping and every row, so the count a row prints
 // and the section it sits in are the same fact.
+// v502 (his pick, Nov 11 — downloaded-audio-on-study-v4.html,
+// "Love this. Build it."): a second card joins the Restudy card
+// at the top — Downloaded audio, seated directly under it in the
+// same anatomy (tonal tint, circular disc, title + one line,
+// chevron, whole card one tap), rendered only while at least one
+// on-demand download is verified on disk (lib/downloads.ts — the
+// v501 disk-truth rule). Its tint and disc wear the NEWEST
+// download's book family (v420 book colours); title and line keep
+// the page ink, exactly as the Restudy card keeps its own. The
+// card opens the Downloads page (app/bible-downloads.tsx).
 // v325: the v305 overall reading card is replaced by the approved
 // progress header (study-progress-concepts-v3.html, Concept 3 —
 // Two Structured Rows): both tracks, their book counts and their
@@ -104,6 +114,12 @@ import {
   type UserLabels,
 } from '@/lib/bible-v205/user-labels';
 import { bibleShellParamsForRoute, type BiblePaneNav } from '@/lib/bible-pane';
+import {
+  downloadsCardModel,
+  refreshDownloads,
+  useDownloadedAudio,
+  type DownloadsCardModel,
+} from '@/lib/downloads';
 
 const CANON = Object.keys(CHAPTER_COUNTS);
 
@@ -173,6 +189,10 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     let live = true;
     loadStudyState().then((s) => live && setStudyState(s));
     loadStudioImports().then((m) => live && setStudioImports(m));
+    // v502: the downloads list re-reads the disk on the same
+    // focus — a tour downloaded or removed on the book page (or
+    // the Downloads page) must be true here when he lands back.
+    void refreshDownloads();
     return () => {
       live = false;
     };
@@ -231,6 +251,14 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
     () => restudyQueueSummary(effectiveState),
     [effectiveState],
   );
+  // v502: the Downloaded audio card's model — invisible while
+  // nothing is verified on disk (useDownloadedAudio reads the
+  // shared disk-truth store; the focus reload above refreshes it).
+  const downloadedAudio = useDownloadedAudio();
+  const downloadsModel = useMemo(
+    () => downloadsCardModel(downloadedAudio),
+    [downloadedAudio],
+  );
   // v305: the READING aggregate over the same state — the v228 read
   // track counted by lib/bible-v205/reading-progress, a different
   // track from the study counts the sections and rows below carry.
@@ -275,6 +303,10 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
   const openQueue = () => {
     if (props.pane) props.pane.nav.openQueue();
     else router.navigate({ pathname: '/(tabs)', params: bibleShellParamsForRoute({ name: 'queue' }) });
+  };
+  const openDownloads = () => {
+    if (props.pane) props.pane.nav.openDownloads();
+    else router.navigate({ pathname: '/(tabs)', params: bibleShellParamsForRoute({ name: 'downloads' }) });
   };
 
   // v211: "mark it as current" is back — and it writes the NEW study
@@ -358,6 +390,19 @@ export default function BibleBooksScreen(props: { pane?: BibleBooksPaneProps } =
             restudy marks at all (Concept 2). */}
         {restudySummary ? (
           <RestudyQueueCard summary={restudySummary} palette={palette} onPress={openQueue} />
+        ) : null}
+
+        {/* v502: Downloaded audio — the Restudy card's sibling,
+            seated directly under it, present only while a
+            download is verified on disk. The whole card opens
+            the Downloads page. */}
+        {downloadsModel.visible && downloadsModel.newestBook ? (
+          <DownloadedAudioCard
+            model={downloadsModel}
+            book={downloadsModel.newestBook}
+            palette={palette}
+            onPress={openDownloads}
+          />
         ) : null}
 
         {totalBooks === 0 ? (
@@ -583,6 +628,50 @@ function RestudyQueueCard({
       <View style={{ flex: 1 }}>
         <Text style={[styles.queueTitle, { color: palette.ink }]}>Restudy queue</Text>
         <Text style={[styles.queueLine, { color: palette.inkSoft }]}>{summary.line}</Text>
+      </View>
+      <MaterialIcons name="chevron-right" size={22} color={palette.inkSoft} />
+    </Pressable>
+  );
+}
+
+/** v502: the Downloaded audio card — the Restudy card's sibling
+ * (his ruling on the drawing: the audio box wears a TINT the way
+ * the Restudy box does). Same anatomy, same seat rhythm, same
+ * styles: a filled tonal card at radius 24, NO outline and NO
+ * shadow; a circular disc; title + one summary line; a chevron.
+ * What differs is whose colours fill it: the ground is the newest
+ * download's book primary container and the disc its primary
+ * (the v420 book palette — Hebrews' violet today), while title,
+ * line and chevron keep the page ink, exactly as the Restudy
+ * card's do. The glyph is the download arrow — the app's own
+ * file-download mark, the same one the book page's Download
+ * button carries. It renders only while the model is visible
+ * (a download verified on disk). */
+function DownloadedAudioCard({
+  model,
+  book,
+  palette,
+  onPress,
+}: {
+  model: DownloadsCardModel;
+  book: string;
+  palette: BiblePalette;
+  onPress: () => void;
+}) {
+  const bookPal = useBookBiblePalette(book);
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Downloaded audio. ${model.line}. Open the downloads.`}
+      style={[styles.queueCard, { backgroundColor: bookPal.primCont }]}
+    >
+      <View style={[styles.queueIcon, { backgroundColor: bookPal.rasp }]}>
+        <MaterialIcons name="file-download" size={20} color="#FFFFFF" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.queueTitle, { color: palette.ink }]}>Downloaded audio</Text>
+        <Text style={[styles.queueLine, { color: palette.inkSoft }]}>{model.line}</Text>
       </View>
       <MaterialIcons name="chevron-right" size={22} color={palette.inkSoft} />
     </Pressable>

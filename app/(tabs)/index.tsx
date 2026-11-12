@@ -1230,6 +1230,7 @@ export default function HomeScreen() {
     openChapter: (book, chapter, stories) =>
       setBibleStack((s) => biblePanePush(s, { name: "chapter", book, chapter, ...(stories ? { stories: true } : {}) })),
     openQueue: () => setBibleStack((s) => biblePanePush(s, { name: "queue" })),
+    openDownloads: () => setBibleStack((s) => biblePanePush(s, { name: "downloads" })),
     openBooks: () => setBibleStack([BIBLE_PANE_ROOT_ROUTE]),
     replaceChapter: (book, chapter) =>
       setBibleStack((s) => biblePaneReplaceTop(s, { name: "chapter", book, chapter })),

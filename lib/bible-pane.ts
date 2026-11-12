@@ -27,7 +27,9 @@ export type BiblePaneRoute =
   | { name: "books"; openBookNav?: boolean }
   | { name: "book"; book: string }
   | { name: "chapter"; book: string; chapter: number; stories?: boolean }
-  | { name: "queue" };
+  | { name: "queue" }
+  // v502: the Downloaded audio page — the Books card's one door.
+  | { name: "downloads" };
 
 export const BIBLE_PANE_ROOT_ROUTE: BiblePaneRoute = { name: "books" };
 
@@ -39,6 +41,8 @@ export interface BiblePaneNav {
   openBook: (book: string) => void;
   openChapter: (book: string, chapter: number, stories?: boolean) => void;
   openQueue: () => void;
+  /** v502: the Books screen's Downloaded audio card door. */
+  openDownloads: () => void;
   openBooks: () => void;
   /** Chapter-to-chapter stepping replaces the top entry, the way
    * router.replace did — the pane stack must not grow a new entry
@@ -86,6 +90,8 @@ export function biblePaneRouteKey(route: BiblePaneRoute): string {
       return `chapter:${route.book}:${route.chapter}:${route.stories ? "stories" : "plain"}`;
     case "queue":
       return "queue";
+    case "downloads":
+      return "downloads";
   }
 }
 
@@ -107,6 +113,8 @@ export function biblePaneStackForRequest(route: BiblePaneRoute): BiblePaneRoute[
     case "chapter":
       return [BIBLE_PANE_ROOT_ROUTE, { name: "book", book: route.book }, route];
     case "queue":
+      return [BIBLE_PANE_ROOT_ROUTE, route];
+    case "downloads":
       return [BIBLE_PANE_ROOT_ROUTE, route];
   }
 }
@@ -130,6 +138,7 @@ export function bibleRouteFromShellParams(params: BibleShellParams): BiblePaneRo
     return { name: "books", openBookNav: params.bibleOpenNav === "1" ? true : undefined };
   }
   if (target === "queue") return { name: "queue" };
+  if (target === "downloads") return { name: "downloads" };
   const book = params.bibleBook;
   if (!book) return { name: "books" };
   if (target === "book") return { name: "book", book };
@@ -159,5 +168,7 @@ export function bibleShellParamsForRoute(route: BiblePaneRoute): Record<string, 
       };
     case "queue":
       return { navTab: "bible", bibleTarget: "queue" };
+    case "downloads":
+      return { navTab: "bible", bibleTarget: "downloads" };
   }
 }

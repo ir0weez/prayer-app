@@ -3953,19 +3953,26 @@ export default function HomeScreen() {
     // is a VIRTUAL birthday praise — date-derived, never stored —
     // and the card leaves the praise gold for the birthday
     // person's own accent family (derivePraiseBirthdayFamily,
-    // calibrated on the mockup's two instances): tonal surface, a
-    // BIRTHDAY TODAY line under the eyebrow, the gold star badge
-    // kept, faded confetti falling behind the content, and a wish
-    // row under the buttons riding the Reach Out card's own path
-    // (the person's page). Pray now and Post to Journal stay the
-    // hero's standing handlers keyed to the person — the virtual
-    // praise's journal body is the model's "Birthday — Today",
-    // composed by the same display rules, and nothing is written
-    // back to the person's record. Further birthday people wait
-    // in the rotating box wearing their own accent family + the
-    // BIRTHDAY TODAY marker (confetti is hero-only). Ordinary
-    // days: the model is the standing order and every paint below
-    // is the v497 gold family from pmf.
+    // calibrated on the mockup's two instances): tonal surface,
+    // the gold star badge kept, faded confetti falling behind the
+    // content, and a wish row under the buttons riding the Reach
+    // Out card's own path (the person's page). Pray now and Post
+    // to Journal stay the hero's standing handlers keyed to the
+    // person — the virtual praise's journal body is the model's
+    // "Birthday — Today", composed by the same display rules, and
+    // nothing is written back to the person's record. Further
+    // birthday people wait in the rotating box wearing their own
+    // accent family (confetti is hero-only). Ordinary days: the
+    // model is the standing order and every paint below is the
+    // v497 gold family from pmf.
+    // v500 (his Nov 11 phone verdict on v498: "I don't think it
+    // should say 'Birthday Today' twice..."): v498's standalone
+    // BIRTHDAY TODAY line under the hero eyebrow is REMOVED — the
+    // headline "Birthday" and the detail "Today" already say it.
+    // In the box the marker survives only on MANUAL rows, whose
+    // headline is their own praise's words; a virtual birthday
+    // row's headline is "Birthday" too, so it drops the marker
+    // for the same reason.
     const praisedPerson = unit.hero.person;
     const heroIsBirthday = unit.hero.kind === "birthday";
     const praiseDisplay = unit.hero.display;
@@ -4018,9 +4025,6 @@ export default function HomeScreen() {
                   <MaterialIcons name="star" size={14} color={heroAccentInk} />
                   <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: heroAccentInk }}>PRAISE · {praisedPerson.name.toUpperCase()}</Text>
                 </View>
-                {heroIsBirthday && birthdayFamily ? (
-                  <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 1.4, color: birthdayFamily.deep, marginTop: 3, marginBottom: 4 }}>BIRTHDAY TODAY</Text>
-                ) : null}
                 <Text numberOfLines={2} style={{ fontSize: 23, fontWeight: "800", lineHeight: 27, color: heroInk, marginTop: 3 }}>{praiseDisplay.headline}</Text>
                 {!!praiseDisplay.note && (
                   <Text numberOfLines={2} style={{ fontSize: 13.5, fontWeight: "600", color: heroAccentInk, marginTop: 10 }}>{praiseDisplay.note}</Text>
@@ -4070,7 +4074,7 @@ export default function HomeScreen() {
                   <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: "800", color: boxInk }}>
                     <Text style={{ color: boxEyebrow }}>PRAISE · </Text>
                     {shownExtra.name}
-                    {shownExtraEntry?.birthdayDress && shownExtraFamily ? <Text style={{ color: shownExtraFamily.deep }}> · BIRTHDAY TODAY</Text> : null}
+                    {shownExtraEntry?.birthdayDress && shownExtraEntry.kind === "manual" && shownExtraFamily ? <Text style={{ color: shownExtraFamily.deep }}> · BIRTHDAY TODAY</Text> : null}
                   </Text>
                   <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "600", color: boxEyebrow, marginTop: 1 }}>{shownExtraText}</Text>
                 </View>

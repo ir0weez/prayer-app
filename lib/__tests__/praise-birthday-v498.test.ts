@@ -3,9 +3,17 @@
  *
  * Design: praise-birthday-concepts-v7 ("Yeah that works. Build
  * it.") — on a person's birthday the hero leaves the praise gold
- * for the person's own accent family, gains a BIRTHDAY TODAY line
- * under the eyebrow, faded confetti falling behind the content,
- * and a wish row riding the Reach Out card's own path.
+ * for the person's own accent family, faded confetti falling
+ * behind the content, and a wish row riding the Reach Out card's
+ * own path.
+ *
+ * v500 (his phone verdict on v498, same day: "I don't think it
+ * should say 'Birthday Today' twice..."): the hero's standalone
+ * BIRTHDAY TODAY line under the eyebrow is REMOVED — the headline
+ * "Birthday" and the detail "Today" already say it. In the box,
+ * the marker stays only on manual rows; a virtual birthday row
+ * drops it for the same reason. Everything else about v498
+ * stands, and these pins were updated to hold the new shape.
  *
  * Amendment (his words): "The birthday should count as a Praise.
  * It should automatically show up the entire 24 hours of the day
@@ -17,9 +25,9 @@
  * midnight, and never lapses into a Renew row. The birthday
  * person's manual praises are not promoted and not duplicated —
  * they wait in the rotating box like everyone else's; further
- * birthday people appear in the box wearing their accent family +
- * the BIRTHDAY TODAY marker (confetti is hero-only). Ordinary
- * days the unit is exactly v497.
+ * birthday people appear in the box wearing their accent family
+ * (confetti is hero-only). Ordinary days the unit is exactly
+ * v497.
  *
  * Pins:
  *  (a) detection — month/day match, year-less birthdays, misses.
@@ -31,10 +39,11 @@
  *      instances reproduce exactly; other accents stay in their
  *      own hue; dark follows the people's dark pattern.
  *  (d) the confetti spec — the mockup's piece table.
- *  (e) the wiring — confetti + BIRTHDAY TODAY + the wish row
- *      exist only in the birthday state; the wish rides the Reach
- *      Out card's own router path; hero handlers are the standing
- *      ones, keyed to the person.
+ *  (e) the wiring — confetti + the box marker + the wish row
+ *      exist only in the birthday state, and the hero carries NO
+ *      standalone BIRTHDAY TODAY line (v500); the wish rides the
+ *      Reach Out card's own router path; hero handlers are the
+ *      standing ones, keyed to the person.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -326,10 +335,18 @@ describe("v498 wiring — the birthday state exists only on the birthday", () =>
     expect(praise.split("PraiseBirthdayConfetti").length - 1).toBe(1);
   });
 
-  it("BIRTHDAY TODAY: under the hero eyebrow in the deep ink, and as the dressed box row's marker", () => {
-    expect(praise).toContain("color: birthdayFamily.deep, marginTop: 3, marginBottom: 4 }}>BIRTHDAY TODAY</Text>");
+  it("v500: no BIRTHDAY TODAY line on the hero — the marker survives only on MANUAL box rows", () => {
+    // The hero's standalone line (v498's deep-ink Text under the
+    // eyebrow) is gone; "Birthday" + "Today" say it once.
+    expect(praise).not.toContain("marginBottom: 4 }}>BIRTHDAY TODAY</Text>");
+    // The string renders exactly once in the whole praise card:
+    // the rotating box's eyebrow marker.
     expect(praise).toContain(" · BIRTHDAY TODAY</Text>");
-    expect(praise.split("BIRTHDAY TODAY</Text>").length - 1).toBe(2);
+    expect(praise.split("BIRTHDAY TODAY</Text>").length - 1).toBe(1);
+    // And that marker is gated to manual entries, so a virtual
+    // birthday row — whose headline is "Birthday" too — never
+    // repeats it.
+    expect(praise).toContain('shownExtraEntry?.birthdayDress && shownExtraEntry.kind === "manual" && shownExtraFamily');
   });
 
   it("the wish row: hairline divider in the deep ink at 25%, then the centred action", () => {

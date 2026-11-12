@@ -43,8 +43,11 @@ export interface PraiseUnitHero {
 export interface PraiseUnitBoxEntry {
   person: Person;
   kind: PraiseUnitEntryKind;
-  /** True when this row wears the person's birthday family (accent
-   *  dress + the BIRTHDAY TODAY marker). Confetti stays hero-only. */
+  /** True when this row wears the person's birthday family (the
+   *  accent dress). The BIRTHDAY TODAY eyebrow marker renders only
+   *  on manual entries — a virtual entry's headline is already
+   *  "Birthday" (v500; his "say Birthday Today twice" verdict).
+   *  Confetti stays hero-only. */
   birthdayDress: boolean;
   journalText: string;
 }

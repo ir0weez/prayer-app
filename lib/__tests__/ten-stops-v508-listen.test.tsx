@@ -153,6 +153,12 @@ import { activeTenStopsTranscriptSegment, tenStopsTranscript } from '../ten-stop
 
 const GENESIS = getTenStops('Genesis')!;
 
+// v515 RE-BASE (2026-11-12): timers are faked (setTimeout /
+// clearTimeout only) so the render helper can step over the
+// player's panel-hydration tick deterministically. Nothing else
+// in this rig runs on a timer.
+vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
 function render(devotional: Devotional, positionSec: number) {
   player.state = {
     devotional,
@@ -165,6 +171,15 @@ function render(devotional: Devotional, positionSec: number) {
     renderer = TestRenderer.create(
       <DevotionalListenView devotional={devotional} onBack={() => undefined} />,
     );
+  });
+  // v515 RE-BASE (2026-11-12): the player's heavy panels (the
+  // transcript among them) now hydrate one tick AFTER the first
+  // paint — the expand-lag fix — so this rig advances past the
+  // hydration tick before asserting on the panels, exactly as a
+  // reader's screen does a frame later. The phase boundary
+  // itself is pinned in devotional-player-v515.test.tsx.
+  act(() => {
+    vi.advanceTimersByTime(1);
   });
   return renderer.root;
 }

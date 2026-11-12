@@ -92,12 +92,18 @@ describe('v499 page — header, in source', () => {
   it('the follow-along has NO fold: it is a memoised subtree rendered in the page flow', () => {
     expect(listen).toContain('const FollowAlong = memo(');
     expect(listen).toContain('<FollowAlong');
-    // Rendered unconditionally in the column — the JSX is not
-    // gated behind a conditional the way v497's sheet was.
+    // v515 RE-BASE (2026-11-12): the JSX now sits behind the
+    // panelsReady gate — v515's one-tick mount phase (the heavy
+    // panels hydrate after the first paint; the expand-lag fix).
+    // That gate is a mount phase, not a fold: no interaction
+    // opens it, it fires once a tick after mount, and from then
+    // on the subtree stands unconditionally in the column —
+    // the v499 ruling (no fold, no expander, nothing hidden
+    // behind a button) is intact, and the phase boundary is
+    // pinned by render in devotional-player-v515.test.tsx.
     const idx = listen.indexOf('<FollowAlong');
     const before = listen.slice(Math.max(0, idx - 200), idx);
-    expect(before).not.toContain('? (');
-    expect(before).not.toContain('&& (');
+    expect(before).toContain('panelsReady ? (');
     // The guideposts panel is memoised too, so the morph never
     // re-renders either subtree frame by frame.
     expect(listen).toContain('const GuidepostsPanel = memo(');
@@ -105,7 +111,12 @@ describe('v499 page — header, in source', () => {
 
   it('the guideposts section renders ONLY behind the data gate', () => {
     expect(listen).toContain('IN THIS CHAPTER');
-    expect(listen).toContain('{guideposts ? (');
+    // v515 RE-BASE (2026-11-12): the gate is now the data gate
+    // AND v515's panelsReady mount phase (one tick, automatic —
+    // see the follow-along pin above). The data gate still
+    // decides alone whether the section can EVER render: with
+    // no timed movements it renders at no phase.
+    expect(listen).toContain('{panelsReady && guideposts ? (');
     expect(listen).toContain('const guideposts = devotionalGuideposts(devotional);');
     // The big-idea line is gated the same way.
     expect(listen).toContain('{bigIdea ? (');

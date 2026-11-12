@@ -94,6 +94,32 @@
 // into the pill still completes the close instead of stranding
 // a frozen half-shrunk surface. Stop — and only Stop — still
 // ends a session.
+//
+// v515: the EXPAND LAG (Jonathan's recording, Nov 12, on v512 —
+// collapse now lands on the pill correctly, but tapping the pill
+// to re-open hangs on a full screen of solid book colour for
+// over a second before any player content paints). The cause:
+// the listen view unmounts whole on collapse, so an expand is a
+// from-scratch mount of the ENTIRE page in one synchronous first
+// render — for a Ten Stops tour that is the transcript panel's
+// ~300–500 segment Pressables, every one with its own layout
+// callback, inside an unvirtualised ScrollView. The coloured
+// surface (one view, driven by the UI-thread morph) is ready at
+// once; the content tree behind it is still being built, so the
+// first frames go to building, not to the page simply being
+// there — the same failure family as the Pour fix ("the panel
+// was being built twice from scratch on every open"). The fix
+// phases the mount: the FIRST render carries only the light face
+// — header, title, hero, seek, controls, the pill face — and the
+// three heavy panels below the controls (guideposts, transcript,
+// follow-along paragraphs) hydrate one tick later, after that
+// first paint is on screen. The morph, the session, and every
+// behaviour once the page is up are untouched; the panels arrive
+// in a single commit a frame or two behind the face, below the
+// fold line of the controls, instead of holding the whole page
+// hostage. A side effect of the light first render: the expand
+// morph's own start (gated on the reduce-motion answer) is no
+// longer serialised behind the heavy build either.
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -445,6 +471,24 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const activeSegIdx = transcriptRows
     ? activeTenStopsTranscriptSegment(devotional.transcriptSegments!, position)
     : -1;
+
+  // ── v515: the heavy panels hydrate after the first paint ────
+  // The first render of this view is the light face only (see
+  // the header note): the guideposts, the transcript, and the
+  // follow-along paragraphs — the subtrees whose from-scratch
+  // build held the expanded surface blank on Jonathan's phone —
+  // mount one tick later, in a single commit, once the face is
+  // on screen. Their data (rows, movements, active indices) is
+  // computed on the first render exactly as before; only their
+  // MOUNT waits. The follow camera's layout seats (segY / paraY)
+  // populate when the panels land, and its effects already guard
+  // on a seat existing, so the brief window behaves exactly as
+  // the same window did while layout lagged the old first mount.
+  const [panelsReady, setPanelsReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setPanelsReady(true), 0);
+    return () => clearTimeout(t);
+  }, []);
   const [lastVerse, setLastVerse] = useState<number | null>(null);
   useEffect(() => {
     // A book-level tour has no chapter to load verses for — its
@@ -979,8 +1023,9 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
 
           {/* The guideposts — only where real timed movements
               exist (no chapter's do; the Ten Stops tour's ten
-              stops do, v506 — see devotionalGuideposts). */}
-          {guideposts ? (
+              stops do, v506 — see devotionalGuideposts). v515:
+              part of the post-first-paint hydration (see above). */}
+          {panelsReady && guideposts ? (
             <GuidepostsPanel
               movements={guideposts}
               heading={devotional.bookLevel ? 'THE TEN STOPS' : 'IN THIS CHAPTER'}
@@ -996,8 +1041,11 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
           {/* The transcript (v508) — a tour's own words at
               segment level, grouped under their stops, the
               spoken segment lit; a tap on any segment seeks
-              there. Tours only: chapter sessions carry none. */}
-          {transcriptRows ? (
+              there. Tours only: chapter sessions carry none.
+              v515: hydrates with the panels (see above) — its
+              ~300–500 rows were the build that held the expand
+              on a bare coloured screen. */}
+          {panelsReady && transcriptRows ? (
             <TranscriptPanel
               rows={transcriptRows}
               activeIdx={activeSegIdx}
@@ -1013,16 +1061,19 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
           ) : null}
 
           {/* The words, where a transcript exists — flowing in the
-              page's own column, nothing hidden. */}
-          <FollowAlong
-            paragraphs={devotional.paragraphs}
-            activeIdx={activeIdx}
-            stopSeat={theme.stopSeat}
-            primary={theme.primary}
-            ink={theme.ink}
-            inkSoft={theme.inkSoft}
-            onParaLayout={handleParaLayout}
-          />
+              page's own column, nothing hidden. v515: hydrates
+              with the panels (see above). */}
+          {panelsReady ? (
+            <FollowAlong
+              paragraphs={devotional.paragraphs}
+              activeIdx={activeIdx}
+              stopSeat={theme.stopSeat}
+              primary={theme.primary}
+              ink={theme.ink}
+              inkSoft={theme.inkSoft}
+              onParaLayout={handleParaLayout}
+            />
+          ) : null}
           <Text style={[styles.hint, { color: theme.inkSoft }]}>Swipe down to keep listening while you study</Text>
         </Animated.View>
       </ScrollView>

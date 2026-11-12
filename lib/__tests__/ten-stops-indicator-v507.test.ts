@@ -231,7 +231,10 @@ describe('v507 model — only registered books carry an indicator', () => {
     // v508 RE-BASE (2026-11-11): Genesis held this seat in v507;
     // it is registered now. Joshua — commentary complete, no
     // tour — carries the unregistered case.
-    expect(getTenStops('Joshua')).toBeNull();
+    // v511 RE-BASE (2026-11-12): Joshua is registered now too.
+    // Ruth — commentary complete, no tour — carries the
+    // unregistered case.
+    expect(getTenStops('Ruth')).toBeNull();
     expect(getTenStops('Hebrews')).not.toBeNull();
     expect(getTenStops('Genesis')).not.toBeNull();
   });

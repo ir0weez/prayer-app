@@ -73,9 +73,13 @@ const DEUTERONOMY_STOPS = [
 
 describe('v508 Ten Stops registry — three tours', () => {
   it('exactly three, in the order Hebrews, Genesis, Deuteronomy', () => {
+    // v511 RE-BASE (2026-11-12): Joshua was generated, verified
+    // and hosted the same way and registered in v511, appended
+    // after Deuteronomy — the registry now holds four; the
+    // v508 three still lead in the same order.
     const all = tenStopsRegistry();
-    expect(all.length).toBe(3);
-    expect(all.map((e) => e.book)).toEqual(['Hebrews', 'Genesis', 'Deuteronomy']);
+    expect(all.length).toBe(4);
+    expect(all.map((e) => e.book)).toEqual(['Hebrews', 'Genesis', 'Deuteronomy', 'Joshua']);
   });
 
   it('Genesis at its hosted facts', () => {
@@ -244,7 +248,12 @@ describe('v508 transcripts — the tours’ own words, at segment level', () => 
     expect(tenStopsTranscript('Hebrews')).toHaveLength(201);
     expect(tenStopsTranscript('Genesis')).toHaveLength(506);
     expect(tenStopsTranscript('Deuteronomy')).toHaveLength(400);
-    expect(tenStopsTranscript('Joshua')).toBeNull();
+    // v511 RE-BASE (2026-11-12): Joshua's transcript landed
+    // with its tour in v511 (289 segments; pinned in
+    // ten-stops-v511.test.ts). Ruth — no tour — carries the
+    // null case instead.
+    expect(tenStopsTranscript('Joshua')).toHaveLength(289);
+    expect(tenStopsTranscript('Ruth')).toBeNull();
   });
 
   it('segments open at 0 and stay in spoken order for every tour', () => {

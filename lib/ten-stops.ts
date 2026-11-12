@@ -129,6 +129,35 @@ const REGISTRY: TenStops[] = [
       { title: 'A Future Rebuilding', passage: 'Deuteronomy 30:1-10', startSec: 1118.0 },
     ],
   },
+  {
+    book: 'Joshua',
+    title: 'Ten Stops in Joshua',
+    // The shown duration: 25:33 = 1533s. The file itself probes
+    // at 1533.5s; the registry carries 1533 so every surface
+    // says 25:33 (NotebookLM's own shown length), as above.
+    durationSec: 1533,
+    sizeBytes: 8094054,
+    url: 'https://github.com/ir0weez/prayer-app/releases/download/ten-stops-library/joshua-ten-stops.m4a',
+    fileName: 'joshua-ten-stops.m4a',
+    // The ten stops (v511), from the tour's own transcript (local
+    // faster-whisper run over the phone copy, 2026-11-12): each
+    // startSec is the announcement moment, verified in order.
+    // The stops are Jonathan's session-verdict list, approved
+    // 2026-11-12 — no steering calls were needed (none of the
+    // ten carries a superseded position).
+    movements: [
+      { title: 'God Encourages Joshua', passage: 'Joshua 1:1-9', startSec: 119.9 },
+      { title: 'Spies Sent', passage: 'Joshua 2:1-7', startSec: 270.0 },
+      { title: 'A Time of Rest', passage: 'Joshua 5:2-9', startSec: 427.9 },
+      { title: 'The Hurtful End', passage: 'Joshua 7:22-26', startSec: 565.6 },
+      { title: 'Tricking Ai', passage: 'Joshua 8:3-9', startSec: 710.3 },
+      { title: 'The Miracles of God', passage: 'Joshua 10:12-14', startSec: 824.4 },
+      { title: 'Outside the Land', passage: 'Joshua 12:1-6', startSec: 950.7 },
+      { title: 'A Promise Kept', passage: 'Joshua 14:13-15', startSec: 1075.2 },
+      { title: "Land's Still Missing Inheritance", passage: 'Joshua 18:1-7', startSec: 1204.4 },
+      { title: 'The Accusation', passage: 'Joshua 22:13-20', startSec: 1304.7 },
+    ],
+  },
 ];
 
 /** Every Ten Stops tour the app knows about (a copy — callers

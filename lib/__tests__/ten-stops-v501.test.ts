@@ -130,8 +130,11 @@ describe('v501 Ten Stops registry', () => {
     // tour (Hebrews). Genesis and Deuteronomy were generated,
     // verified and hosted the same way and registered in v508 —
     // the registry now holds three; Hebrews still leads.
+    // v511 RE-BASE (2026-11-12): Joshua was generated, verified
+    // and hosted the same way and registered in v511 — the
+    // registry now holds four; Hebrews still leads.
     const all = tenStopsRegistry();
-    expect(all.length).toBe(3);
+    expect(all.length).toBe(4);
     const e = all[0];
     expect(e.book).toBe('Hebrews');
     expect(e.title).toBe('Ten Stops in Hebrews');
@@ -161,7 +164,10 @@ describe('v501 Ten Stops registry', () => {
     // v508 RE-BASE (2026-11-11): Genesis held this null seat in
     // v501; it has a tour now. Joshua (commentary complete, no
     // tour) carries the null case instead.
-    expect(getTenStops('Joshua')).toBeNull();
+    // v511 RE-BASE (2026-11-12): Joshua has a tour now too.
+    // Ruth (commentary complete, no tour) carries the null
+    // case instead.
+    expect(getTenStops('Ruth')).toBeNull();
     expect(getTenStops('Romans')).toBeNull();
     expect(getTenStops('Not A Book')).toBeNull();
   });

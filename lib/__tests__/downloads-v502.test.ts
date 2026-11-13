@@ -413,8 +413,10 @@ describe('v502 — no audio ships in the app', () => {
     return out;
   }
 
-  it('assets/ still holds exactly the 189 bundled chapter devotionals', () => {
+  // v523 re-pin: the bundled set moved 189 → 214 when 2 Kings
+  // (25 chapters) registered.
+  it('assets/ still holds exactly the 214 bundled chapter devotionals', () => {
     const files = walk(join(root, 'assets'));
-    expect(files.filter((f) => f.endsWith('.m4a')).length).toBe(189);
+    expect(files.filter((f) => f.endsWith('.m4a')).length).toBe(214);
   });
 });

@@ -18,7 +18,8 @@
 //     passages, those seconds), the session returns them through
 //     devotionalGuideposts, a tap seeks through the controller's
 //     own seek path — and a chapter devotional still returns null:
-//     nothing was invented for the 189 narrations.
+//     nothing was invented for the 214 narrations. (v523 re-pin:
+//     2 Kings registered, 189 → 214.)
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'fs';

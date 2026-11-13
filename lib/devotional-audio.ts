@@ -1,4 +1,4 @@
-// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings) ────
+// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings → v523: 2 Kings) ────
 // The require() calls for bundled devotional audio live here — and ONLY
 // here — so lib/devotionals.ts (the registry + math) stays import-pure
 // for tests. One line per narration, keyed exactly like the registry.
@@ -197,6 +197,31 @@ const AUDIO: Record<string, number> = {
   [devotionalKey('1 Kings', 20)]: require('@/assets/audio/devotional-1kings-20.m4a'),
   [devotionalKey('1 Kings', 21)]: require('@/assets/audio/devotional-1kings-21.m4a'),
   [devotionalKey('1 Kings', 22)]: require('@/assets/audio/devotional-1kings-22.m4a'),
+  [devotionalKey('2 Kings', 1)]: require('@/assets/audio/devotional-2kings-1.m4a'),
+  [devotionalKey('2 Kings', 2)]: require('@/assets/audio/devotional-2kings-2.m4a'),
+  [devotionalKey('2 Kings', 3)]: require('@/assets/audio/devotional-2kings-3.m4a'),
+  [devotionalKey('2 Kings', 4)]: require('@/assets/audio/devotional-2kings-4.m4a'),
+  [devotionalKey('2 Kings', 5)]: require('@/assets/audio/devotional-2kings-5.m4a'),
+  [devotionalKey('2 Kings', 6)]: require('@/assets/audio/devotional-2kings-6.m4a'),
+  [devotionalKey('2 Kings', 7)]: require('@/assets/audio/devotional-2kings-7.m4a'),
+  [devotionalKey('2 Kings', 8)]: require('@/assets/audio/devotional-2kings-8.m4a'),
+  [devotionalKey('2 Kings', 9)]: require('@/assets/audio/devotional-2kings-9.m4a'),
+  [devotionalKey('2 Kings', 10)]: require('@/assets/audio/devotional-2kings-10.m4a'),
+  [devotionalKey('2 Kings', 11)]: require('@/assets/audio/devotional-2kings-11.m4a'),
+  [devotionalKey('2 Kings', 12)]: require('@/assets/audio/devotional-2kings-12.m4a'),
+  [devotionalKey('2 Kings', 13)]: require('@/assets/audio/devotional-2kings-13.m4a'),
+  [devotionalKey('2 Kings', 14)]: require('@/assets/audio/devotional-2kings-14.m4a'),
+  [devotionalKey('2 Kings', 15)]: require('@/assets/audio/devotional-2kings-15.m4a'),
+  [devotionalKey('2 Kings', 16)]: require('@/assets/audio/devotional-2kings-16.m4a'),
+  [devotionalKey('2 Kings', 17)]: require('@/assets/audio/devotional-2kings-17.m4a'),
+  [devotionalKey('2 Kings', 18)]: require('@/assets/audio/devotional-2kings-18.m4a'),
+  [devotionalKey('2 Kings', 19)]: require('@/assets/audio/devotional-2kings-19.m4a'),
+  [devotionalKey('2 Kings', 20)]: require('@/assets/audio/devotional-2kings-20.m4a'),
+  [devotionalKey('2 Kings', 21)]: require('@/assets/audio/devotional-2kings-21.m4a'),
+  [devotionalKey('2 Kings', 22)]: require('@/assets/audio/devotional-2kings-22.m4a'),
+  [devotionalKey('2 Kings', 23)]: require('@/assets/audio/devotional-2kings-23.m4a'),
+  [devotionalKey('2 Kings', 24)]: require('@/assets/audio/devotional-2kings-24.m4a'),
+  [devotionalKey('2 Kings', 25)]: require('@/assets/audio/devotional-2kings-25.m4a'),
 };
 
 /** The bundled audio module for a chapter's devotional, or null. */

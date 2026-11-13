@@ -12,6 +12,18 @@
  * at the follow seat (active line a third down) and re-engages
  * follow immediately, for a Ten Stops tour (transcript) and a
  * chapter devotional (paragraphs) alike.
+ *
+ * v520 RE-BASE (2026-11-13): the tour half is re-pinned to
+ * Jonathan's directed design. A transcript session has no
+ * follow camera to park, so the pill's standing fact changed:
+ * it stands whenever the spoken segment is outside the
+ * reader's current view, and the tap is the ONLY follow —
+ * one snap to the spoken segment (armed through the window
+ * when its row hasn't measured; completed off the real
+ * measurement), after which nothing follows and the pill
+ * returns when the voice leaves the view again. The chapter
+ * half below stands EXACTLY as written in v512: the paragraph
+ * camera, its park, and its re-engagement are unchanged.
  */
 import React from 'react';
 import TestRenderer, { act, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
@@ -163,10 +175,15 @@ vi.mock('../../components/wavy-progress', () => ({
   WavyProgress: 'WavyProgress',
 }));
 
-import { DevotionalListenView, followScrollTarget } from '../../components/devotional-listen';
-import { formatClock, getDevotional, type Devotional } from '../devotionals';
+import {
+  DevotionalListenView,
+  followScrollTarget,
+  transcriptCharsPerLine,
+  transcriptRowOffsets,
+} from '../../components/devotional-listen';
+import { devotionalGuideposts, formatClock, getDevotional, type Devotional } from '../devotionals';
 import { getTenStops, tenStopsAsDevotional } from '../ten-stops';
-import { tenStopsTranscript } from '../ten-stops-transcripts';
+import { tenStopsTranscript, tenStopsTranscriptRows } from '../ten-stops-transcripts';
 
 const VIEWPORT_H = 844;
 const PANEL_TOP = 500;
@@ -174,6 +191,9 @@ const segY = (index: number) => index * 100;
 
 const TOUR = tenStopsAsDevotional(getTenStops('Genesis')!);
 const SEGS = tenStopsTranscript('Genesis')!;
+const ROWS = tenStopsTranscriptRows(SEGS, devotionalGuideposts(TOUR)!);
+const rowOfSeg = (segIndex: number) =>
+  ROWS.findIndex((r) => r.kind === 'segment' && r.index === segIndex);
 const inSeg = (index: number) => SEGS[index].startSec + 0.05;
 
 const CHAPTER_BASE = getDevotional('Genesis', 12)!;
@@ -257,39 +277,68 @@ afterEach(() => {
 });
 
 describe('v512 Catch up — a Ten Stops tour (transcript follow-along)', () => {
-  it('hidden while follow is live, appears when parked, tap rides to the spoken segment and re-engages follow', async () => {
-    const renderer = await renderPlayer(TOUR, inSeg(5));
+  // v520 RE-BASE (2026-11-13): the v512 standing (hidden while
+  // follow is live, appears when the camera parks, tap
+  // re-engages follow) described a camera that no longer
+  // exists for transcripts. The pill's new standing and the
+  // tap's new semantics are pinned here; the dress, the seat
+  // math, and the label are the v512 ones.
+  it('stands when the spoken segment leaves the view; the tap snaps to it once and nothing follows', async () => {
+    const renderer = await renderPlayer(TOUR, inSeg(2));
     const root = renderer.root;
     seatTourLayout(root);
     scroll.to.length = 0;
 
-    // Follow live: no button anywhere.
+    // The voice is inside the reader's view: no button anywhere.
     expect(catchUpButton(root)).toHaveLength(0);
 
-    // He scrolls away: the camera parks and the button stands.
-    parkTheCamera(root);
+    // The voice walks far past the view. The page does NOT
+    // move — there is no camera any more — and the pill stands.
+    await movePlayhead(renderer, TOUR, inSeg(60));
+    expect(scroll.to).toEqual([]);
     expect(catchUpButton(root)).toHaveLength(1);
     const label = catchUpButton(root)[0]
       .findAllByType('Text' as never)
       .map((t: ReactTestInstance) => t.props.children);
     expect(label).toContain('Catch up');
 
-    // The voice moves on while parked — the page does not.
-    await movePlayhead(renderer, TOUR, inSeg(15));
-    expect(scroll.to).toEqual([]);
-    expect(catchUpButton(root)).toHaveLength(1);
-
-    // Tap: straight to the segment being spoken NOW, at the
-    // follow seat — and follow is live again (the button leaves,
-    // the next boundary moves the camera).
+    // Tap: the spoken segment's row is outside the window, so
+    // the seat ARMS first — no scroll is aimed at an estimate…
     await act(async () => {
       catchUpButton(root)[0].props.onPress();
     });
-    expect(scroll.to).toEqual([{ y: followScrollTarget(PANEL_TOP + segY(15), VIEWPORT_H), animated: true }]);
+    expect(scroll.to).toEqual([]);
+    // …the window has sliced to the spoken row; its
+    // measurement lands (the rig reports it at the seat
+    // convention)…
+    const door60 = root
+      .findAllByType('Pressable' as never)
+      .find((p) => p.props.accessibilityLabel === `Play from ${formatClock(SEGS[60].startSec)}`);
+    expect(door60).toBeDefined();
+    act(() => {
+      door60!.props.onLayout({ nativeEvent: { layout: { y: segY(60) } } });
+    });
+    // …and exactly ONE seat scroll completes the snap, at the
+    // follow seat (the spoken segment a third down).
+    expect(scroll.to).toEqual([{ y: followScrollTarget(PANEL_TOP + segY(60), VIEWPORT_H), animated: true }]);
+
+    // The scroll lands (the rig moves the page to the panel
+    // model's seat for that row): the spoken segment stands
+    // in the reader's view again and the pill leaves.
+    const offsets = transcriptRowOffsets(ROWS, new Map(), transcriptCharsPerLine(350));
+    act(() => {
+      scrollHost(root).props.onScroll({
+        nativeEvent: { contentOffset: { y: PANEL_TOP + offsets[rowOfSeg(60)] } },
+      });
+    });
     expect(catchUpButton(root)).toHaveLength(0);
-    scroll.to.length = 0;
-    await movePlayhead(renderer, TOUR, inSeg(18));
-    expect(scroll.to).toEqual([{ y: followScrollTarget(PANEL_TOP + segY(18), VIEWPORT_H), animated: true }]);
+
+    // Playback moves on; the reader stays put. When the voice
+    // leaves the view again the pill returns — and still
+    // nothing has scrolled since the one snap.
+    await movePlayhead(renderer, TOUR, inSeg(90));
+    expect(catchUpButton(root)).toHaveLength(1);
+    expect(scroll.to).toHaveLength(1);
   });
 });
 

@@ -26,6 +26,16 @@
  *  (d) STOP STILL STOPS. The explicit Stop runs his sequence and
  *      clears the session, exactly as before.
  *
+ * v520 RE-BASE (2026-11-13): (a) is re-pinned to Jonathan's
+ * directed design — the automatic follow was removed for the
+ * TRANSCRIPT: there is no camera to yield, because there is no
+ * camera. Boundaries, drags, and the resume grace move the
+ * transcript NOT AT ALL; a seek (a line tap, below) seats the
+ * tapped segment exactly once and follows nothing after. The
+ * v510 yield machinery itself survives untouched where it now
+ * belongs — the CHAPTER sessions' paragraph camera — and (b),
+ * (c) and (d) stand as they were.
+ *
  * The rig follows the v508 listen rig (react-test-renderer over
  * string hosts) with three richer doubles the behaviours need:
  * a ScrollView class that records scrollTo, a BackHandler that
@@ -289,22 +299,30 @@ describe('v510 follow seat — a third of the screen down, not hard against the 
 // ─── (a) The camera yields ──────────────────────────────────────────────────
 
 describe('v510 follow-along — the camera yields to the reader', () => {
-  it('follows while hands-off, parks on a drag, resumes after the grace, re-engages on a seek', async () => {
+  // v520 RE-BASE (2026-11-13): this test pinned the v510
+  // camera's whole life cycle against a TRANSCRIPT session —
+  // boundary following, the drag park, the grace resume, the
+  // seek re-engagement. Jonathan's directed design removed
+  // that camera for transcripts outright, so the same beats
+  // are re-pinned to their new outcomes: nothing follows,
+  // nothing resumes, and a seek seats exactly once. (The
+  // chapter paragraph camera keeps the v510 life cycle; it
+  // is pinned in devotional-catchup-v512.test.tsx.)
+  it('no transcript camera: boundaries, drags and the grace move nothing; a line tap seats once', async () => {
     const onBack = vi.fn();
     const renderer = await renderPlayer(SESSION, inSeg(5), onBack);
     const root = renderer.root;
     seatLayout(root);
     scroll.to.length = 0;
 
-    // Hands off: the next segment boundary moves the camera to
-    // the newly spoken segment, seated a third of the screen
-    // down (the (b) seat, in the live surface).
+    // Hands off: the next segment boundary moves NOTHING.
+    // (v510/v519: one seat scroll to the newly spoken segment.)
     await movePlayhead(renderer, SESSION, onBack, inSeg(10));
-    expect(scroll.to).toEqual([{ y: followScrollTarget(PANEL_TOP + segY(10), VIEWPORT_H), animated: true }]);
-    scroll.to.length = 0;
+    expect(scroll.to).toEqual([]);
 
-    // He grabs the page: the camera parks. Segments keep
-    // advancing — the page does not move.
+    // He grabs the page: segments keep advancing — the page
+    // does not move. (True under v510 too; now it is true
+    // because there is no camera, not because it parked.)
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     act(() => {
       scrollHost(root).props.onScrollBeginDrag();
@@ -313,8 +331,10 @@ describe('v510 follow-along — the camera yields to the reader', () => {
     await movePlayhead(renderer, SESSION, onBack, inSeg(14));
     expect(scroll.to).toEqual([]);
 
-    // The grace runs from the END of his scroll: just under it,
-    // still parked…
+    // The grace runs from the END of his scroll and lapses:
+    // under v510 the camera returned to the voice at this
+    // point. Under v520 nothing returns — the resume timer's
+    // seat serves the chapter paragraphs, and a tour has none.
     act(() => {
       scrollHost(root).props.onScrollEndDrag();
     });
@@ -323,17 +343,14 @@ describe('v510 follow-along — the camera yields to the reader', () => {
     });
     await movePlayhead(renderer, SESSION, onBack, inSeg(15));
     expect(scroll.to).toEqual([]);
-
-    // …and once it lapses the camera returns to the segment
-    // being spoken, at the same seat.
     act(() => {
       vi.advanceTimersByTime(2);
     });
-    expect(scroll.to).toEqual([{ y: followScrollTarget(PANEL_TOP + segY(15), VIEWPORT_H), animated: true }]);
-    scroll.to.length = 0;
+    expect(scroll.to).toEqual([]);
 
-    // A seek re-engages at once: park again, then tap a line —
-    // the tap seeks AND the camera follows the next boundary.
+    // A seek is deliberate: tap a line — the tap seeks AND
+    // seats the tapped segment exactly once, at the (b) seat.
+    // The next boundary follows nothing.
     act(() => {
       scrollHost(root).props.onScrollBeginDrag();
     });
@@ -343,10 +360,12 @@ describe('v510 follow-along — the camera yields to the reader', () => {
       door!.props.onPress();
     });
     expect(player.seekDevotional).toHaveBeenCalledWith(SEGS[20].startSec);
+    expect(scroll.to).toEqual([{ y: followScrollTarget(PANEL_TOP + segY(20), VIEWPORT_H), animated: true }]);
+    scroll.to.length = 0;
     await movePlayhead(renderer, SESSION, onBack, inSeg(22));
-    expect(scroll.to).toEqual([{ y: followScrollTarget(PANEL_TOP + segY(22), VIEWPORT_H), animated: true }]);
+    expect(scroll.to).toEqual([]);
 
-    // The suspension never touched playback controls or Stop.
+    // None of it ever touched playback controls or Stop.
     expect(player.stopDevotional).not.toHaveBeenCalled();
   });
 });

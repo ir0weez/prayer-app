@@ -34,6 +34,30 @@
  *      the scroll once the windowed row mounts and measures —
  *      no scroll is aimed at an estimate in the meantime.
  *
+ * v520 RE-BASE (2026-11-13): Jonathan's verdict on v519 was
+ * that the lag was still there, and his diagnosis — the
+ * player continually hunting for the transcript spot — held
+ * in code. His directed design removed the automatic follow:
+ * the pins below are re-based where the old semantics named
+ * the voice as the window's anchor or the camera's driver.
+ *  (a) stands, with one honest change of subject: the window
+ *      at rest is the panel's head because the transcript
+ *      OPENS there now — the reader's anchor, not the voice's.
+ *  (b) is INVERTED: the window does not travel with the
+ *      voice at all; it travels with the reader's scroll.
+ *  (c) stands, re-driven by scroll instead of by playhead.
+ *  (d) stands, with the window carried to the segment by the
+ *      reader's scroll first — and now also pins that the
+ *      ticks themselves issue zero scroll calls.
+ *  (e) stands VERBATIM: a guidepost tap is a deliberate act,
+ *      and its seat — armed by the tap, completed off the
+ *      row's measurement, no scroll aimed at an estimate —
+ *      is exactly the one-shot seat v520 keeps. It is the
+ *      follow camera's automatic life that is gone, not this.
+ * The pure model pins move to transcriptWindowRange's new
+ * inputs (anchorRow is a deliberate seat target or null;
+ * the viewport range is the standing anchor).
+ *
  * What this rig CANNOT prove: on-device frame timing. That
  * the travel and the transcript scroll feel light on
  * Jonathan's phone is his phone's verdict, as always.
@@ -304,6 +328,15 @@ const segRowPos = (segIndex: number): number => {
   return pos;
 };
 
+/** v520: the reader's own scroll, fired through the page's
+ *  ScrollView the way a real scroll reports it. */
+const fireScroll = (root: ReactTestInstance, y: number) => {
+  const host = root.findByType('RNScrollView' as never);
+  act(() => {
+    host.props.onScroll({ nativeEvent: { contentOffset: { y } } });
+  });
+};
+
 async function renderPlayer() {
   let renderer!: ReactTestRenderer;
   await act(async () => {
@@ -336,10 +369,15 @@ afterEach(() => {
 // ─── The pure model ─────────────────────────────────────────────────────────
 
 describe('v519 window model — transcriptWindowRange / transcriptRowOffsets', () => {
-  it('anchors on the spoken row with the named overscan, clamped to the panel', () => {
+  it('a seat anchor cuts around its row with the named overscan, clamped to the panel', () => {
+    // v520 RE-BASE (2026-11-13): the model's first input was
+    // the spoken row (activeRow) — the voice's anchor. It is
+    // now a DELIBERATE seat target (anchorRow: Catch up, a
+    // guidepost, a line) or null; the cut around it is the
+    // v519 cut, unchanged.
     const range = transcriptWindowRange({
       rowCount: 517,
-      activeRow: 200,
+      anchorRow: 200,
       viewFirst: null,
       viewLast: null,
       current: null,
@@ -348,63 +386,81 @@ describe('v519 window model — transcriptWindowRange / transcriptRowOffsets', (
       start: 200 - TRANSCRIPT_WINDOW_BACK_ROWS,
       end: 200 + TRANSCRIPT_WINDOW_AHEAD_ROWS + 1,
     });
+    // No anchor and no viewport known yet: the panel's head —
+    // the transcript opens at its top (v520: opening does no
+    // seat-to-active work).
     expect(
-      transcriptWindowRange({ rowCount: 517, activeRow: -1, viewFirst: null, viewLast: null, current: null }),
+      transcriptWindowRange({ rowCount: 517, anchorRow: null, viewFirst: null, viewLast: null, current: null }),
     ).toEqual({ start: 0, end: TRANSCRIPT_WINDOW_AHEAD_ROWS + 1 });
     expect(
-      transcriptWindowRange({ rowCount: 517, activeRow: 516, viewFirst: null, viewLast: null, current: null }).end,
+      transcriptWindowRange({ rowCount: 517, anchorRow: 516, viewFirst: null, viewLast: null, current: null }).end,
     ).toBe(517);
   });
 
-  it('holds still while the anchor keeps the hold margin (hysteresis), re-cuts at the edge', () => {
+  it('holds still while the viewport keeps the hold margin (hysteresis), re-cuts at the edge', () => {
+    // v520 RE-BASE (2026-11-13): the hysteresis anchor is the
+    // reader's viewport range now — the only standing anchor.
+    // The margins and the re-cut shape are the v519 ones.
     const standing = { start: 100, end: 200 };
     // Mid-window: the same range object comes back — no re-slice.
     expect(
-      transcriptWindowRange({ rowCount: 517, activeRow: 150, viewFirst: null, viewLast: null, current: standing }),
+      transcriptWindowRange({ rowCount: 517, anchorRow: null, viewFirst: 150, viewLast: 160, current: standing }),
     ).toBe(standing);
-    // Nearing the far edge (within the margin): re-cut around
-    // the anchor, with the named overscan.
+    // The viewport nears the far edge (within the margin):
+    // re-cut around the viewport, with the named overscan.
     const nearEdge = transcriptWindowRange({
       rowCount: 517,
-      activeRow: 195,
-      viewFirst: null,
-      viewLast: null,
+      anchorRow: null,
+      viewFirst: 190,
+      viewLast: 195,
       current: standing,
     });
     expect(nearEdge).not.toBe(standing);
     expect(nearEdge).toEqual({
-      start: 195 - TRANSCRIPT_WINDOW_BACK_ROWS,
+      start: 190 - TRANSCRIPT_WINDOW_BACK_ROWS,
       end: 195 + TRANSCRIPT_WINDOW_AHEAD_ROWS + 1,
     });
-    // Escaped entirely: re-cut around the anchor.
+    // Escaped entirely: re-cut around the viewport.
     const escaped = transcriptWindowRange({
       rowCount: 517,
-      activeRow: 300,
-      viewFirst: null,
-      viewLast: null,
+      anchorRow: null,
+      viewFirst: 300,
+      viewLast: 310,
       current: standing,
     });
     expect(escaped.start).toBeLessThanOrEqual(300);
-    expect(escaped.end).toBeGreaterThan(300);
+    expect(escaped.end).toBeGreaterThan(310);
     // At the panel's own edges the margin cannot exist, and an
     // edge window still holds: the at-rest window stands while
-    // the voice is on its first segments.
+    // the reader is on its first rows.
     const atRest = { start: 0, end: 42 };
     expect(
-      transcriptWindowRange({ rowCount: 517, activeRow: 1, viewFirst: null, viewLast: null, current: atRest }),
+      transcriptWindowRange({ rowCount: 517, anchorRow: null, viewFirst: 1, viewLast: 5, current: atRest }),
     ).toBe(atRest);
   });
 
-  it('spans the reader and the voice when a viewport range is given', () => {
+  it('a seat anchor overrides the viewport — a jump cut, never a span of both', () => {
+    // v520 RE-BASE (2026-11-13): v519's parked window SPANNED
+    // the reader and the voice (start 0, end 517 for a reader
+    // at the top and a voice at the end). A v520 seat is a
+    // jump: the window belongs to its target alone, and the
+    // road between is never mounted.
     const range = transcriptWindowRange({
       rowCount: 517,
-      activeRow: 500,
+      anchorRow: 500,
       viewFirst: 10,
       viewLast: 20,
       current: null,
     });
-    expect(range.start).toBe(0);
-    expect(range.end).toBe(517);
+    expect(range).toEqual({
+      start: 500 - TRANSCRIPT_WINDOW_BACK_ROWS,
+      end: 517,
+    });
+    // And the viewport alone, no seat in flight: a fresh cut
+    // around what the reader is looking at.
+    expect(
+      transcriptWindowRange({ rowCount: 517, anchorRow: null, viewFirst: 10, viewLast: 20, current: null }),
+    ).toEqual({ start: 0, end: 20 + TRANSCRIPT_WINDOW_AHEAD_ROWS + 1 });
   });
 
   it('offsets: a measured height replaces the estimate; the total is the rows’ sum', () => {
@@ -455,54 +511,82 @@ describe('v519 transcript — the mounted window at rest', () => {
   });
 });
 
-// ─── (b) The window travels with the voice ──────────────────────────────────
+// ─── (b) The window travels — with the reader, never the voice ──────────────
+// v520 RE-BASE (2026-11-13): this describe pinned the window
+// FOLLOWING THE VOICE (a deep playhead seat mounted its
+// region; the spoken segment was mounted at every seat).
+// That anchor is the continual hunting Jonathan named, and
+// his design removed it. The pins are inverted: playback
+// mounts nothing, and the reader's scroll does the travelling
+// the voice used to do — with the same model accounting the
+// v519 pins asserted for the voice's travel.
 
 describe('v519 transcript — the window follows the voice', () => {
-  it('a deep seat mounts its region — header, lit segment — and unmounts the top', async () => {
+  it('playback alone never moves the window: a deep playhead mounts nothing, scrolls nothing', async () => {
     expect(openDevotional(TOUR, { uri: 'file:///genesis-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer();
     const root = view.root;
+    const atRest = mountedWindow(root);
+    expect(doorFor(root, SEGS[0].startSec)).toBeDefined();
     expect(doorFor(root, SEGS[500].startSec)).toBeUndefined();
 
-    // Seat the voice at Stop 10's doorstep: its first segment.
-    const at = MOVEMENTS[9].startSec + 0.05;
-    await emitPosition(at);
-    const activeIdx = activeTenStopsTranscriptSegment(SEGS, at);
-    expect(activeIdx).toBeGreaterThan(400);
-
-    // The region stands: Stop 10's header, the segment itself,
-    // lit in the book's family.
-    expect(texts(panelOf(root))).toContain('God Meant It For Good');
-    const activeDoor = doorFor(root, SEGS[activeIdx].startSec);
-    expect(activeDoor).toBeDefined();
-    const theme = devotionalPlayerTheme('Genesis', false);
-    expect(flat(activeDoor!.props.style).backgroundColor).toBe(theme.stopSeat);
-    expect(flat(activeDoor!.props.style).borderLeftColor).toBe(theme.primary);
-    // …and the top is gone.
-    expect(doorFor(root, SEGS[0].startSec)).toBeUndefined();
-
-    // The window's shape, off the model: the named overscan
-    // around the spoken row, and both spacers carrying the
-    // model's sums for the rows outside it — estimates still,
-    // nothing in this rig has measured a row.
-    const win = mountedWindow(root);
-    const activeRow = segRowPos(activeIdx);
-    const expectedStart = activeRow - TRANSCRIPT_WINDOW_BACK_ROWS;
-    const expectedEnd = activeRow + TRANSCRIPT_WINDOW_AHEAD_ROWS + 1;
-    expect(win.rows).toBe(expectedEnd - expectedStart);
-    const offsets = transcriptRowOffsets(ROWS, new Map(), transcriptCharsPerLine(350));
-    expect(win.topSpacer).toBe(offsets[expectedStart]);
-    expect(win.bottomSpacer).toBe(offsets[ROWS.length] - offsets[expectedEnd]);
+    // Seat the voice at Stop 10's doorstep, then at the very
+    // end of the tour: the panel's membership does not change
+    // at all. The spoken segment's region does not mount, its
+    // header does not mount, and no scroll is issued — the
+    // unmounted spoken row is simply not lit, and nothing
+    // special happens because of that.
+    await emitPosition(MOVEMENTS[9].startSec + 0.05);
+    await emitPosition(SEGS[505].startSec + 0.05);
+    expect(mountedWindow(root)).toEqual(atRest);
+    expect(texts(panelOf(root))).not.toContain('God Meant It For Good');
+    expect(doorFor(root, SEGS[500].startSec)).toBeUndefined();
+    expect(doorFor(root, SEGS[0].startSec)).toBeDefined();
+    expect(scroll.to).toEqual([]);
     await act(async () => {
       view.unmount();
     });
   });
 
-  it('the spoken segment is mounted at the tour’s end seat as well', async () => {
+  it('the reader’s scroll carries the window: its region mounts, the top unmounts', async () => {
     expect(openDevotional(TOUR, { uri: 'file:///genesis-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer();
-    await emitPosition(SEGS[505].startSec + 0.05);
-    expect(doorFor(view.root, SEGS[505].startSec)).toBeDefined();
+    const root = view.root;
+    expect(doorFor(root, SEGS[500].startSec)).toBeUndefined();
+
+    // The voice sits at the tour's head the whole time — the
+    // travel below is the reader's alone. Scroll the page to
+    // the panel model's seat for segment 500's row (no panel
+    // layout has been seated in this rig, so the panel's seat
+    // in the page is its origin, at the default measure).
+    const offsets = transcriptRowOffsets(ROWS, new Map(), transcriptCharsPerLine(350));
+    const targetRow = segRowPos(500);
+    fireScroll(root, offsets[targetRow]);
+
+    // The deep region stands and the top is gone. Segment
+    // 500's door is NOT lit — the voice is at the head; the
+    // window's place and the dress are separate facts now.
+    const deepDoor = doorFor(root, SEGS[500].startSec);
+    expect(deepDoor).toBeDefined();
+    expect(flat(deepDoor!.props.style).backgroundColor).toBeUndefined();
+    expect(doorFor(root, SEGS[0].startSec)).toBeUndefined();
+
+    // The window's shape, off the model: a fresh cut around
+    // the reader's viewport — the named overscan back from
+    // the first visible row, ahead from the last — with the
+    // spacers carrying the model's sums outside it.
+    let viewLast = targetRow;
+    while (viewLast + 1 < ROWS.length && offsets[viewLast + 1] < offsets[targetRow] + VIEWPORT_H) {
+      viewLast += 1;
+    }
+    const expectedStart = targetRow - TRANSCRIPT_WINDOW_BACK_ROWS;
+    const expectedEnd = Math.min(ROWS.length, viewLast + TRANSCRIPT_WINDOW_AHEAD_ROWS + 1);
+    const win = mountedWindow(root);
+    expect(win.rows).toBe(expectedEnd - expectedStart);
+    expect(win.topSpacer).toBe(offsets[expectedStart]);
+    expect(win.bottomSpacer).toBe(
+      expectedEnd < ROWS.length ? offsets[ROWS.length] - offsets[expectedEnd] : null,
+    );
     await act(async () => {
       view.unmount();
     });
@@ -522,9 +606,13 @@ describe('v519 transcript — measured heights inform the spacers', () => {
     act(() => {
       panel.props.onLayout({ nativeEvent: { layout: { y: 500, width: 390 } } });
     });
-    // Go deep and let every mounted row report a measured
-    // height of 100 — the deep window's rows enter the cache.
-    await emitPosition(SEGS[500].startSec + 0.05);
+    // v520 RE-BASE (2026-11-13): the travel is the reader's
+    // now — scroll the page to the panel model's seat for the
+    // last row (the playhead stays at the head throughout),
+    // and let every mounted row report a measured height of
+    // 100 — the deep window's rows enter the cache.
+    const bare390 = transcriptRowOffsets(ROWS, new Map(), transcriptCharsPerLine(390));
+    fireScroll(root, 500 + bare390[ROWS.length - 1]);
     const winDeep = mountedWindow(root);
     const deepStart = ROWS.length - winDeep.rows;
     act(() => {
@@ -540,10 +628,11 @@ describe('v519 transcript — measured heights inform the spacers', () => {
       }
     });
 
-    // Travel home. The bottom spacer must now be read off a
-    // model in which the deep rows stand at their MEASURED
-    // 100, not their estimates.
-    await emitPosition(SEGS[0].startSec + 0.05);
+    // Travel home — the reader scrolls back to the panel's
+    // head. The bottom spacer must now be read off a model in
+    // which the deep rows stand at their MEASURED 100, not
+    // their estimates.
+    fireScroll(root, 500);
     const winHome = mountedWindow(root);
     const measured = new Map<number, number>();
     for (let i = deepStart; i < ROWS.length; i++) measured.set(i, 100);
@@ -566,18 +655,33 @@ describe('v519 transcript — what a position tick re-renders', () => {
     expect(openDevotional(TOUR, { uri: 'file:///genesis-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer();
     const root = view.root;
+    // v520 RE-BASE (2026-11-13): the window is carried to
+    // segment 200's neighbourhood by the READER's scroll —
+    // the playhead no longer carries it there. (No panel
+    // layout has been seated in this rig, so the panel's seat
+    // in the page is its origin, at the default measure.)
+    // The dress assertions below are the v519 ones verbatim;
+    // the ticks now also pin that they issue no scroll calls.
+    const offsets = transcriptRowOffsets(ROWS, new Map(), transcriptCharsPerLine(350));
+    fireScroll(root, offsets[segRowPos(200)]);
     await emitPosition(SEGS[200].startSec + 0.05);
 
-    // Doors keyed by their segment's own text — the m:ss
-    // labels collide between neighbours a second apart, the
-    // texts never do.
+    // Doors keyed by label + text. v520 RE-BASE (2026-11-13):
+    // v519 keyed by text alone, claiming the texts never
+    // collide — inside ITS voice-anchored window they didn't,
+    // but the reader-scrolled window here is a little wider
+    // and carries a second "Right." (segment 249), whose
+    // unchanging dress masked segment 201's in a text key.
+    // The m:ss label differs between any two segments, so
+    // label + text is unique per door.
     const doorText = (d: ReactTestInstance): string => {
       const t = d.findAll((n) => n.type === 'Text')[0];
       const c = t?.props.children;
       return String(Array.isArray(c) ? c.join('') : (c ?? ''));
     };
+    const doorKey = (d: ReactTestInstance): string => `${String(d.props.accessibilityLabel)}|${doorText(d)}`;
     const doorStyles = () =>
-      new Map(segmentDoors(root).map((d) => [doorText(d), JSON.stringify(flat(d.props.style))]));
+      new Map(segmentDoors(root).map((d) => [doorKey(d), JSON.stringify(flat(d.props.style))]));
     const before = doorStyles();
     expect(before.size).toBeGreaterThan(30);
 
@@ -594,13 +698,19 @@ describe('v519 transcript — what a position tick re-renders', () => {
     const after = doorStyles();
     expect([...after.keys()].sort()).toEqual([...before.keys()].sort());
     const changed = [...after.keys()].filter((k) => after.get(k) !== before.get(k));
-    expect(changed.sort()).toEqual([SEGS[200].text, SEGS[201].text].sort());
+    const keyOf = (i: number) => `Play from ${formatClock(SEGS[i].startSec)}|${SEGS[i].text}`;
+    expect(changed.sort()).toEqual([keyOf(200), keyOf(201)].sort());
     const theme = devotionalPlayerTheme('Genesis', false);
     const lit = flat(doorFor(root, SEGS[201].startSec)!.props.style);
     expect(lit.backgroundColor).toBe(theme.stopSeat);
     const out = flat(doorFor(root, SEGS[200].startSec)!.props.style);
     expect(out.backgroundColor).toBeUndefined();
     expect(out.borderLeftColor).toBe('transparent');
+    // v520: across all those ticks and the boundary, the
+    // player issued ZERO scroll calls — the dress moved, the
+    // camera never did. (The reader's scroll above was an
+    // onScroll report, not a scrollTo.)
+    expect(scroll.to).toEqual([]);
     await act(async () => {
       view.unmount();
     });
@@ -608,6 +718,14 @@ describe('v519 transcript — what a position tick re-renders', () => {
 });
 
 // ─── (e) A far seek lands on the measured seat ──────────────────────────────
+// v520 RE-BASE (2026-11-13): assertions UNCHANGED — this is
+// the one seat v520 keeps. What changed is who arms it: in
+// v519 the seat correction belonged to the follow camera and
+// completed any seat the camera aimed at, including the
+// automatic ones; in v520 the guidepost tap itself arms the
+// one-shot seat (requestSeat), and this completion — no
+// scroll aimed at an estimate, exactly one scroll off the
+// real measurement — is now the deliberate seat's alone.
 
 describe('v519 transcript — the camera after a far seek', () => {
   it('no scroll is aimed before the seat exists; the measurement completes it', async () => {
@@ -646,9 +764,11 @@ describe('v519 transcript — the camera after a far seek', () => {
     expect(fakeAudio.calls.seekTo).toContain(stop9.startSec);
 
     // The voice arrives at Stop 9. The spoken segment's row
-    // has only just mounted with the window — it has reported
-    // no layout yet, so the camera aims NO scroll (it never
-    // seats off an estimate).
+    // has only just mounted with the window the tap's seat
+    // cut — it has reported no layout yet, so NO scroll has
+    // been aimed (a seat never aims off an estimate). v520:
+    // the voice's arrival itself arms nothing; the seat
+    // pending here is the tap's.
     await emitPosition(stop9.startSec + 0.05);
     const activeIdx = activeTenStopsTranscriptSegment(SEGS, stop9.startSec + 0.05);
     expect(doorFor(root, SEGS[activeIdx].startSec)).toBeDefined();

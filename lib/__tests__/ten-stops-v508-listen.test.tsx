@@ -229,7 +229,9 @@ describe('v508 player — a Ten Stops session carries its transcript', () => {
     // ('Israel Is Born', 'God Meant It For Good') and words
     // mount when the window reaches them — pinned in
     // devotional-player-v519.test.tsx by seating the playhead
-    // deep in the tour.
+    // deep in the tour. v520: the window is carried there by
+    // the reader's scroll or a deliberate seat, never by the
+    // playhead (v519's pins, re-based; v520's pins).
     // And the words themselves are there — the tour's first and
     // a further in-window segment, verbatim from its transcript.
     expect(all).toContain(segs[0].text);
@@ -242,13 +244,25 @@ describe('v508 player — a Ten Stops session carries its transcript', () => {
     // Segments outside the window (100, 505 before) are not
     // mounted until the window follows the voice or the reader
     // there — pinned in devotional-player-v519.test.tsx.
+    // v520: the voice no longer carries the window at all —
+    // only the reader's scroll or a deliberate seat does.
     for (const i of [0, 12]) {
       expect(segmentDoor(root, segs[i].startSec)).toBeDefined();
     }
   });
 
   it('the segment being spoken is lit in the book’s family; the rest are not', () => {
-    const at = 300; // inside Stop 2 (231.5–377.6)
+    // v520 RE-BASE (2026-11-13): the window no longer travels
+    // to the voice (Jonathan's directed design — automatic
+    // follow removed; Catch up is the only follow), so a
+    // playhead seated at 300s leaves its spoken segment
+    // unmounted at rest and there is no door to read the dress
+    // off. The lit dress itself is unchanged; it is pinned
+    // here on a spoken segment inside the standing window,
+    // and the deep-tour dress — window carried there by the
+    // reader's scroll or a Catch up seat — is pinned in
+    // devotional-player-v520.test.tsx.
+    const at = segs[5].startSec + 0.05;
     const root = render(session, at);
     const theme = devotionalPlayerTheme('Genesis', false);
     const activeIdx = activeTenStopsTranscriptSegment(segs, at);
@@ -263,7 +277,9 @@ describe('v508 player — a Ten Stops session carries its transcript', () => {
     // that segment is not mounted at all at this seat — the
     // no-seat dress is pinned here on a mounted neighbour, and
     // the far segment's absence is itself pinned in the v519
-    // tests.
+    // tests. v520: the absence now holds at EVERY playhead
+    // seat, not just this one — the window answers to the
+    // reader, never the voice (v519's pins, re-based).
     const nearDoor = segmentDoor(root, segs[activeIdx + 12].startSec);
     expect(nearDoor).toBeDefined();
     expect(flat(nearDoor!.props.style).backgroundColor).toBeUndefined();

@@ -155,6 +155,51 @@
 //    and the pill face are memoised leaves whose props exclude
 //    the position — a 250ms tick re-renders the seek bar and
 //    the time labels, and nothing else that stands still.
+//
+// v520: the lag was STILL there (Jonathan's phone, Nov 13, on
+// v519), and his diagnosis named the mechanism: "It might be
+// because the player is trying to find the transcript spot."
+// He was right in code. Even after v519's cleanup, the player
+// ran continual transcript-position work on every path:
+//  · a useEffect on the active segment fired an animated
+//    scrollTo on EVERY segment boundary while follow was live;
+//  · the seat correction in the segment layout callback
+//    re-seated the camera whenever the spoken row (re)measured
+//    — the window's own re-slices fed it fresh triggers;
+//  · the window itself anchored on the VOICE while follow was
+//    live, re-cutting as the playhead advanced (mount/unmount
+//    churn and layout reports, forever);
+//  · the v510 resume timer dragged the camera back to the
+//    voice ~6s after the reader's own scroll ended;
+//  · every seek door re-engaged all of the above at once.
+// His design call, in his words: "Maybe it should just open
+// and close, and you press the little pill to catch up in the
+// transcript and THAT'S how it follows the transcript." So
+// the automatic transcript camera is GONE, by his direction:
+//  · playback ticks and segment boundaries issue NO scroll
+//    and NO positioning work — the spoken segment still lights
+//    (dress, not camera), and the scroll position belongs to
+//    the reader;
+//  · opening the player does no seat-to-active work — the
+//    transcript opens at the top of its panel; collapsing
+//    likewise does no transcript work;
+//  · the window anchors on the reader's VIEWPORT alone — the
+//    voice never re-slices it;
+//  · Catch up is the ONLY follow: it stands whenever the
+//    spoken segment is not seated within the reader's current
+//    view, and a tap makes ONE snap — the seat target slices
+//    the window to the spoken row, its real measurement seats
+//    it a third down (followScrollTarget), exactly once —
+//    after which playback moves on, the reader stays put,
+//    and the pill returns when the voice leaves the view
+//    again. A guidepost tap or a transcript line keeps its
+//    deliberate seek-and-seat (the same one-shot seat, aimed
+//    at the tapped stop's first segment), unchanged.
+// The CHAPTER sessions' paragraph camera (v510's yield, the
+// resume grace, the parked Catch up) is untouched — the audit
+// found the same continual hunting there, reported to
+// Jonathan, not changed in this build (his call was about
+// the transcript).
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -241,12 +286,18 @@ const EMPHASIZED = Easing.bezier(0.2, 0, 0, 1);
 const PILL_SIDE = 14;
 const PILL_HEIGHT = 66;
 
-// ─── The follow-along camera (v510) ─────────────────────────────────────────
+// ─── The follow-along camera (v510; v520: chapters only) ────────────────────
 // How long the page stays the reader's after his own scrolling
 // ends before the follow-along camera may move it again. A tap
 // on a guidepost or a transcript line (a seek) re-engages the
 // camera immediately — the grace period is only for hands-off
 // reading, never a lockout.
+// v520: this camera now serves ONLY the chapter sessions'
+// paragraph follow-along (kept exactly as it was — see the
+// header note). The transcript's camera is retired entirely:
+// its one surviving seat is the deliberate one-shot below
+// (Catch up, a guidepost, a transcript line), which rides
+// followScrollTarget but never a timer and never a boundary.
 export const DEVOTIONAL_FOLLOW_RESUME_MS = 6000;
 
 /** The scroll offset that seats an element (at content offset
@@ -278,34 +329,45 @@ export interface TranscriptWindowRange {
 }
 
 /**
- * The window the transcript must mount: a fresh window covers
- * the anchor — the spoken segment's row, and while the follow
- * camera is parked the rows the viewport is showing too
- * (either may be the far one — the reader parked at the top
- * while the voice is at the end spans both) — plus the
- * overscan above. Hysteresis: while the anchor stays inside
- * the standing window with the hold margin to spare on both
- * sides, the window stands — the playhead's advance and the
- * reader's scroll re-slice nothing until the anchor nears an
- * edge or escapes it.
+ * The window the transcript must mount. v520: the window
+ * answers to the READER alone — the rows the viewport is
+ * showing, plus the overscan below — and the voice's advance
+ * never re-slices it. The one exception is a deliberate seat
+ * (anchorRow: Catch up, a guidepost, a transcript line): the
+ * camera is about to move to that row, so the window is cut
+ * around IT alone — a jump, not a span — and once the seat
+ * lands, the viewport arrives there and the reader's anchor
+ * takes over seamlessly. Hysteresis on the reader's anchor:
+ * while the viewport stays inside the standing window with
+ * the hold margin to spare on both sides, the window stands —
+ * the reader's scroll re-slices nothing until the viewport
+ * nears an edge or escapes it.
  */
 export function transcriptWindowRange(args: {
   rowCount: number;
-  /** Row position of the spoken segment; negative before the
-   *  first segment — the anchor then sits at the panel's head. */
-  activeRow: number;
+  /** A deliberate seat target's row position (v520), or null
+   *  when no seat is in flight — the window then belongs to
+   *  the reader's viewport alone. */
+  anchorRow: number | null;
   /** First / last row position intersecting the viewport, in
    *  panel coordinates; null while the viewport's place in the
-   *  panel is unknown. */
+   *  panel is unknown (the window then sits at the panel's
+   *  head — the transcript opens at its top). */
   viewFirst: number | null;
   viewLast: number | null;
   current: TranscriptWindowRange | null;
 }): TranscriptWindowRange {
   const { rowCount } = args;
   if (rowCount <= 0) return { start: 0, end: 0 };
-  const anchor = Math.min(Math.max(args.activeRow, 0), rowCount - 1);
-  const lo = Math.min(anchor, args.viewFirst ?? anchor);
-  const hi = Math.max(anchor, args.viewLast ?? anchor);
+  if (args.anchorRow != null) {
+    const anchor = Math.min(Math.max(args.anchorRow, 0), rowCount - 1);
+    return {
+      start: Math.max(0, anchor - TRANSCRIPT_WINDOW_BACK_ROWS),
+      end: Math.min(rowCount, anchor + TRANSCRIPT_WINDOW_AHEAD_ROWS + 1),
+    };
+  }
+  const lo = args.viewFirst ?? 0;
+  const hi = args.viewLast ?? lo;
   const cur = args.current;
   if (cur && cur.start >= 0 && cur.end <= rowCount) {
     // The margin a side can actually demand: a window already
@@ -330,8 +392,9 @@ export function transcriptWindowRange(args: {
  * it mounts (the panel caches measurements by row position).
  * The spacers are only ever as wrong as this estimate, and only
  * until the reader's scrolling brings the real row on stage;
- * the follow camera never seats off an estimate — it reads the
- * spoken row's measured layout, and that row is always mounted.
+ * a deliberate seat never aims off an estimate either — it
+ * slices the window to the target row and completes off that
+ * row's measured layout when it lands (see requestSeat).
  */
 export function transcriptRowEstimateHeight(row: TenStopsTranscriptRow, charsPerLine: number): number {
   // transcriptHead: marginTop 14 + marginBottom 6 around the
@@ -432,13 +495,19 @@ const GuidepostsPanel = memo(function GuidepostsPanel(props: {
 // pre-Stop-1 words under an Introduction header), each segment a
 // tap-to-seek door, the segment being spoken lit in the book's
 // washed seat — the follow-along's own active-paragraph dress,
-// no new vocabulary. The page's scroll follows the voice to the
-// active segment, as it does for paragraphs. Chapter sessions
-// carry no transcript, so the section renders nowhere for them.
+// no new vocabulary. Chapter sessions carry no transcript, so
+// the section renders nowhere for them.
 // v519: the panel mounts a window of these rows, not all of
 // them (see the header note and transcriptWindowRange above);
 // what is written here — the grouping, the dress, the doors —
 // is unchanged for every row the window carries.
+// v520: the page's scroll NO LONGER follows the voice here
+// (see the header note): the spoken segment still lights, but
+// the panel itself reports only whether that segment stands
+// within the reader's current view (onSpokenInViewChange) —
+// the fact the Catch up pill stands on — and the window is
+// cut around the reader's viewport, or around a deliberate
+// seat target while one is in flight (seatSeg).
 // ─── v519: a transcript row, memoised on what it wears ──────
 // A segment boundary changes exactly two rows' dress — the
 // one that lit and the one that went out — so the row renders
@@ -532,14 +601,21 @@ const TranscriptPanel = memo(function TranscriptPanel(props: {
   onPanelLayout: (y: number) => void;
   /** v519: the page's scroll offset (a coarse hint — it moves
    *  in steps, not per event) and viewport height, so the
-   *  window can follow the reader as well as the voice. While
-   *  the follow camera is live the viewport rides with the
-   *  voice, so the window anchors on the voice alone; while
-   *  it is parked (followParked) the window spans the reader's
-   *  viewport AND the voice, so neither end loses its rows. */
+   *  window can follow the reader. v520: the window anchors
+   *  on the reader's viewport ALONE (transcriptWindowRange) —
+   *  the voice never re-slices it; seatSeg is the one
+   *  exception, a deliberate seat target whose row the window
+   *  must mount so its measurement can complete the seat. */
   scrollY: number;
   viewportHeight: number;
-  followParked: boolean;
+  /** v520: the segment a deliberate seat is aimed at (Catch
+   *  up's spoken segment, a guidepost's first segment), or
+   *  null when no seat is in flight. */
+  seatSeg: number | null;
+  /** v520: reports whether the spoken segment stands within
+   *  the reader's current view — the Catch up pill's standing
+   *  fact. Fires only when the fact changes. */
+  onSpokenInViewChange: (inView: boolean) => void;
 }) {
   const { rows, activeIdx } = props;
 
@@ -551,7 +627,8 @@ const TranscriptPanel = memo(function TranscriptPanel(props: {
     });
     return map;
   }, [rows]);
-  const activeRow = activeIdx >= 0 ? (segRowPos.get(activeIdx) ?? 0) : 0;
+  const seatRow =
+    props.seatSeg != null && props.seatSeg >= 0 ? (segRowPos.get(props.seatSeg) ?? null) : null;
 
   // The row-height model: measured heights cached by row
   // position as rows mount, standing over the text-derived
@@ -591,21 +668,50 @@ const TranscriptPanel = memo(function TranscriptPanel(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offsets, props.scrollY, props.viewportHeight, rows.length, boxVersion]);
 
+  // v520: the window opens at the panel's head (no anchor, no
+  // viewport known yet) and afterwards belongs to the reader's
+  // viewport — re-cut only when the viewport nears an edge, or
+  // jumped to a deliberate seat target while one is in flight.
+  // The playhead is NOT an input: a tick never re-slices.
   const [win, setWin] = useState<TranscriptWindowRange>(() =>
-    transcriptWindowRange({ rowCount: rows.length, activeRow, viewFirst: null, viewLast: null, current: null }),
+    transcriptWindowRange({ rowCount: rows.length, anchorRow: null, viewFirst: null, viewLast: null, current: null }),
   );
   useEffect(() => {
-    setWin((cur) =>
-      transcriptWindowRange({
+    setWin((cur) => {
+      const next = transcriptWindowRange({
         rowCount: rows.length,
-        activeRow,
-        viewFirst: props.followParked ? viewRows.first : null,
-        viewLast: props.followParked ? viewRows.last : null,
+        anchorRow: seatRow,
+        viewFirst: viewRows.first,
+        viewLast: viewRows.last,
         current: cur,
-      }),
-    );
+      });
+      // A seat in flight re-derives the same cut on every
+      // scroll step — keep the standing object when the cut
+      // is unchanged, so the derivation costs no re-render.
+      return next.start === cur.start && next.end === cur.end ? cur : next;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows.length, activeRow, viewRows, props.followParked]);
+  }, [rows.length, seatRow, viewRows]);
+
+  // v520: is the spoken segment seated within the reader's
+  // current view? Read off the same viewport rows the window
+  // anchors on (the offsets model's word for where the reader
+  // is). Before the first segment there is nothing to catch
+  // up TO — that reads as in view, so no pill nags at the
+  // tour's head. Reported on change only.
+  const spokenRow = activeIdx >= 0 ? (segRowPos.get(activeIdx) ?? null) : null;
+  const spokenInView =
+    spokenRow == null ||
+    (viewRows.first != null && spokenRow >= viewRows.first && spokenRow <= (viewRows.last ?? viewRows.first));
+  const lastInViewRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (lastInViewRef.current !== spokenInView) {
+      lastInViewRef.current = spokenInView;
+      props.onSpokenInViewChange(spokenInView);
+    }
+    // onSpokenInViewChange is the parent's stable callback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spokenInView]);
 
   const reportLayout = useCallback<TranscriptRowLayoutReport>(
     (pos, segIndex, y, height) => {
@@ -1062,7 +1168,8 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     };
   }, [playing]);
 
-  // Follow the voice: bring the active paragraph into view as it changes.
+  // The chapter camera's seat cache: paragraph offsets within
+  // the page (the v510 follow-along for chapter sessions).
   const scrollRef = useRef<ScrollView>(null);
   // v519: a coarse scroll hint for the transcript window —
   // the state moves only when the page has travelled a real
@@ -1071,6 +1178,8 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   // own throttle is 64ms; this is the state's).
   const [scrollHint, setScrollHint] = useState(0);
   const scrollHintRef = useRef(0);
+  const screenHRef = useRef(screenH);
+  screenHRef.current = screenH;
   const paraY = useRef<number[]>([]);
   const trackWidth = useRef(0);
   const scrollTopRef = useRef(true);
@@ -1078,37 +1187,64 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     paraY.current[index] = y;
   }, []);
 
-  // The same follow-the-voice for the transcript: segment offsets
-  // are measured within the transcript panel, the panel's own
-  // offset within the page — together they are the scroll seat.
+  // ── v520: the transcript's ONLY seat — a deliberate one-shot ──
+  // Segment offsets are measured within the transcript panel,
+  // the panel's own offset within the page — together they are
+  // a seat. Nothing reads them on a tick or a boundary any
+  // more. A seat is requested only by a deliberate act: Catch
+  // up (the spoken segment), a guidepost tap, a transcript
+  // line, the seek bar (the tapped stop's / point's segment).
+  // If the target row has already measured, the seat fires at
+  // once off that measurement; if it has not (its row is
+  // outside the window), the request arms: seatSeg slices the
+  // window to the row, and the layout callback below completes
+  // the seat — exactly one scroll — when the measurement
+  // lands. After the seat, nothing keeps following.
   const segY = useRef<number[]>([]);
   const transcriptTop = useRef(0);
-  // v519: the seat correction's door to the camera (assigned
-  // below, once scrollToActive exists — the onBackRef pattern).
-  const scrollToActiveRef = useRef<() => void>(() => undefined);
-  const handleSegLayout = useCallback((index: number, y: number) => {
-    const prev = segY.current[index];
-    segY.current[index] = y;
-    // v519: the transcript is windowed now, so the spoken
-    // segment's seat may not exist when the follow camera first
-    // looks for it (a far seek, a reopen mid-tour): its row
-    // mounts with the window and measures a commit later. When
-    // that measurement lands — and only while the camera is the
-    // voice's, never while it is parked with the reader — it
-    // completes the seat the camera aimed at, at the true
-    // offset. A re-measure at the same offset is not a
-    // correction and does not scroll.
-    if (
-      index === activeSegRef.current &&
-      !followSuspendedRef.current &&
-      (prev === undefined || Math.abs(prev - y) >= 2)
-    ) {
-      scrollToActiveRef.current();
+  const pendingSeatSegRef = useRef<number | null>(null);
+  const [seatSeg, setSeatSeg] = useState<number | null>(null);
+  // v520: whether the spoken segment stands within the
+  // reader's current view (reported by the panel) — the Catch
+  // up pill's standing fact for a transcript session. Assumed
+  // in view until the panel says otherwise, so the pill never
+  // flashes on open.
+  const [spokenInView, setSpokenInView] = useState(true);
+  const handleSpokenInViewChange = useCallback((inView: boolean) => {
+    setSpokenInView(inView);
+  }, []);
+
+  const requestSeat = useCallback((seg: number) => {
+    if (seg < 0) return;
+    const y = segY.current[seg];
+    if (typeof y === 'number') {
+      pendingSeatSegRef.current = null;
+      setSeatSeg(null);
+      scrollRef.current?.scrollTo({
+        y: followScrollTarget(transcriptTop.current + y, screenHRef.current),
+        animated: true,
+      });
+      return;
     }
-    // activeSegRef / followSuspendedRef are the follow
-    // section's refs, declared below; this callback only runs
-    // on layout, after the whole body has executed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    pendingSeatSegRef.current = seg;
+    setSeatSeg(seg);
+  }, []);
+
+  const handleSegLayout = useCallback((index: number, y: number) => {
+    segY.current[index] = y;
+    // v520: a pending deliberate seat completes off this
+    // row's real measurement — the v519 far-seek completion,
+    // now invoked only here, for a seat a person asked for.
+    // Any other layout (the reader's window travelling, a
+    // re-measure) scrolls nothing, ever.
+    if (pendingSeatSegRef.current === index) {
+      pendingSeatSegRef.current = null;
+      setSeatSeg(null);
+      scrollRef.current?.scrollTo({
+        y: followScrollTarget(transcriptTop.current + y, screenHRef.current),
+        animated: true,
+      });
+    }
   }, []);
   const handleTranscriptPanelLayout = useCallback((y: number) => {
     transcriptTop.current = y;
@@ -1124,34 +1260,35 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   // his scrolling ends or a seek re-engages it at once. When the
   // grace lapses the camera first returns to the segment being
   // spoken, then follows as before.
+  // v520: this whole section is now the CHAPTER sessions'
+  // paragraph camera ONLY — the behaviour above is preserved
+  // exactly for them (the audit found the same continual
+  // hunting there; reported, not changed — his call named the
+  // transcript). Nothing in this section touches a transcript
+  // session any more: tour entries carry no paragraphs, so the
+  // paragraph seat below has nothing to read, and the
+  // transcript's boundary effect that stood beside the
+  // paragraph one is deleted outright.
   const followSuspendedRef = useRef(false);
   const lastManualScrollAtRef = useRef(0);
   const followResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeParaRef = useRef(activeIdx);
-  const activeSegRef = useRef(activeSegIdx);
   // v512: the React mirror of the parked camera — it seats the
-  // Catch up button (below), which exists only while the camera
-  // is parked. The ref stays the logic's source of truth; this
-  // state is set at exactly the moments the ref flips.
+  // chapter Catch up button (below), which exists only while
+  // the camera is parked. The ref stays the logic's source of
+  // truth; this state is set at exactly the moments the ref
+  // flips. (A transcript session's Catch up stands on the
+  // panel's spoken-in-view report instead — see below.)
   const [followParked, setFollowParked] = useState(false);
 
-  const scrollToActive = useCallback(() => {
-    const seg = activeSegRef.current;
-    if (seg >= 0) {
-      const y = segY.current[seg];
-      if (typeof y === 'number') {
-        scrollRef.current?.scrollTo({ y: followScrollTarget(transcriptTop.current + y, screenH), animated: true });
-        return;
-      }
-    }
+  // The paragraph camera's seat (chapter sessions only): the
+  // active paragraph, a third of the screen down.
+  const scrollToActivePara = useCallback(() => {
     const y = paraY.current[activeParaRef.current];
     if (typeof y === 'number') {
       scrollRef.current?.scrollTo({ y: followScrollTarget(y, screenH), animated: true });
     }
   }, [screenH]);
-  // v519: the transcript's seat correction (handleSegLayout)
-  // reaches the camera through this ref.
-  scrollToActiveRef.current = scrollToActive;
 
   const engageFollow = useCallback(() => {
     followSuspendedRef.current = false;
@@ -1171,10 +1308,10 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
       if (Date.now() - lastManualScrollAtRef.current >= DEVOTIONAL_FOLLOW_RESUME_MS) {
         followSuspendedRef.current = false;
         setFollowParked(false);
-        scrollToActive();
+        scrollToActivePara();
       }
     }, DEVOTIONAL_FOLLOW_RESUME_MS);
-  }, [scrollToActive]);
+  }, [scrollToActivePara]);
 
   const suspendFollow = useCallback(() => {
     followSuspendedRef.current = true;
@@ -1207,36 +1344,48 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     }
   }, [activeIdx, screenH]);
 
-  useEffect(() => {
-    activeSegRef.current = activeSegIdx;
-    if (activeSegIdx < 0 || followSuspendedRef.current) return;
-    const y = segY.current[activeSegIdx];
-    if (typeof y === 'number') {
-      scrollRef.current?.scrollTo({
-        y: followScrollTarget(transcriptTop.current + y, screenH),
-        animated: true,
-      });
-    }
-  }, [activeSegIdx, screenH]);
+  // v520: THERE IS NO SEGMENT-BOUNDARY EFFECT. The effect that
+  // stood here scrolled the page to the spoken segment on every
+  // boundary (and, through the layout callback, again whenever
+  // its row re-measured) — the continual hunting Jonathan named.
+  // The spoken segment's lit dress is computed in the render
+  // (activeSegIdx → the panel's row states) and costs no camera
+  // work at all. The transcript moves only when a person asks:
+  // Catch up, a guidepost, a transcript line, the seek bar —
+  // each a one-shot seat through requestSeat above.
 
   const seek = (fraction: number) => {
     if (duration > 0) {
       // A deliberate jump on the seek bar is a "take me there" —
-      // the follow camera re-engages with it.
+      // the chapter camera re-engages with it, and a tour's
+      // transcript takes the one-shot seat to the segment at
+      // the landing point.
       engageFollow();
-      seekDevotional(Math.max(0, Math.min(1, fraction)) * duration);
+      const target = Math.max(0, Math.min(1, fraction)) * duration;
+      seekDevotional(target);
+      if (transcriptRows && devotional.transcriptSegments) {
+        requestSeat(activeTenStopsTranscriptSegment(devotional.transcriptSegments, target));
+      }
     }
   };
 
   // The panels' seek door (a guidepost, a transcript line): the
-  // same seek, and the same re-engagement — tapping a line is
-  // the reader asking the camera to follow again.
+  // same seek. For a chapter the camera re-engages as before;
+  // for a tour the tap is a deliberate seat — the segment at
+  // the tapped second is seated once, and nothing follows
+  // after it.
   const seekAndFollow = useCallback(
     (sec: number) => {
       engageFollow();
       seekDevotional(sec);
+      if (transcriptRows && devotional.transcriptSegments) {
+        requestSeat(activeTenStopsTranscriptSegment(devotional.transcriptSegments, sec));
+      }
     },
-    [engageFollow],
+    // requestSeat is stable; the transcript test reads the
+    // current session's rows/segments.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [engageFollow, transcriptRows, devotional],
   );
 
   // ── The collapse morph ──────────────────────────────────────────
@@ -1599,7 +1748,8 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               onPanelLayout={handleTranscriptPanelLayout}
               scrollY={scrollHint}
               viewportHeight={screenH}
-              followParked={followParked}
+              seatSeg={seatSeg}
+              onSpokenInViewChange={handleSpokenInViewChange}
             />
           ) : null}
 
@@ -1639,22 +1789,35 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
 
       {/* v512: Catch up — Jonathan's ask (Nov 12): "a 'Jump' or
           'Catch Up' button at the bottom of the screen that takes
-          you right to where the transcript currently is." It
-          exists ONLY while the follow camera is parked (the v510
-          yield state): hidden while follow is live, and never
-          offered when the session has no follow-along at all.
-          Tapping it rides the same seat math the camera uses —
-          the currently-spoken segment/paragraph a third down —
-          and re-engages follow immediately. Dressed in the
-          player's own chrome: the book family's primary, the
-          pill's capsule shape, white on it. */}
-      {followParked && !closing && !stopping && (transcriptRows != null || devotional.paragraphs.length > 0) ? (
+          you right to where the transcript currently is."
+          v520 (his design call, Nov 13): for a TRANSCRIPT session
+          the pill is the whole follow mechanism — it stands
+          whenever the spoken segment is not seated within the
+          reader's current view (the panel reports the fact), and
+          a tap makes the one-shot snap to the spoken segment at
+          the follow seat (a third down) — after which nothing
+          follows, and the pill returns when the voice leaves
+          the view again. For a CHAPTER session it keeps its
+          v512 standing exactly: it exists only while the
+          paragraph camera is parked (the v510 yield state), and
+          the tap seats the active paragraph and re-engages
+          that camera. Never offered when the session has no
+          follow-along at all. Dressed in the player's own
+          chrome: the book family's primary, the pill's capsule
+          shape, white on it. */}
+      {!closing &&
+      !stopping &&
+      (transcriptRows != null ? !spokenInView : followParked && devotional.paragraphs.length > 0) ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Catch up to the audio"
           onPress={() => {
-            engageFollow();
-            scrollToActive();
+            if (transcriptRows != null) {
+              requestSeat(activeSegIdx);
+            } else {
+              engageFollow();
+              scrollToActivePara();
+            }
           }}
           style={[styles.catchUp, { bottom: insets.bottom + 16, backgroundColor: theme.primary }]}
         >

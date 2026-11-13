@@ -217,7 +217,9 @@ describe('v516 player — the Ruth session carries its transcript', () => {
     // Stop 1. The later stops' headers ("Ruth's Loyalty", 'The
     // Threshing Floor', 'The Heart and Home of Boaz') and words
     // mount when the window reaches them — pinned in
-    // devotional-player-v519.test.tsx.
+    // devotional-player-v519.test.tsx. v520: the window is
+    // carried there by the reader's scroll or a deliberate
+    // seat, never by the playhead.
     // And the words themselves are there — the tour's first and
     // a further in-window segment, verbatim from its transcript.
     expect(all).toContain(segs[0].text);
@@ -235,7 +237,15 @@ describe('v516 player — the Ruth session carries its transcript', () => {
   });
 
   it('the segment being spoken is lit in the book’s family; the rest are not', () => {
-    const at = 300; // inside Stop 2 (285.2–415.5)
+    // v520 RE-BASE (2026-11-13): the window no longer travels
+    // to the voice (Jonathan's directed design — automatic
+    // follow removed; Catch up is the only follow), so a
+    // playhead seated at 300s leaves its spoken segment
+    // unmounted at rest. The lit dress itself is unchanged;
+    // it is pinned here on a spoken segment inside the
+    // standing window, and the deep-tour dress is pinned in
+    // devotional-player-v520.test.tsx.
+    const at = segs[5].startSec + 0.05;
     const root = render(session, at);
     const theme = devotionalPlayerTheme('Ruth', false);
     const activeIdx = activeTenStopsTranscriptSegment(segs, at);

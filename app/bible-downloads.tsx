@@ -22,6 +22,11 @@
 // The Your Voice group stands with its empty line: no own-voice
 // downloads exist yet (that work is its own, later), so the
 // group is structural — it fills when his recordings do.
+//
+// v517: the Tours rows and the storage bar's segments stand in
+// canonical BOOK order (Genesis … Hebrews), not newest-first —
+// the ordering lives in lib/downloads' page model; the snapshot
+// behind the Books card keeps its newest-first truth.
 
 import { useCallback, useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

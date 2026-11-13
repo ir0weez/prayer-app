@@ -237,6 +237,49 @@ describe('v502 Downloads page model', () => {
   });
 });
 
+// ─── v517 — the page stands in canonical book order ─────────────────────────
+// Jonathan (Nov 12, on his phone's Downloads page — Genesis,
+// Ruth, Joshua, Deuteronomy, Hebrews as they landed): "can we
+// put these in book order?" The PAGE model now presents the
+// Tours rows and the storage bar's segments in the Bible's own
+// order; the snapshot (and so the Books card, whose dress
+// follows the newest download) keeps its newest-first truth.
+
+describe('v517 Downloads page — canonical book order', () => {
+  // His phone's exact shelf, newest-first as the downloads landed.
+  const shelf = () => [
+    fakeItem('Genesis', 7199654, 5000),
+    fakeItem('Ruth', 6992442, 4000),
+    fakeItem('Joshua', 8094054, 3000),
+    fakeItem('Deuteronomy', 6394966, 2000),
+    fakeItem('Hebrews', 5854696, 1000),
+  ];
+  const CANON = ['Genesis', 'Deuteronomy', 'Joshua', 'Ruth', 'Hebrews'];
+
+  it('the Tours rows stand in Bible order, whatever order the downloads landed in', () => {
+    const model = downloadsPageModel(shelf());
+    expect(model.groups[0].id).toBe('tours');
+    expect(model.groups[0].items.map((i) => i.entry.book)).toEqual(CANON);
+    // Each row keeps its own facts — only the order moved.
+    expect(model.groups[0].items.map((i) => i.sizeBytes)).toEqual([7199654, 6394966, 8094054, 6992442, 5854696]);
+    // The Your Voice group is untouched: still second, still empty-lined.
+    expect(model.groups.map((g) => g.id)).toEqual(['tours', 'voice']);
+    expect(model.groups[1].emptyLine).toBe(VOICE_EMPTY_LINE);
+  });
+
+  it('the storage bar’s segments follow the same order as the rows', () => {
+    const model = downloadsPageModel(shelf());
+    expect(model.segments.map((s) => s.book)).toEqual(CANON);
+    expect(model.segments.map((s) => s.book)).toEqual(model.groups[0].items.map((i) => i.entry.book));
+  });
+
+  it('the Books card still follows the NEWEST download — the snapshot order is not the page’s', () => {
+    const model = downloadsCardModel(shelf());
+    expect(model.newestBook).toBe('Genesis');
+    expect(model.line).toBe('5 items · 32.9 MB on this phone');
+  });
+});
+
 // ─── Removals ───────────────────────────────────────────────────────────────
 
 describe('v502 removals — local file only, list re-read from disk', () => {

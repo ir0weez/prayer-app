@@ -20,6 +20,7 @@
 // and the Downloads page read the one snapshot.
 
 import { useSyncExternalStore } from 'react';
+import { BIBLE_BOOKS } from './bible-books';
 import { formatClock } from './devotionals';
 import {
   formatTenStopsSize,
@@ -194,14 +195,34 @@ export interface DownloadsPageModel {
   footerLine: string;
 }
 
+/**
+ * v517 — canonical book order for the Downloads PAGE (Jonathan,
+ * Nov 12: "can we put these in book order?"). The snapshot stays
+ * newest-first — the Books card's dress follows the newest
+ * download, and that truth is the card's — but the page presents
+ * its rows and its storage-bar segments in the Bible's own
+ * order, by each book's index in the canonical list. A book
+ * outside the canon (no registry entry can be one today) keeps
+ * its place after the canon, in snapshot order.
+ */
+export function byCanonicalBookOrder(a: DownloadedAudioItem, b: DownloadedAudioItem): number {
+  const ia = BIBLE_BOOKS.indexOf(a.entry.book);
+  const ib = BIBLE_BOOKS.indexOf(b.entry.book);
+  return (ia === -1 ? BIBLE_BOOKS.length : ia) - (ib === -1 ? BIBLE_BOOKS.length : ib);
+}
+
 export function downloadsPageModel(items: DownloadedAudioItem[]): DownloadsPageModel {
   const totalBytes = items.reduce((sum, i) => sum + i.sizeBytes, 0);
-  const segments: DownloadsSegment[] = items.map((i) => ({
+  // v517: the page's order is canonical book order — the bar's
+  // segments and the Tours rows read from the same ordering, so
+  // the bar always walks the shelf the rows show.
+  const ordered = [...items].sort(byCanonicalBookOrder);
+  const segments: DownloadsSegment[] = ordered.map((i) => ({
     book: i.entry.book,
     sizeBytes: i.sizeBytes,
     fraction: totalBytes > 0 ? i.sizeBytes / totalBytes : 0,
   }));
-  const tours = items.filter((i) => i.kind === 'ten-stops');
+  const tours = ordered.filter((i) => i.kind === 'ten-stops');
   const groups: DownloadsGroup[] = [];
   // The Tours group renders only while it has rows; the Your
   // Voice group always stands, carrying its empty line until his

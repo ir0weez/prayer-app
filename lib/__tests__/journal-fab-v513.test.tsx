@@ -305,6 +305,8 @@ vi.mock('@/components/journal-write', async () => {
   };
 });
 
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { FabCircleGlyph } from '../../components/fab-circle-glyph';
 import { JournalFabHost } from '../../components/journal-fab-host';
 import { PrayerJournalTab } from '../../components/prayer-journal-tab';
@@ -604,6 +606,25 @@ describe('v513 · the glyph — the pen takes the ring on Journal', () => {
     return renderer;
   }
 
+  // v517 RE-BASE (2026-11-12): the pen's pop no longer rides an
+  // animated PROP on the Path — a transform string through
+  // useAnimatedProps is what crashed the app on tap (see the
+  // v517 block below). The pen is a plain Path now; its parked /
+  // popped state (opacity on the mark channel, scale on the
+  // head-pop channel) is read off its own animated layer, the
+  // AnimatedView that wraps it. Same motion, new seat for the pin.
+  const penLayerStyle = (root: ReactTestInstance) => {
+    const pen = root.findAllByType('Path' as never).find((p) => p.props.d === PEN_D);
+    expect(pen, "the mockup's own pen path rides the glyph").toBeTruthy();
+    let node: ReactTestInstance | null = pen!.parent;
+    while (node && node.type !== ('AnimatedView' as never)) node = node.parent;
+    expect(node, 'the pen rides its own animated layer').toBeTruthy();
+    return Object.assign({}, ...(Array.isArray(node!.props.style) ? node!.props.style : [node!.props.style])) as Record<
+      string,
+      unknown
+    >;
+  };
+
   it('closed: the plain + stands; the ring is parked undrawn and the pen is parked invisible', async () => {
     const renderer = await renderGlyph(false);
     expect(renderer.root.findAllByType('Line' as never)).toHaveLength(2);
@@ -614,7 +635,11 @@ describe('v513 · the glyph — the pen takes the ring on Journal', () => {
     const pen = renderer.root.findAllByType('Path' as never).find((p) => p.props.d === PEN_D);
     expect(pen, "the mockup's own pen path rides the glyph").toBeTruthy();
     expect(pen!.props.fill).toBe('#FFFFFF');
-    expect(pen!.props.animatedProps.opacity).toBe(0);
+    // v517 RE-BASE: parked state read off the pen's layer —
+    // opacity 0 and half-size, invisible either way.
+    const layer = penLayerStyle(renderer.root);
+    expect(layer.opacity).toBe(0);
+    expect(layer.transform).toEqual([{ scale: 0.55 }]);
   });
 
   it('open: the ring draws home and the pen pops to full size inside it — and there is still no ×', async () => {
@@ -626,9 +651,12 @@ describe('v513 · the glyph — the pen takes the ring on Journal', () => {
     const ring = renderer.root.findAllByType('Circle' as never)[0];
     expect(ring.props.animatedProps.strokeDashoffset).toBeCloseTo(0, 5);
     expect(ring.props.animatedProps.opacity).toBe(1);
-    const pen = renderer.root.findAllByType('Path' as never).find((p) => p.props.d === PEN_D);
-    expect(pen!.props.animatedProps.opacity).toBe(1);
-    expect(pen!.props.animatedProps.transform).toContain('scale(1)');
+    // v517 RE-BASE: popped state read off the pen's layer —
+    // opacity 1 on the mark channel, scale 1 on the head-pop
+    // channel, the mockup's pop unchanged.
+    const layer = penLayerStyle(renderer.root);
+    expect(layer.opacity).toBe(1);
+    expect(layer.transform).toEqual([{ scale: 1 }]);
     expect(renderer.root.findAllByType('MaterialIcons' as never)).toHaveLength(0);
   });
 
@@ -644,5 +672,77 @@ describe('v513 · the glyph — the pen takes the ring on Journal', () => {
       check = TestRenderer.create(<FabCircleGlyph open={true} variant="check" color="#FFFFFF" />);
     });
     expect(check.root.findAllByType('Path' as never).map((p) => p.props.d)).toContain('M8.3 12.5 L11.0 15.1 L15.7 9.6');
+  });
+});
+
+// ─── v517 — the tap crash, pinned shut ──────────────────────────────────────
+// Jonathan's phone (Nov 12): tapping the Journal FAB killed the
+// whole app. The cause, from the code: the pen was the app's
+// ONLY animated prop carrying a non-number — penProps returned a
+// `transform` STRING from useAnimatedProps. Animated props are
+// written straight to the native node; they never pass through
+// react-native-svg's JS layer, where a transform string becomes
+// the native `matrix` float array (RNSVG's native spec has no
+// string transform prop at all). The string landed raw in the
+// native prop pipeline the moment the open animation started,
+// and the app died. These pins keep that failure mode out: every
+// animated prop the glyph produces, in every variant and state,
+// is numeric — and the pen Path carries no animated props at all.
+
+describe('v517 · the pen crash — no string ever rides an animated prop', () => {
+  const PEN_D = 'M8.2 15.8l.8-3.2L15.5 6a1.5 1.5 0 012.2 2.1l-6.6 6.6-3.2.8.3-.7Z';
+
+  async function renderVariant(variant: 'person' | 'check' | 'pen', open: boolean) {
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<FabCircleGlyph open={open} variant={variant} color="#FFFFFF" />);
+    });
+    await act(async () => {
+      renderer.update(<FabCircleGlyph open={open} variant={variant} color="#FFFFFF" />);
+    });
+    return renderer;
+  }
+
+  it('every animated prop in every variant, open and closed, is a number', async () => {
+    for (const variant of ['person', 'check', 'pen'] as const) {
+      for (const open of [false, true]) {
+        const renderer = await renderVariant(variant, open);
+        const animated = renderer.root
+          .findAll((n) => (n.props as Record<string, unknown>)?.animatedProps != null)
+          .map((n) => n.props.animatedProps as Record<string, unknown>);
+        expect(animated.length, `${variant} open=${open} still animates its ring/marks`).toBeGreaterThan(0);
+        for (const props of animated) {
+          for (const [key, value] of Object.entries(props)) {
+            expect(typeof value, `${variant} open=${open}: animated prop "${key}" must be numeric`).toBe('number');
+          }
+          expect(props, `${variant} open=${open}: no transform key rides an animated prop`).not.toHaveProperty('transform');
+        }
+        await act(async () => {
+          renderer.unmount();
+        });
+      }
+    }
+  });
+
+  it('the pen Path itself carries no animated props — its pop rides its layer’s animated style', async () => {
+    const renderer = await renderVariant('pen', true);
+    const pen = renderer.root.findAllByType('Path' as never).find((p) => p.props.d === PEN_D);
+    expect(pen, "the mockup's own pen path rides the glyph").toBeTruthy();
+    expect(pen!.props.animatedProps).toBeUndefined();
+    // The layer above it holds the animated style — opacity and
+    // a numeric scale transform, the RN style shape.
+    let node: ReactTestInstance | null = pen!.parent;
+    while (node && node.type !== ('AnimatedView' as never)) node = node.parent;
+    const style = Object.assign({}, ...(Array.isArray(node!.props.style) ? node!.props.style : [node!.props.style]));
+    expect(style.opacity).toBe(1);
+    expect(style.transform).toEqual([{ scale: 1 }]);
+  });
+
+  it('in source: the glyph holds no transform string for an animated prop, ever', () => {
+    const glyph = readFileSync(join(__dirname, '..', '..', 'components', 'fab-circle-glyph.tsx'), 'utf8');
+    expect(glyph).not.toContain('scale(${');
+    expect(glyph).not.toContain('const penProps');
+    // The pen's pop is an animated style (numbers), named so.
+    expect(glyph).toContain('const penStyle = useAnimatedStyle');
   });
 });

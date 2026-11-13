@@ -25,6 +25,28 @@
  * dashoffset = length still paints its round end-cap as a stray
  * DOT. Every hidden stroke here is ALSO opacity 0 until its draw
  * moment — never let a parked stroke render.
+ *
+ * v517 — THE JOURNAL CRASH (Jonathan's phone, Nov 12: tapping the
+ * Journal FAB killed the whole app; People/Schedule never did).
+ * The pen was the ONLY mark animated through a STRING: penProps
+ * returned a `transform` template string ("translate(12 12)
+ * scale(…) translate(-12 -12)") from useAnimatedProps. Animated
+ * props are written straight to the native node from the UI
+ * thread — they never pass through react-native-svg's JS render
+ * layer, where a transform STRING is converted into the native
+ * `matrix` float-array prop (the only transform-shaped prop in
+ * RNSVG's native spec; the ring's static rotate string is fine
+ * precisely because it goes through render). So the moment the
+ * tap started the open animation, the string landed raw in a
+ * native prop pipeline with no slot for it and the app died.
+ * Every other animated prop in this file is a number (dashoffset,
+ * r, opacity — all real native props), which is why person and
+ * check never crashed. The fix keeps the pen's motion EXACTLY —
+ * fade on the mark channel, pop-scale on the head channel, same
+ * shared values, same timing — but rides it on an animated-style
+ * layer like the plus and the ring group already use: a
+ * full-size layer scaling about its own centre IS
+ * translate(12 12) scale(s) translate(-12 -12) on the 24-grid.
  */
 
 import React, { useEffect, useRef } from "react";
@@ -217,9 +239,17 @@ export function FabCircleGlyph({
   // in on the mark's channel while scaling up about the ring's
   // centre on the head's pop channel. Parked it is opacity 0 and
   // half-size — invisible either way (the cap-dot lesson).
-  const penProps = useAnimatedProps(() => ({
+  // v517: that pop rides an animated STYLE on the pen's own
+  // full-size layer, never an animated prop — a transform STRING
+  // through useAnimatedProps bypasses RNSVG's string→matrix
+  // conversion and crashed the app on tap (see the header). The
+  // layer scales about its own centre — the ring's centre on the
+  // 24-grid — so the drawn motion is the mockup's, unchanged:
+  // opacity on the mark channel, scale 0.55 → 1 on the head-pop
+  // channel, both shared values driven exactly as before.
+  const penStyle = useAnimatedStyle(() => ({
     opacity: markOpacity.value,
-    transform: `translate(12 12) scale(${0.55 + 0.45 * headProgress.value}) translate(-12 -12)`,
+    transform: [{ scale: 0.55 + 0.45 * headProgress.value }],
   }));
 
   const layer = { position: "absolute" as const, left: 0, top: 0, width: size, height: size };
@@ -275,10 +305,20 @@ export function FabCircleGlyph({
               strokeDasharray={CHECK_LENGTH}
               animatedProps={markProps}
             />
-          ) : (
-            <AnimatedPath d={PEN_PATH} fill={color} animatedProps={penProps} />
-          )}
+          ) : null}
         </Svg>
+        {/* v517: the pen paints on its OWN layer inside the ring
+            group, so the group's settle/close motion still carries
+            it — and its pop rides penStyle (an animated style,
+            numbers only) instead of an animated-prop transform
+            string, which is what crashed the app (see header). */}
+        {variant === "pen" ? (
+          <ReAnimated.View style={[layer, penStyle]} pointerEvents="none">
+            <Svg width={size} height={size} viewBox="0 0 24 24">
+              <Path d={PEN_PATH} fill={color} />
+            </Svg>
+          </ReAnimated.View>
+        ) : null}
       </ReAnimated.View>
     </View>
   );

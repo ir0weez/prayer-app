@@ -54,7 +54,7 @@ import { getPraiseDisplay, getPraiseJournalText } from "@/lib/praise-display";
 import { buildPraiseUnit } from "@/lib/praise-unit";
 import { PraiseBirthdayConfetti } from "@/components/praise-birthday-confetti";
 import { formatHoursLeft } from "@/lib/bell-header";
-import { EMERGENCY_ROW_MOTION_MS, emergencyRowKey, reconcileEmergencyRows, type EmergencyEntry } from "@/lib/emergency-rows";
+import { EMERGENCY_ROW_MOTION_MS, emergencyRowKey, nextEmergencyCardSurfaceSize, reconcileEmergencyRows, type EmergencyCardSurfaceSize, type EmergencyEntry } from "@/lib/emergency-rows";
 import { getDueReachOut, reachOutCardSubline } from "@/lib/reach-out";
 import { getWhatsNext, type WhatsNextItem } from "@/lib/whats-next";
 import { paperKeywordSceneFor } from "@/components/paper-keyword-scenes";
@@ -3517,6 +3517,23 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeEmergencyKeys, emergencyRowsReducedMotion]);
 
+  // v521: the card's red surface takes the shell's MEASURED size
+  // (lib/emergency-rows has the whole story): the shell's onLayout
+  // records every box the content reaches — the first layout, and
+  // each height the card grows through as renewed rows open — and
+  // the fill below is handed that size explicitly, so it covers
+  // every row the shell contains. Until the first measurement the
+  // fill keeps the plain percentage form (its first layout is the
+  // one a fresh start makes); the size clears when the banner
+  // unmounts, so a later banner measures fresh.
+  const [emergencyCardSurfaceSize, setEmergencyCardSurfaceSize] = useState<EmergencyCardSurfaceSize | null>(null);
+  const handleEmergencyCardLayout = (width: number, height: number) => {
+    setEmergencyCardSurfaceSize((prev) => nextEmergencyCardSurfaceSize(prev, { width, height }));
+  };
+  useEffect(() => {
+    if (emergencyRenderedKeys.length === 0) setEmergencyCardSurfaceSize(null);
+  }, [emergencyRenderedKeys]);
+
   const renderEmergencyBanner = () => {
     const emergencies = activeEmergencyEntries;
     if (emergencyRenderedKeys.length === 0) return null;
@@ -3536,8 +3553,17 @@ export default function HomeScreen() {
     return (
       <PeopleEntrance index={0} emphasis>
         <View style={{ marginHorizontal: 16 }}>
-          <View style={{ borderRadius: 26, overflow: "hidden", shadowColor: "#991B1B", shadowOpacity: 0.32, shadowRadius: 13, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
-            <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} width="100%" height="100%">
+          <View
+            onLayout={(event) => handleEmergencyCardLayout(event.nativeEvent.layout.width, event.nativeEvent.layout.height)}
+            style={{ borderRadius: 26, overflow: "hidden", shadowColor: "#991B1B", shadowOpacity: 0.32, shadowRadius: 13, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}
+          >
+            {/* v521: once the shell has been measured, the fill is
+                sized by that measurement outright — never left as
+                a percentage of the shell it must cover (the renew
+                break: the percentage surface kept its first,
+                header + one-row size while renewed rows grew the
+                card beneath it). */}
+            <Svg style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} {...(emergencyCardSurfaceSize ? { width: emergencyCardSurfaceSize.width, height: emergencyCardSurfaceSize.height } : {})}>
               <Defs>
                 <LinearGradient id="v254EmergencyGrad" x1="0" y1="0" x2="1" y2="0">
                   <Stop offset="0" stopColor="#B91C1C" />

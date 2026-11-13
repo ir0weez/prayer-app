@@ -39,6 +39,52 @@ export type EmergencyRowReconcile = {
   leaving: string[];
 };
 
+// ─── v521 — the card's red surface is sized by measurement ─────────
+// Jonathan (2026-11-13): "Whenever I renew emergency prayers, this
+// is how it looks… I have to restart the app to fix it." The renewed
+// rows stood BELOW the card's red fill: their on-red text painted
+// over the page background, washed out, while the card's shell and
+// its inset-stretched breath glow spanned the full height.
+//
+// The mechanism: a Renew RE-POSTS the prayer (renewEmergencyPrayer
+// clears the lapsed item and posts a fresh one through
+// addEmergencyPrayer — a NEW item id), so in a mounted banner the
+// renewed prayer is a NEW row key and arrives as an ENTERING row.
+// The first renewal primes an unmounted banner (its row simply
+// stands, per reconcileEmergencyRows below) and the card takes its
+// first layout at header + one row; each further renewal grows the
+// card AFTER that layout, through the entering rows' animated
+// heights. The red fill was an absolutely positioned Svg whose
+// root react-native-svg forces to width/height '100%' — a
+// percentage of the content-sized shell — and that percentage
+// surface stayed at the size of its first layout (header + first
+// row) when the shell grew underneath it. A fresh app start primes
+// every row standing before the first layout, so the fill measured
+// the whole card and painted correctly — the restart "fix".
+//
+// The fix keeps the fill's size in the same measured idiom the rows
+// themselves use (a row's natural height is measured by onLayout,
+// then drives its surface): the banner measures the card shell
+// with onLayout and hands the fill that exact size as explicit
+// numbers, so the surface covers every row the shell contains, at
+// every height the content reaches. This model is the state logic:
+// a measurement the surface already has changes nothing (the same
+// object comes back, so the caller can set state without a
+// re-render), and a non-positive or non-finite measurement never
+// reaches the surface.
+
+export type EmergencyCardSurfaceSize = { width: number; height: number };
+
+export function nextEmergencyCardSurfaceSize(
+  prev: EmergencyCardSurfaceSize | null,
+  measured: EmergencyCardSurfaceSize,
+): EmergencyCardSurfaceSize | null {
+  if (!Number.isFinite(measured.width) || !Number.isFinite(measured.height)) return prev;
+  if (measured.width <= 0 || measured.height <= 0) return prev;
+  if (prev && prev.width === measured.width && prev.height === measured.height) return prev;
+  return { width: measured.width, height: measured.height };
+}
+
 export function reconcileEmergencyRows(rendered: string[], active: string[]): EmergencyRowReconcile {
   if (rendered.length === 0) {
     // Nothing on screen: the banner itself is absent or mounting,

@@ -138,7 +138,13 @@ describe('v497 full player — Concept 2, in source', () => {
   it('the numeral hero: ~76px (v499 re-pin, was ~100px), 800 weight, in the deep primary', () => {
     expect(listen).toContain('fontSize: 76');
     expect(listen).toContain("fontWeight: '800'");
-    expect(listen).toContain('color: theme.primary');
+    // v519 RE-BASE (2026-11-13): the hero stands in the
+    // memoised PlayerFace leaf and takes the deep primary as
+    // its prop — the parent passes the theme's own primary,
+    // so the numeral's colour is the same value, carried
+    // through one indirection.
+    expect(listen).toContain('{ color: props.primary }');
+    expect(listen).toContain('primary={theme.primary}');
     expect(listen).toContain('devotionalPlayerTheme(devotional.book, palette.isDark)');
   });
 
@@ -148,12 +154,18 @@ describe('v497 full player — Concept 2, in source', () => {
   });
 
   it('one controls row: filled-tonal Stop pill + 64px primary play circle (v499 re-pin, was 72px)', () => {
-    expect(listen).toContain('backgroundColor: theme.stopSeat');
-    expect(listen).toContain('color: theme.accent');
+    // v519 RE-BASE (2026-11-13): the controls row stands in
+    // the memoised ControlsRow leaf and takes its colours as
+    // props — the parent passes the theme's own stopSeat,
+    // accent and primary, so every colour the pin names is
+    // the same value, carried through one indirection.
+    expect(listen).toContain('{ backgroundColor: props.stopSeat }');
+    expect(listen).toContain('stopSeat={theme.stopSeat}');
+    expect(listen).toContain('{ color: props.accent }');
     expect(listen).toContain('width: 64');
     expect(listen).toContain('height: 64');
     expect(listen).toContain('borderRadius: 32');
-    expect(listen).toContain('backgroundColor: theme.primary');
+    expect(listen).toContain('{ backgroundColor: props.primary');
   });
 
   it('the corrected commentary line survives the rebuild', () => {

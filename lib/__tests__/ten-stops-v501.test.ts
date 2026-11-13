@@ -465,7 +465,13 @@ describe('v501 surfaces — in source', () => {
 
   it('the player page: book name in the hero seat, local-file source, shared context line', () => {
     const listen = read('components/devotional-listen.tsx');
-    expect(listen).toContain('devotional.bookLevel ? devotional.book : devotional.chapter');
+    // v519 RE-BASE (2026-11-13): the hero stands in the
+    // memoised PlayerFace leaf — the seat choice (book name
+    // for a book-level session, chapter numeral otherwise)
+    // reads off its props, and the parent hands it the
+    // session's own bookLevel flag. Same seat, same choice.
+    expect(listen).toContain('{props.bookLevel ? props.book : props.chapter}');
+    expect(listen).toContain('bookLevel={!!devotional.bookLevel}');
     expect(listen).toContain('styles.numeralBook');
     expect(listen).toContain('tenStopsLocalSource(tenStopsEntry)');
     expect(listen).toContain('devotionalContextLine(devotional)');

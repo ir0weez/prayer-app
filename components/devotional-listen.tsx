@@ -120,6 +120,41 @@
 // hostage. A side effect of the light first render: the expand
 // morph's own start (gated on the reduce-motion answer) is no
 // longer serialised behind the heavy build either.
+//
+// v519: the transcript's WEIGHT (Jonathan's recording, Nov 13,
+// on v518 — with a tour playing, collapse/expand travel and
+// especially scrolling the follow-along still drag). v515 fixed
+// the expand's first paint; what remained was the panel itself:
+// ~500 segment Pressables, each with its own layout callback,
+// mounted at once inside the page's single ScrollView, plus a
+// position tick's render scope — the guideposts memo was
+// defeated every tick by a freshly-allocated movements array,
+// the face re-rendered whole on every 250ms status update, and
+// a segment boundary re-rendered every row in the panel. The
+// cleanup is structural, behaviour-identical:
+//  · the transcript mounts a WINDOW of its rows — around the
+//    spoken segment and the reader's viewport, with overscan —
+//    and the unmounted rest are carried by two spacer views
+//    whose heights come from the panel's row-height model:
+//    measured heights (cached by row position as rows mount)
+//    over text-derived estimates, never a flat guess. The
+//    spoken segment's row is ALWAYS in the window, and the
+//    follow camera keeps seating off its MEASURED layout, so
+//    scroll positions stay truthful as the window moves (the
+//    mount-spreading family of the chapter page's old v403
+//    slicing, kept here because the rows stay heavy: a
+//    Pressable and a layout callback apiece).
+//  · segment rows are memoised on their lit state, so a
+//    segment boundary re-renders exactly the two rows whose
+//    state changed — the one that lit and the one that went
+//    out — and a tick inside a segment re-renders none of them.
+//  · the tick's render path is narrowed to what moves: the
+//    guideposts and facts are memoised at the source (their
+//    helpers allocate fresh objects per call, which silently
+//    broke the panels' memo), and the face, the controls row
+//    and the pill face are memoised leaves whose props exclude
+//    the position — a 250ms tick re-renders the seek bar and
+//    the time labels, and nothing else that stands still.
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -222,6 +257,123 @@ export function followScrollTarget(elementY: number, viewportHeight: number): nu
   return Math.max(0, Math.round(elementY - viewportHeight / 3));
 }
 
+// ─── The transcript window (v519) ───────────────────────────────────────────
+// How much of the transcript stands mounted around the ground
+// the reader and the voice are on: this many rows behind the
+// anchor, this many ahead. A row is a header or a segment; at
+// rest on a ~500-segment tour the mounted set is the anchor's
+// neighbourhood — some fifty rows — not the whole panel.
+export const TRANSCRIPT_WINDOW_BACK_ROWS = 24;
+export const TRANSCRIPT_WINDOW_AHEAD_ROWS = 40;
+/** How close the anchor may come to a standing window's edge
+ *  before the window is re-cut around it — well inside the
+ *  overscan, so each re-cut buys real travel: the voice walks
+ *  many segments, and the parked reader scrolls many rows,
+ *  between re-slices. */
+export const TRANSCRIPT_WINDOW_HOLD_MARGIN_ROWS = 8;
+
+export interface TranscriptWindowRange {
+  start: number;
+  end: number;
+}
+
+/**
+ * The window the transcript must mount: a fresh window covers
+ * the anchor — the spoken segment's row, and while the follow
+ * camera is parked the rows the viewport is showing too
+ * (either may be the far one — the reader parked at the top
+ * while the voice is at the end spans both) — plus the
+ * overscan above. Hysteresis: while the anchor stays inside
+ * the standing window with the hold margin to spare on both
+ * sides, the window stands — the playhead's advance and the
+ * reader's scroll re-slice nothing until the anchor nears an
+ * edge or escapes it.
+ */
+export function transcriptWindowRange(args: {
+  rowCount: number;
+  /** Row position of the spoken segment; negative before the
+   *  first segment — the anchor then sits at the panel's head. */
+  activeRow: number;
+  /** First / last row position intersecting the viewport, in
+   *  panel coordinates; null while the viewport's place in the
+   *  panel is unknown. */
+  viewFirst: number | null;
+  viewLast: number | null;
+  current: TranscriptWindowRange | null;
+}): TranscriptWindowRange {
+  const { rowCount } = args;
+  if (rowCount <= 0) return { start: 0, end: 0 };
+  const anchor = Math.min(Math.max(args.activeRow, 0), rowCount - 1);
+  const lo = Math.min(anchor, args.viewFirst ?? anchor);
+  const hi = Math.max(anchor, args.viewLast ?? anchor);
+  const cur = args.current;
+  if (cur && cur.start >= 0 && cur.end <= rowCount) {
+    // The margin a side can actually demand: a window already
+    // at the panel's edge has no room beyond it to ask for.
+    const lowMargin = Math.min(TRANSCRIPT_WINDOW_HOLD_MARGIN_ROWS, cur.start);
+    const highMargin = Math.min(TRANSCRIPT_WINDOW_HOLD_MARGIN_ROWS, rowCount - cur.end);
+    if (lo >= cur.start + lowMargin && hi <= cur.end - 1 - highMargin) {
+      return cur;
+    }
+  }
+  return {
+    start: Math.max(0, lo - TRANSCRIPT_WINDOW_BACK_ROWS),
+    end: Math.min(rowCount, hi + TRANSCRIPT_WINDOW_AHEAD_ROWS + 1),
+  };
+}
+
+/**
+ * The standing estimate of a transcript row's height before it
+ * has ever mounted — derived from the row itself (a segment's
+ * own text length at the panel's measure, a header's two text
+ * lines), and replaced by the row's measured height the moment
+ * it mounts (the panel caches measurements by row position).
+ * The spacers are only ever as wrong as this estimate, and only
+ * until the reader's scrolling brings the real row on stage;
+ * the follow camera never seats off an estimate — it reads the
+ * spoken row's measured layout, and that row is always mounted.
+ */
+export function transcriptRowEstimateHeight(row: TenStopsTranscriptRow, charsPerLine: number): number {
+  // transcriptHead: marginTop 14 + marginBottom 6 around the
+  // name line (~20px), plus the passage line (~18px) where one
+  // rides.
+  if (row.kind === 'header') return row.passage ? 58 : 40;
+  // transcriptSeg: paddingVertical 8×2 + marginBottom 6 around
+  // paraText lines at lineHeight 26.
+  const lines = Math.max(1, Math.ceil(row.text.length / Math.max(8, charsPerLine)));
+  return 22 + lines * 26;
+}
+
+/** The measure a segment's text wraps at, for a panel of the
+ *  given width: the width less the panel's padding (16×2) and
+ *  the segment's own padding and border (10×2 + 3), at ~8.2px
+ *  a character of 17px text. */
+export function transcriptCharsPerLine(panelWidth: number): number {
+  return Math.max(12, Math.floor((panelWidth - 55) / 8.2));
+}
+
+/**
+ * The row-height model's prefix sums: offsets[i] is row i's
+ * top within the panel, offsets[rows.length] the panel's
+ * total row height. Each row contributes its MEASURED height
+ * where the cache holds one, its estimate where it does not —
+ * the spacers that carry the unmounted rows are differences
+ * of these sums, so the total is the same whether a row is
+ * mounted or not.
+ */
+export function transcriptRowOffsets(
+  rows: readonly TenStopsTranscriptRow[],
+  measured: ReadonlyMap<number, number>,
+  charsPerLine: number,
+): number[] {
+  const offsets = new Array<number>(rows.length + 1);
+  offsets[0] = 0;
+  for (let i = 0; i < rows.length; i++) {
+    offsets[i + 1] = offsets[i] + (measured.get(i) ?? transcriptRowEstimateHeight(rows[i], charsPerLine));
+  }
+  return offsets;
+}
+
 // ─── The guideposts (IN THIS CHAPTER) ───────────────────────────────────────
 // Rendered only when the session carries real timed movements
 // (devotionalGuideposts) — for chapters that is still never, so
@@ -283,6 +435,90 @@ const GuidepostsPanel = memo(function GuidepostsPanel(props: {
 // no new vocabulary. The page's scroll follows the voice to the
 // active segment, as it does for paragraphs. Chapter sessions
 // carry no transcript, so the section renders nowhere for them.
+// v519: the panel mounts a window of these rows, not all of
+// them (see the header note and transcriptWindowRange above);
+// what is written here — the grouping, the dress, the doors —
+// is unchanged for every row the window carries.
+// ─── v519: a transcript row, memoised on what it wears ──────
+// A segment boundary changes exactly two rows' dress — the
+// one that lit and the one that went out — so the row renders
+// from its lit STATE ('active' | 'done' | 'next', the same
+// three the dress has always read off the index comparison)
+// and nothing else that moves. Its layout report carries its
+// row position with it, through one stable callback the panel
+// owns, so the memo is never broken by a fresh closure.
+type TranscriptRowLayoutReport = (
+  pos: number,
+  segIndex: number,
+  y: number,
+  height: number | undefined,
+) => void;
+
+const TranscriptHeaderRow = memo(function TranscriptHeaderRow(props: {
+  row: Extract<TenStopsTranscriptRow, { kind: 'header' }>;
+  pos: number;
+  primary: string;
+  inkSoft: string;
+  reportLayout: TranscriptRowLayoutReport;
+}) {
+  const { row } = props;
+  return (
+    <View
+      style={styles.transcriptHead}
+      onLayout={(e) =>
+        props.reportLayout(props.pos, -1, e.nativeEvent.layout.y, e.nativeEvent.layout.height)
+      }
+    >
+      <Text style={[styles.guideName, { color: props.primary }]}>{row.label}</Text>
+      {row.passage ? (
+        <Text style={[styles.guidePassage, { color: props.inkSoft }]}>{row.passage}</Text>
+      ) : null}
+    </View>
+  );
+});
+
+const TranscriptSegmentRow = memo(function TranscriptSegmentRow(props: {
+  row: Extract<TenStopsTranscriptRow, { kind: 'segment' }>;
+  pos: number;
+  state: 'active' | 'done' | 'next';
+  primary: string;
+  ink: string;
+  inkSoft: string;
+  stopSeat: string;
+  onSeek: (sec: number) => void;
+  reportLayout: TranscriptRowLayoutReport;
+}) {
+  const { row, state } = props;
+  return (
+    <Pressable
+      onLayout={(e) =>
+        props.reportLayout(props.pos, row.index, e.nativeEvent.layout.y, e.nativeEvent.layout.height)
+      }
+      style={[
+        styles.transcriptSeg,
+        state === 'active'
+          ? { backgroundColor: props.stopSeat, borderLeftColor: props.primary }
+          : { borderLeftColor: 'transparent' },
+      ]}
+      onPress={() => props.onSeek(row.startSec)}
+      accessibilityRole="button"
+      accessibilityLabel={`Play from ${formatClock(row.startSec)}`}
+    >
+      <Text
+        style={[
+          styles.paraText,
+          {
+            color: state === 'done' ? props.inkSoft : props.ink,
+            opacity: state === 'next' ? 0.75 : 1,
+          },
+        ]}
+      >
+        {row.text}
+      </Text>
+    </Pressable>
+  );
+});
+
 const TranscriptPanel = memo(function TranscriptPanel(props: {
   rows: TenStopsTranscriptRow[];
   activeIdx: number;
@@ -294,49 +530,151 @@ const TranscriptPanel = memo(function TranscriptPanel(props: {
   onSeek: (sec: number) => void;
   onSegLayout: (index: number, y: number) => void;
   onPanelLayout: (y: number) => void;
+  /** v519: the page's scroll offset (a coarse hint — it moves
+   *  in steps, not per event) and viewport height, so the
+   *  window can follow the reader as well as the voice. While
+   *  the follow camera is live the viewport rides with the
+   *  voice, so the window anchors on the voice alone; while
+   *  it is parked (followParked) the window spans the reader's
+   *  viewport AND the voice, so neither end loses its rows. */
+  scrollY: number;
+  viewportHeight: number;
+  followParked: boolean;
 }) {
+  const { rows, activeIdx } = props;
+
+  // Segment index → its row position (headers interleave).
+  const segRowPos = useMemo(() => {
+    const map = new Map<number, number>();
+    rows.forEach((row, pos) => {
+      if (row.kind === 'segment') map.set(row.index, pos);
+    });
+    return map;
+  }, [rows]);
+  const activeRow = activeIdx >= 0 ? (segRowPos.get(activeIdx) ?? 0) : 0;
+
+  // The row-height model: measured heights cached by row
+  // position as rows mount, standing over the text-derived
+  // estimates (transcriptRowEstimateHeight). Offsets are the
+  // model's prefix sums — the spacers below are read straight
+  // off them, so the panel's total height stays the sum of its
+  // rows whether a given row is mounted or not.
+  const heightsRef = useRef(new Map<number, number>());
+  const [heightsVersion, setHeightsVersion] = useState(0);
+  const panelBoxRef = useRef({ top: 0, width: 350 });
+  const [boxVersion, setBoxVersion] = useState(0);
+  const charsPerLine = transcriptCharsPerLine(panelBoxRef.current.width);
+  const { offsets, totalHeight } = useMemo(() => {
+    const offsets = transcriptRowOffsets(rows, heightsRef.current, charsPerLine);
+    return { offsets, totalHeight: offsets[rows.length] };
+    // heightsVersion / boxVersion are the model's change
+    // counters — the cache and the measure live in refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, heightsVersion, boxVersion]);
+
+  // Which rows the reader's viewport is on, in panel
+  // coordinates: the page's scroll offset less the panel's own
+  // seat in the page, a viewport tall.
+  const viewRows = useMemo(() => {
+    const vTop = props.scrollY - panelBoxRef.current.top;
+    const vBottom = vTop + props.viewportHeight;
+    let first: number | null = null;
+    let last: number | null = null;
+    for (let i = 0; i < rows.length; i++) {
+      if (offsets[i + 1] > vTop && offsets[i] < vBottom) {
+        if (first === null) first = i;
+        last = i;
+      }
+    }
+    return { first, last };
+    // boxVersion: the panel's seat enters the math.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offsets, props.scrollY, props.viewportHeight, rows.length, boxVersion]);
+
+  const [win, setWin] = useState<TranscriptWindowRange>(() =>
+    transcriptWindowRange({ rowCount: rows.length, activeRow, viewFirst: null, viewLast: null, current: null }),
+  );
+  useEffect(() => {
+    setWin((cur) =>
+      transcriptWindowRange({
+        rowCount: rows.length,
+        activeRow,
+        viewFirst: props.followParked ? viewRows.first : null,
+        viewLast: props.followParked ? viewRows.last : null,
+        current: cur,
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows.length, activeRow, viewRows, props.followParked]);
+
+  const reportLayout = useCallback<TranscriptRowLayoutReport>(
+    (pos, segIndex, y, height) => {
+      if (segIndex >= 0 && typeof y === 'number') props.onSegLayout(segIndex, y);
+      if (typeof height === 'number' && height > 0) {
+        const prev = heightsRef.current.get(pos);
+        if (prev === undefined || Math.abs(prev - height) >= 1) {
+          heightsRef.current.set(pos, height);
+          setHeightsVersion((v) => v + 1);
+        }
+      }
+    },
+    // onSegLayout is the parent's stable callback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [props.onSegLayout],
+  );
+
+  const handlePanelLayout = useCallback(
+    (e: { nativeEvent: { layout: { y: number; width: number } } }) => {
+      const { y, width } = e.nativeEvent.layout;
+      props.onPanelLayout(y);
+      const widthChanged =
+        typeof width === 'number' && Math.abs(width - panelBoxRef.current.width) >= 8;
+      panelBoxRef.current = {
+        top: y,
+        width: typeof width === 'number' ? width : panelBoxRef.current.width,
+      };
+      if (widthChanged) setBoxVersion((v) => v + 1);
+    },
+    // onPanelLayout is the parent's stable callback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [props.onPanelLayout],
+  );
+
   return (
-    <View
-      style={[styles.panel, { backgroundColor: props.panel }]}
-      onLayout={(e) => props.onPanelLayout(e.nativeEvent.layout.y)}
-    >
+    <View style={[styles.panel, { backgroundColor: props.panel }]} onLayout={handlePanelLayout}>
       <Text style={[styles.panelTitle, { color: props.primary }]}>TRANSCRIPT</Text>
-      {props.rows.map((row, i) =>
-        row.kind === 'header' ? (
-          <View key={`h-${i}`} style={styles.transcriptHead}>
-            <Text style={[styles.guideName, { color: props.primary }]}>{row.label}</Text>
-            {row.passage ? (
-              <Text style={[styles.guidePassage, { color: props.inkSoft }]}>{row.passage}</Text>
-            ) : null}
-          </View>
+      {win.start > 0 ? (
+        <View testID="transcript-spacer-top" style={{ height: offsets[win.start] }} />
+      ) : null}
+      {rows.slice(win.start, win.end).map((row, k) => {
+        const pos = win.start + k;
+        return row.kind === 'header' ? (
+          <TranscriptHeaderRow
+            key={`h-${pos}`}
+            row={row}
+            pos={pos}
+            primary={props.primary}
+            inkSoft={props.inkSoft}
+            reportLayout={reportLayout}
+          />
         ) : (
-          <Pressable
+          <TranscriptSegmentRow
             key={`s-${row.index}`}
-            onLayout={(e) => props.onSegLayout(row.index, e.nativeEvent.layout.y)}
-            style={[
-              styles.transcriptSeg,
-              row.index === props.activeIdx
-                ? { backgroundColor: props.stopSeat, borderLeftColor: props.primary }
-                : { borderLeftColor: 'transparent' },
-            ]}
-            onPress={() => props.onSeek(row.startSec)}
-            accessibilityRole="button"
-            accessibilityLabel={`Play from ${formatClock(row.startSec)}`}
-          >
-            <Text
-              style={[
-                styles.paraText,
-                {
-                  color: row.index < props.activeIdx ? props.inkSoft : props.ink,
-                  opacity: row.index > props.activeIdx ? 0.75 : 1,
-                },
-              ]}
-            >
-              {row.text}
-            </Text>
-          </Pressable>
-        ),
-      )}
+            row={row}
+            pos={pos}
+            state={row.index === activeIdx ? 'active' : row.index < activeIdx ? 'done' : 'next'}
+            primary={props.primary}
+            ink={props.ink}
+            inkSoft={props.inkSoft}
+            stopSeat={props.stopSeat}
+            onSeek={props.onSeek}
+            reportLayout={reportLayout}
+          />
+        );
+      })}
+      {win.end < rows.length ? (
+        <View testID="transcript-spacer-bottom" style={{ height: totalHeight - offsets[win.end] }} />
+      ) : null}
     </View>
   );
 });
@@ -346,6 +684,43 @@ const TranscriptPanel = memo(function TranscriptPanel(props: {
 // expander, nothing hidden behind a button. Memoised on its inputs
 // (paragraphs, active index, the four stops it wears) so neither
 // the collapse morph nor a playback tick re-renders the words.
+// v519: a follow-along paragraph, memoised on its state the
+// same way the transcript's rows are — a paragraph boundary
+// re-renders the two paragraphs whose dress changed, not the
+// whole column.
+const FollowPara = memo(function FollowPara(props: {
+  text: string;
+  index: number;
+  state: 'active' | 'done' | 'next';
+  stopSeat: string;
+  primary: string;
+  ink: string;
+  inkSoft: string;
+  onParaLayout: (index: number, y: number) => void;
+}) {
+  const { state } = props;
+  return (
+    <View
+      onLayout={(e) => props.onParaLayout(props.index, e.nativeEvent.layout.y)}
+      style={[
+        styles.para,
+        state === 'active'
+          ? { backgroundColor: props.stopSeat, borderLeftColor: props.primary }
+          : { borderLeftColor: 'transparent' },
+      ]}
+    >
+      <Text
+        style={[
+          styles.paraText,
+          { color: state === 'done' ? props.inkSoft : props.ink, opacity: state === 'next' ? 0.75 : 1 },
+        ]}
+      >
+        {props.text}
+      </Text>
+    </View>
+  );
+});
+
 const FollowAlong = memo(function FollowAlong(props: {
   paragraphs: readonly string[];
   activeIdx: number;
@@ -359,34 +734,165 @@ const FollowAlong = memo(function FollowAlong(props: {
   if (paragraphs.length === 0) return null;
   return (
     <View style={styles.follow}>
-      {paragraphs.map((text, i) => {
-        const state = i === activeIdx ? 'active' : i < activeIdx ? 'done' : 'next';
-        return (
-          <View
-            key={i}
-            onLayout={(e) => props.onParaLayout(i, e.nativeEvent.layout.y)}
-            style={[
-              styles.para,
-              state === 'active'
-                ? { backgroundColor: props.stopSeat, borderLeftColor: props.primary }
-                : { borderLeftColor: 'transparent' },
-            ]}
-          >
-            <Text
-              style={[
-                styles.paraText,
-                { color: state === 'done' ? props.inkSoft : props.ink, opacity: state === 'next' ? 0.75 : 1 },
-              ]}
-            >
-              {text}
-            </Text>
-          </View>
-        );
-      })}
+      {paragraphs.map((text, i) => (
+        <FollowPara
+          key={i}
+          text={text}
+          index={i}
+          state={i === activeIdx ? 'active' : i < activeIdx ? 'done' : 'next'}
+          stopSeat={props.stopSeat}
+          primary={props.primary}
+          ink={props.ink}
+          inkSoft={props.inkSoft}
+          onParaLayout={props.onParaLayout}
+        />
+      ))}
       <Text style={[styles.foot, { color: props.inkSoft }]}>
         The words follow the reading by proportion — listen, and read along.
       </Text>
     </View>
+  );
+});
+
+// ─── v519: the page's still parts, memoised ─────────────────
+// The face (header, title, big idea, hero), the controls row
+// and the pill face wear nothing the position moves — their
+// props change only when the session, the facts or play state
+// change — so a position tick's render passes over them. What
+// a tick does move (the seek bar, the time labels) stays in
+// the parent's own JSX, between the face and the controls.
+const PlayerFace = memo(function PlayerFace(props: {
+  contextLine: string;
+  title: string;
+  bigIdea: string | null;
+  bookLevel: boolean;
+  book: string;
+  chapter: number;
+  facts: { range: string | null; chapterLine: string; durationLine: string };
+  primary: string;
+  ink: string;
+  inkSoft: string;
+  accent: string;
+  stopSeat: string;
+  onMinimize: () => void;
+}) {
+  return (
+    <>
+      {/* The header row: kicker left, the collapse chevron at
+          the top right in its quiet tonal seat — it runs the
+          same morph as the drag. */}
+      <View style={styles.headerRow}>
+        <Text style={[styles.kicker, { color: props.primary }]}>{props.contextLine}</Text>
+        <Pressable
+          onPress={props.onMinimize}
+          hitSlop={10}
+          style={[styles.chevronBtn, { backgroundColor: props.stopSeat }]}
+          accessibilityLabel="Minimize player"
+        >
+          <MaterialIcons name="keyboard-arrow-down" size={18} color={props.accent} />
+        </Pressable>
+      </View>
+
+      <Text style={[styles.title, { color: props.ink }]}>{props.title}</Text>
+
+      {/* The chapter's big-idea sentence, in his own words —
+          only where a source carries one. */}
+      {props.bigIdea ? (
+        <Text style={[styles.bigIdea, { color: props.accent }]}>“{props.bigIdea}”</Text>
+      ) : null}
+
+      {/* The hero row: the numeral, and beside it the facts.
+          A book-level tour (v501) has no numeral to show — the
+          BOOK's name takes the hero seat instead, set smaller
+          so a word fits where a number stood. */}
+      <View style={styles.heroRow}>
+        <Text
+          style={[
+            styles.numeral,
+            { color: props.primary },
+            props.bookLevel ? styles.numeralBook : null,
+          ]}
+        >
+          {props.bookLevel ? props.book : props.chapter}
+        </Text>
+        <View style={styles.facts}>
+          {props.facts.range ? (
+            <Text style={[styles.factStrong, { color: props.ink }]}>{props.facts.range}</Text>
+          ) : null}
+          <Text style={[styles.fact, { color: props.inkSoft }]}>{props.facts.chapterLine}</Text>
+          <Text style={[styles.fact, { color: props.inkSoft }]}>{props.facts.durationLine}</Text>
+        </View>
+      </View>
+    </>
+  );
+});
+
+const ControlsRow = memo(function ControlsRow(props: {
+  playing: boolean;
+  ended: boolean;
+  primary: string;
+  stopSeat: string;
+  accent: string;
+  stopBtnRef: React.RefObject<any>;
+  onStop: () => void;
+  onToggle: () => void;
+}) {
+  return (
+    <View style={styles.controls}>
+      <Pressable
+        ref={props.stopBtnRef}
+        onPress={props.onStop}
+        style={[styles.stopBtn, { backgroundColor: props.stopSeat }]}
+        accessibilityLabel="Stop"
+      >
+        <MaterialIcons name="stop" size={14} color={props.accent} />
+        <Text style={[styles.stopText, { color: props.accent }]}>Stop</Text>
+      </Pressable>
+      <Pressable
+        onPress={props.onToggle}
+        style={[styles.playBtn, { backgroundColor: props.primary, shadowColor: props.primary }]}
+        accessibilityLabel={props.playing ? 'Pause' : props.ended ? 'Play again' : 'Play'}
+      >
+        <MaterialIcons
+          name={props.playing ? 'pause' : props.ended ? 'replay' : 'play-arrow'}
+          size={28}
+          color="#FFFFFF"
+        />
+      </Pressable>
+    </View>
+  );
+});
+
+const PillFace = memo(function PillFace(props: {
+  playing: boolean;
+  title: string;
+  contextLine: string;
+  primary: string;
+  animatedStyle: React.ComponentProps<typeof Animated.View>['style'];
+}) {
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[styles.pillFace, { backgroundColor: props.primary }, props.animatedStyle]}
+    >
+      <View style={styles.pillDisc}>
+        <MaterialIcons name={props.playing ? 'pause' : 'play-arrow'} size={20} color={props.primary} />
+      </View>
+      <View style={styles.pillTxt}>
+        <Text style={styles.pillTitle} numberOfLines={1}>
+          {props.title}
+        </Text>
+        <Text style={styles.pillCtx} numberOfLines={1}>
+          {props.contextLine}
+        </Text>
+      </View>
+      <View style={styles.pillSeat}>
+        <MaterialIcons name="stop" size={15} color="rgba(255,255,255,0.88)" />
+      </View>
+      <View style={styles.pillSeat}>
+        <MaterialIcons name="keyboard-arrow-up" size={19} color="rgba(255,255,255,0.88)" />
+      </View>
+    </Animated.View>
   );
 });
 
@@ -455,7 +961,13 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   // verses do (the app's own Bible-data path — the chapter the
   // reader came from has them cached).
   const bigIdea = devotionalBigIdea(devotional);
-  const guideposts = devotionalGuideposts(devotional);
+  // v519: memoised — devotionalGuideposts ALLOCATES a fresh
+  // movements array on every call, so reading it bare in the
+  // render handed GuidepostsPanel (and the transcript rows'
+  // grouping) a new prop identity on every position tick and
+  // silently defeated their memo. The derivation is a pure
+  // function of the session's entry; it now runs per session.
+  const guideposts = useMemo(() => devotionalGuideposts(devotional), [devotional]);
   // v508: the tour's transcript follow-along — the session's own
   // segments grouped under their stops, and the segment the
   // position is inside. Book-level sessions only (chapter
@@ -504,7 +1016,13 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
       live = false;
     };
   }, [devotional.book, devotional.chapter, devotional.bookLevel]);
-  const facts = devotionalFacts(devotional, lastVerse, duration);
+  // v519: memoised like the guideposts — devotionalFacts
+  // allocates per call, and the face that wears them is a
+  // memoised leaf now (PlayerFace below).
+  const facts = useMemo(
+    () => devotionalFacts(devotional, lastVerse, duration),
+    [devotional, lastVerse, duration],
+  );
 
   // Reduce motion (the codebase's AccessibilityInfo seat): the
   // morph and the stop sequence jump straight to their end states.
@@ -546,6 +1064,13 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
 
   // Follow the voice: bring the active paragraph into view as it changes.
   const scrollRef = useRef<ScrollView>(null);
+  // v519: a coarse scroll hint for the transcript window —
+  // the state moves only when the page has travelled a real
+  // step since the last one the panel heard about, so a scroll
+  // does not re-render the page per event (the ScrollView's
+  // own throttle is 64ms; this is the state's).
+  const [scrollHint, setScrollHint] = useState(0);
+  const scrollHintRef = useRef(0);
   const paraY = useRef<number[]>([]);
   const trackWidth = useRef(0);
   const scrollTopRef = useRef(true);
@@ -558,8 +1083,32 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   // offset within the page — together they are the scroll seat.
   const segY = useRef<number[]>([]);
   const transcriptTop = useRef(0);
+  // v519: the seat correction's door to the camera (assigned
+  // below, once scrollToActive exists — the onBackRef pattern).
+  const scrollToActiveRef = useRef<() => void>(() => undefined);
   const handleSegLayout = useCallback((index: number, y: number) => {
+    const prev = segY.current[index];
     segY.current[index] = y;
+    // v519: the transcript is windowed now, so the spoken
+    // segment's seat may not exist when the follow camera first
+    // looks for it (a far seek, a reopen mid-tour): its row
+    // mounts with the window and measures a commit later. When
+    // that measurement lands — and only while the camera is the
+    // voice's, never while it is parked with the reader — it
+    // completes the seat the camera aimed at, at the true
+    // offset. A re-measure at the same offset is not a
+    // correction and does not scroll.
+    if (
+      index === activeSegRef.current &&
+      !followSuspendedRef.current &&
+      (prev === undefined || Math.abs(prev - y) >= 2)
+    ) {
+      scrollToActiveRef.current();
+    }
+    // activeSegRef / followSuspendedRef are the follow
+    // section's refs, declared below; this callback only runs
+    // on layout, after the whole body has executed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const handleTranscriptPanelLayout = useCallback((y: number) => {
     transcriptTop.current = y;
@@ -600,6 +1149,9 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
       scrollRef.current?.scrollTo({ y: followScrollTarget(y, screenH), animated: true });
     }
   }, [screenH]);
+  // v519: the transcript's seat correction (handleSegLayout)
+  // reaches the camera through this ref.
+  scrollToActiveRef.current = scrollToActive;
 
   const engageFollow = useCallback(() => {
     followSuspendedRef.current = false;
@@ -726,7 +1278,11 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     onBackRef.current();
   };
 
-  const settleCollapse = (toPill: boolean) => {
+  // v519: a stable callback (it drives only refs, shared
+  // values and setState, and hands off through the onBack ref)
+  // so the memoised face receives a minimize prop that does
+  // not change identity per render.
+  const settleCollapse = useCallback((toPill: boolean) => {
     const epoch = ++morphEpochRef.current;
     setClosing(toPill);
     collapseP.value = withTiming(
@@ -744,9 +1300,12 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
         }
       },
     );
-  };
+    // settleMs / handOffAndBack read only refs (reducedMotion,
+    // onBack) — stable across renders by construction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const minimize = () => settleCollapse(true);
+  const minimize = useCallback(() => settleCollapse(true), [settleCollapse]);
 
   // Dragging down scrubs the morph with the finger (the demo:
   // p = start + dy / 300). Only a clear downward drag AT THE TOP of
@@ -819,30 +1378,39 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     onBackRef.current();
   };
 
-  const runStopSequence = (cx: number, cy: number) => {
-    spreadCx.value = cx;
-    spreadCy.value = cy;
-    spreadMax.value =
-      2 *
-      Math.max(
-        Math.hypot(cx, cy),
-        Math.hypot(screenW - cx, cy),
-        Math.hypot(cx, screenH - cy),
-        Math.hypot(screenW - cx, screenH - cy),
-      );
-    spread.value = withTiming(1, { duration: DEVOTIONAL_STOP_SPREAD_MS, easing: EMPHASIZED }, (spreadDone) => {
-      if (spreadDone) {
-        exitP.value = withDelay(
-          DEVOTIONAL_STOP_HOLD_MS,
-          withTiming(1, { duration: DEVOTIONAL_STOP_EXIT_MS, easing: EMPHASIZED }, (exitDone) => {
-            if (exitDone) runOnJS(finishStop)();
-          }),
+  // v519: stable callbacks, like settleCollapse — the
+  // controls row is a memoised leaf and its props must not
+  // change identity per render. finishStop reads only the
+  // onBack ref and the controller, so the first-render
+  // instance these capture is always current.
+  const runStopSequence = useCallback(
+    (cx: number, cy: number) => {
+      spreadCx.value = cx;
+      spreadCy.value = cy;
+      spreadMax.value =
+        2 *
+        Math.max(
+          Math.hypot(cx, cy),
+          Math.hypot(screenW - cx, cy),
+          Math.hypot(cx, screenH - cy),
+          Math.hypot(screenW - cx, screenH - cy),
         );
-      }
-    });
-  };
+      spread.value = withTiming(1, { duration: DEVOTIONAL_STOP_SPREAD_MS, easing: EMPHASIZED }, (spreadDone) => {
+        if (spreadDone) {
+          exitP.value = withDelay(
+            DEVOTIONAL_STOP_HOLD_MS,
+            withTiming(1, { duration: DEVOTIONAL_STOP_EXIT_MS, easing: EMPHASIZED }, (exitDone) => {
+              if (exitDone) runOnJS(finishStop)();
+            }),
+          );
+        }
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [screenW, screenH],
+  );
 
-  const stop = () => {
+  const stop = useCallback(() => {
     if (stoppingRef.current) return;
     stoppingRef.current = true;
     setStopping(true);
@@ -857,7 +1425,8 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     } else {
       runStopSequence(52, screenH * 0.55);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runStopSequence, screenH]);
 
   // ── Animated styles, all driven by the one progress value ──────
   const surfaceStyle = useAnimatedStyle(() => {
@@ -927,56 +1496,34 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
         onScrollEndDrag={noteManualScrollEnd}
         onMomentumScrollEnd={noteManualScrollEnd}
         onScroll={(e) => {
-          scrollTopRef.current = e.nativeEvent.contentOffset.y <= 2;
+          const y = e.nativeEvent.contentOffset.y;
+          scrollTopRef.current = y <= 2;
+          if (Math.abs(y - scrollHintRef.current) >= 120) {
+            scrollHintRef.current = y;
+            setScrollHint(y);
+          }
         }}
         scrollEventThrottle={64}
       >
         <Animated.View style={[styles.page, { paddingTop: insets.top + 14 }, contentStyle]}>
-          {/* The header row: kicker left, the collapse chevron at
-              the top right in its quiet tonal seat — it runs the
-              same morph as the drag. */}
-          <View style={styles.headerRow}>
-            <Text style={[styles.kicker, { color: theme.primary }]}>{devotionalContextLine(devotional)}</Text>
-            <Pressable
-              onPress={minimize}
-              hitSlop={10}
-              style={[styles.chevronBtn, { backgroundColor: theme.stopSeat }]}
-              accessibilityLabel="Minimize player"
-            >
-              <MaterialIcons name="keyboard-arrow-down" size={18} color={theme.accent} />
-            </Pressable>
-          </View>
-
-          <Text style={[styles.title, { color: theme.ink }]}>{devotional.title}</Text>
-
-          {/* The chapter's big-idea sentence, in his own words —
-              only where a source carries one. */}
-          {bigIdea ? (
-            <Text style={[styles.bigIdea, { color: theme.accent }]}>“{bigIdea}”</Text>
-          ) : null}
-
-          {/* The hero row: the numeral, and beside it the facts.
-              A book-level tour (v501) has no numeral to show — the
-              BOOK's name takes the hero seat instead, set smaller
-              so a word fits where a number stood. */}
-          <View style={styles.heroRow}>
-            <Text
-              style={[
-                styles.numeral,
-                { color: theme.primary },
-                devotional.bookLevel ? styles.numeralBook : null,
-              ]}
-            >
-              {devotional.bookLevel ? devotional.book : devotional.chapter}
-            </Text>
-            <View style={styles.facts}>
-              {facts.range ? (
-                <Text style={[styles.factStrong, { color: theme.ink }]}>{facts.range}</Text>
-              ) : null}
-              <Text style={[styles.fact, { color: theme.inkSoft }]}>{facts.chapterLine}</Text>
-              <Text style={[styles.fact, { color: theme.inkSoft }]}>{facts.durationLine}</Text>
-            </View>
-          </View>
+          {/* The face — header, title, big idea, hero (v519: a
+              memoised leaf; nothing it wears moves with the
+              position, so the tick passes over it). */}
+          <PlayerFace
+            contextLine={devotionalContextLine(devotional)}
+            title={devotional.title}
+            bigIdea={bigIdea}
+            bookLevel={!!devotional.bookLevel}
+            book={devotional.book}
+            chapter={devotional.chapter}
+            facts={facts}
+            primary={theme.primary}
+            ink={theme.ink}
+            inkSoft={theme.inkSoft}
+            accent={theme.accent}
+            stopSeat={theme.stopSeat}
+            onMinimize={minimize}
+          />
 
           {/* The Material wavy seek, in the book colour (the app's
               wavy-progress family, v339). Tap to seek, as before. */}
@@ -1001,25 +1548,18 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               left margin, the big primary play EXACTLY at the
               page's horizontal centre (absolute, not flex-grouped
               — v497's grouped row left it wherever Stop's width
-              put it). */}
-          <View style={styles.controls}>
-            <Pressable
-              ref={stopBtnRef}
-              onPress={stop}
-              style={[styles.stopBtn, { backgroundColor: theme.stopSeat }]}
-              accessibilityLabel="Stop"
-            >
-              <MaterialIcons name="stop" size={14} color={theme.accent} />
-              <Text style={[styles.stopText, { color: theme.accent }]}>Stop</Text>
-            </Pressable>
-            <Pressable
-              onPress={toggleDevotionalPlayback}
-              style={[styles.playBtn, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
-              accessibilityLabel={playing ? 'Pause' : ended ? 'Play again' : 'Play'}
-            >
-              <MaterialIcons name={playing ? 'pause' : ended ? 'replay' : 'play-arrow'} size={28} color="#FFFFFF" />
-            </Pressable>
-          </View>
+              put it). v519: a memoised leaf — it re-renders when
+              play state flips, not on position ticks. */}
+          <ControlsRow
+            playing={playing}
+            ended={ended}
+            primary={theme.primary}
+            stopSeat={theme.stopSeat}
+            accent={theme.accent}
+            stopBtnRef={stopBtnRef}
+            onStop={stop}
+            onToggle={toggleDevotionalPlayback}
+          />
 
           {/* The guideposts — only where real timed movements
               exist (no chapter's do; the Ten Stops tour's ten
@@ -1057,6 +1597,9 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               onSeek={seekAndFollow}
               onSegLayout={handleSegLayout}
               onPanelLayout={handleTranscriptPanelLayout}
+              scrollY={scrollHint}
+              viewportHeight={screenH}
+              followParked={followParked}
             />
           ) : null}
 
@@ -1124,26 +1667,16 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
           morph's last stretch (v512: a position reveal, no fade —
           the face wears the opaque primary throughout) so that at
           p = 1 the surface IS the pill; the route then closes
-          into the root pill in the same seat. */}
-      <Animated.View pointerEvents="none" style={[styles.pillFace, { backgroundColor: theme.primary }, pillFaceStyle]}>
-        <View style={styles.pillDisc}>
-          <MaterialIcons name={playing ? 'pause' : 'play-arrow'} size={20} color={theme.primary} />
-        </View>
-        <View style={styles.pillTxt}>
-          <Text style={styles.pillTitle} numberOfLines={1}>
-            {devotional.title}
-          </Text>
-          <Text style={styles.pillCtx} numberOfLines={1}>
-            {devotionalContextLine(devotional)}
-          </Text>
-        </View>
-        <View style={styles.pillSeat}>
-          <MaterialIcons name="stop" size={15} color="rgba(255,255,255,0.88)" />
-        </View>
-        <View style={styles.pillSeat}>
-          <MaterialIcons name="keyboard-arrow-up" size={19} color="rgba(255,255,255,0.88)" />
-        </View>
-      </Animated.View>
+          into the root pill in the same seat. v519: a memoised
+          leaf (PillFace above) — its slide rides the animated
+          style, not the render. */}
+      <PillFace
+        playing={playing}
+        title={devotional.title}
+        contextLine={devotionalContextLine(devotional)}
+        primary={theme.primary}
+        animatedStyle={pillFaceStyle}
+      />
 
       {/* Stop: the primary spreads from the Stop button across
           the whole surface (see the sequence above). */}

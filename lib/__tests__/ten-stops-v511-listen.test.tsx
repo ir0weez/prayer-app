@@ -214,17 +214,24 @@ describe('v511 player — the Joshua session carries its transcript', () => {
     expect(all).toContain('Introduction');
     expect(all).toContain('God Encourages Joshua');
     expect(all).toContain('Joshua 1:1-9');
-    expect(all).toContain('A Promise Kept');
-    expect(all).toContain('The Accusation');
-    // And the words themselves are there — the tour's first and a
-    // mid-tour segment, verbatim from its transcript.
+    // v519 RE-BASE (2026-11-13): the panel mounts a WINDOW of
+    // its rows now (the performance cleanup), so at rest only
+    // the window's grouping stands here — the Introduction and
+    // Stop 1. The far stops' headers ('A Promise Kept', 'The
+    // Accusation') and words mount when the window reaches
+    // them — pinned in devotional-player-v519.test.tsx.
+    // And the words themselves are there — the tour's first and
+    // a further in-window segment, verbatim from its transcript.
     expect(all).toContain(segs[0].text);
-    expect(all).toContain(segs[150].text);
+    expect(all).toContain(segs[30].text);
   });
 
   it('every segment is a seek door labelled by its own start', () => {
     const root = render(session, 0);
-    for (const i of [0, 12, 100, 288]) {
+    // v519 RE-BASE (2026-11-13): in-window segments at rest;
+    // out-of-window segments (100, 288 before) mount when the
+    // window arrives — pinned in devotional-player-v519.test.tsx.
+    for (const i of [0, 12]) {
       expect(segmentDoor(root, segs[i].startSec)).toBeDefined();
     }
   });
@@ -239,14 +246,22 @@ describe('v511 player — the Joshua session carries its transcript', () => {
     const activeStyle = flat(activeDoor!.props.style);
     expect(activeStyle.backgroundColor).toBe(theme.stopSeat);
     expect(activeStyle.borderLeftColor).toBe(theme.primary);
-    // A segment well away from the playhead carries no seat.
-    const farDoor = segmentDoor(root, segs[280].startSec);
-    expect(flat(farDoor!.props.style).backgroundColor).toBeUndefined();
+    // A segment near the playhead but not on it carries no
+    // seat. v519 RE-BASE (2026-11-13): the old far segment
+    // (index 280) is unmounted at this seat under the window;
+    // the no-seat dress is pinned on a mounted neighbour.
+    const nearDoor = segmentDoor(root, segs[activeIdx + 12].startSec);
+    expect(nearDoor).toBeDefined();
+    expect(flat(nearDoor!.props.style).backgroundColor).toBeUndefined();
   });
 
   it('tapping a segment seeks the controller to its start', () => {
     const root = render(session, 0);
-    const target = segs[42];
+    // v519 RE-BASE (2026-11-13): the tap target sits inside
+    // the standing window (segment 42's row now mounts when
+    // the window travels to it; the door-and-seek behaviour it
+    // pins is the same).
+    const target = segs[30];
     const door = segmentDoor(root, target.startSec);
     expect(door).toBeDefined();
     act(() => {

@@ -59,9 +59,16 @@ describe('v499 page — header, in source', () => {
 
   it('the collapse chevron sits at the TOP RIGHT of a header row, wired to the same collapse as the drag', () => {
     expect(listen).toContain('styles.headerRow');
-    expect(listen).toContain('onPress={minimize}');
+    // v519 RE-BASE (2026-11-13): the header row now stands in
+    // the memoised PlayerFace leaf, so the chevron's wire runs
+    // through its prop — the parent hands it the very same
+    // minimize the drag settles with, and minimize itself is a
+    // stable callback over settleCollapse. The wiring the pin
+    // protects is unchanged.
+    expect(listen).toContain('onPress={props.onMinimize}');
+    expect(listen).toContain('onMinimize={minimize}');
     expect(listen).toContain('accessibilityLabel="Minimize player"');
-    expect(listen).toContain('const minimize = () => settleCollapse(true);');
+    expect(listen).toContain('const minimize = useCallback(() => settleCollapse(true), [settleCollapse]);');
     // The header row (kicker + chevron) comes before the title,
     // and the old floating top row is gone.
     expect(listen.indexOf('styles.headerRow')).toBeLessThan(listen.indexOf('styles.title'));
@@ -117,9 +124,17 @@ describe('v499 page — header, in source', () => {
     // decides alone whether the section can EVER render: with
     // no timed movements it renders at no phase.
     expect(listen).toContain('{panelsReady && guideposts ? (');
-    expect(listen).toContain('const guideposts = devotionalGuideposts(devotional);');
-    // The big-idea line is gated the same way.
-    expect(listen).toContain('{bigIdea ? (');
+    // v519 RE-BASE (2026-11-13): the guideposts derivation is
+    // memoised on the devotional — devotionalGuideposts maps a
+    // fresh movements array per call, which had silently
+    // defeated the panels' memo on every position tick. The
+    // gate's terms are unchanged.
+    expect(listen).toContain('const guideposts = useMemo(() => devotionalGuideposts(devotional), [devotional]);');
+    // The big-idea line is gated the same way — v519: it
+    // renders inside PlayerFace off its prop, under the same
+    // condition (the parent passes a big idea only where a
+    // source carries one).
+    expect(listen).toContain('{props.bigIdea ? (');
   });
 
   it('reduce motion follows the codebase pattern (jump to the end state)', () => {

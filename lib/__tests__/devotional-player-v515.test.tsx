@@ -28,6 +28,11 @@
  *  (b) one tick later the panels hydrate in full: every segment
  *      of the Deuteronomy tour (the book in his video) is a door,
  *      and both panels stand;
+ *      — v519 RE-BASE (2026-11-13): "in full" now means the
+ *      panels stand complete with the transcript's WINDOW
+ *      mounted (the performance cleanup); the far segments are
+ *      carried by spacers and mount as the window travels. The
+ *      phase boundary is the pin here, as before.
  *  (c) a chapter session's face is likewise complete at first
  *      paint, and it never grows a transcript.
  *
@@ -204,7 +209,11 @@ vi.mock('../../components/wavy-progress', () => ({
   WavyProgress: 'WavyProgress',
 }));
 
-import { DevotionalListenView } from '../../components/devotional-listen';
+import {
+  DevotionalListenView,
+  TRANSCRIPT_WINDOW_AHEAD_ROWS,
+  TRANSCRIPT_WINDOW_BACK_ROWS,
+} from '../../components/devotional-listen';
 import { devotionalContextLine, getDevotional } from '../devotionals';
 import { openDevotional, stopDevotional } from '../devotional-player';
 import { getTenStops, tenStopsAsDevotional } from '../ten-stops';
@@ -279,7 +288,7 @@ describe('v515 expand — the first paint is the light face only', () => {
     });
   });
 
-  it('one tick later the panels hydrate in full — every segment a door, both panels standing', async () => {
+  it('one tick later the panels hydrate — both panels standing, the transcript window mounted', async () => {
     expect(openDevotional(TOUR, { uri: 'file:///deuteronomy-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer(TOUR);
     expect(segmentDoors(view.root)).toHaveLength(0);
@@ -291,9 +300,22 @@ describe('v515 expand — the first paint is the light face only', () => {
     const page = texts(view.root);
     expect(page).toContain('TRANSCRIPT');
     expect(page).toContain('THE TEN STOPS');
-    expect(segmentDoors(view.root)).toHaveLength(SEGS.length);
-    // A segment's own words are on the page.
-    expect(page.join('\n')).toContain(SEGS[100].text.slice(0, 24));
+    // v519 RE-BASE (2026-11-13): the hydration no longer mounts
+    // every segment — the transcript mounts its WINDOW (the
+    // performance cleanup: ~50 rows around the voice and the
+    // viewport, the rest carried by spacers). The phase
+    // boundary this file exists to pin is untouched: nothing
+    // at first paint, the panels one tick later. The window's
+    // bounds, its travel, and its spacer accounting are pinned
+    // in devotional-player-v519.test.tsx.
+    const doors = segmentDoors(view.root);
+    expect(doors.length).toBeGreaterThan(30);
+    expect(doors.length).toBeLessThanOrEqual(
+      TRANSCRIPT_WINDOW_BACK_ROWS + TRANSCRIPT_WINDOW_AHEAD_ROWS + 12,
+    );
+    expect(doors.length).toBeLessThan(SEGS.length);
+    // An in-window segment's own words are on the page.
+    expect(page.join('\n')).toContain(SEGS[10].text.slice(0, 24));
     await act(async () => {
       view.unmount();
     });

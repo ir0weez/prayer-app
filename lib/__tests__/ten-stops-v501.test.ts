@@ -136,8 +136,12 @@ describe('v501 Ten Stops registry', () => {
     // v516 RE-BASE (2026-11-12): Ruth was generated, verified
     // and hosted the same way and registered in v516 — the
     // registry now holds five; Hebrews still leads.
+    // v518 RE-BASE (2026-11-12): 1 Samuel and 2 Samuel were
+    // generated, verified and hosted the same way and
+    // registered together in v518 — the registry now holds
+    // seven; Hebrews still leads.
     const all = tenStopsRegistry();
-    expect(all.length).toBe(5);
+    expect(all.length).toBe(7);
     const e = all[0];
     expect(e.book).toBe('Hebrews');
     expect(e.title).toBe('Ten Stops in Hebrews');
@@ -173,7 +177,10 @@ describe('v501 Ten Stops registry', () => {
     // v516 RE-BASE (2026-11-12): Ruth has a tour now too.
     // 1 Samuel (commentary complete, no tour) carries the null
     // case instead.
-    expect(getTenStops('1 Samuel')).toBeNull();
+    // v518 RE-BASE (2026-11-12): 1 Samuel and 2 Samuel have
+    // tours now too. 1 Kings (commentary complete, no tour)
+    // carries the null case instead.
+    expect(getTenStops('1 Kings')).toBeNull();
     expect(getTenStops('Romans')).toBeNull();
     expect(getTenStops('Not A Book')).toBeNull();
   });

@@ -190,6 +190,69 @@ const REGISTRY: TenStops[] = [
       { title: 'The Heart and Home of Boaz', passage: 'Ruth 4:5-10', startSec: 1063.2 },
     ],
   },
+  {
+    book: '1 Samuel',
+    title: 'Ten Stops in 1 Samuel',
+    // The shown duration: 14:13 = 853s. The file itself probes
+    // at 853.8s; the registry carries 853 so every surface
+    // says 14:13, as above.
+    durationSec: 853,
+    sizeBytes: 4726980,
+    url: 'https://github.com/ir0weez/prayer-app/releases/download/ten-stops-library/1samuel-ten-stops.m4a',
+    fileName: '1samuel-ten-stops.m4a',
+    // The ten stops (v518), from the tour's own transcript (local
+    // faster-whisper run over the phone copy, 2026-11-12): each
+    // startSec is the announcement moment, verified in order.
+    // The stops are Jonathan's session-verdict list, approved
+    // 2026-11-12 — all ten earned their seats on session
+    // singling-out, no fill picks needed. One steering call was
+    // made in the generation prompt (1 Samuel 3 centred on the
+    // call to salvation, not to service) and named to him; his
+    // notes themselves went in whole and unedited.
+    movements: [
+      { title: "Hannah's Prayer", passage: '1 Samuel 1:1-18', startSec: 102.2 },
+      { title: "Eli's Evil Sons", passage: '1 Samuel 2:12-17', startSec: 181.3 },
+      { title: 'The Call of Samuel', passage: '1 Samuel 3:1-21', startSec: 248.0 },
+      { title: 'The Ark Captured', passage: '1 Samuel 4:1-11', startSec: 332.8 },
+      { title: "Saul's Schedule", passage: '1 Samuel 10:1-8', startSec: 401.7 },
+      { title: 'The Choice Between Seeking and Forsaking', passage: '1 Samuel 12:19-25', startSec: 477.8 },
+      { title: 'Saul Pleads With Samuel', passage: '1 Samuel 15:24-31', startSec: 534.9 },
+      { title: 'David Asks to Fight', passage: '1 Samuel 17:31-40', startSec: 588.6 },
+      { title: 'David Requests Peace', passage: '1 Samuel 24:8-15', startSec: 652.9 },
+      { title: 'Facing the Philistines', passage: '1 Samuel 28:3-6', startSec: 716.1 },
+    ],
+  },
+  {
+    book: '2 Samuel',
+    title: 'Ten Stops in 2 Samuel',
+    // The shown duration: 14:53 = 893s. The file itself probes
+    // at 893.9s; the registry carries 893 so every surface
+    // says 14:53, as above.
+    durationSec: 893,
+    sizeBytes: 4952875,
+    url: 'https://github.com/ir0weez/prayer-app/releases/download/ten-stops-library/2samuel-ten-stops.m4a',
+    fileName: '2samuel-ten-stops.m4a',
+    // The ten stops (v518), from the tour's own transcript (local
+    // faster-whisper run over the phone copy, 2026-11-12): each
+    // startSec is the announcement moment, verified in order.
+    // The stops are Jonathan's session-verdict list, approved
+    // 2026-11-12 — every chapter of the book earned a session
+    // singling-out, so the ten stand on merit with reserves to
+    // spare. No steering calls were needed (none of the ten
+    // carries a superseded position).
+    movements: [
+      { title: 'Weeping Over the Lost', passage: '2 Samuel 1:11-16', startSec: 99.7 },
+      { title: 'A Second Battle', passage: '2 Samuel 5:22-25', startSec: 222.4 },
+      { title: 'A Proper Worship', passage: '2 Samuel 6:20-23', startSec: 312.1 },
+      { title: "David's Prayer", passage: '2 Samuel 7:18-29', startSec: 390.3 },
+      { title: 'Accepted Instantly', passage: '2 Samuel 9:9-13', startSec: 450.1 },
+      { title: "The Child's Death", passage: '2 Samuel 12:16-23', startSec: 529.0 },
+      { title: 'Absalom Is Angry', passage: '2 Samuel 13:20-22', startSec: 597.9 },
+      { title: 'Absalom and Hushai', passage: '2 Samuel 16:15-19', startSec: 651.9 },
+      { title: 'Shimei Forgiven', passage: '2 Samuel 19:21-23', startSec: 717.3 },
+      { title: 'A Worthy Sacrifice', passage: '2 Samuel 24:18-25', startSec: 776.6 },
+    ],
+  },
 ];
 
 /** Every Ten Stops tour the app knows about (a copy — callers

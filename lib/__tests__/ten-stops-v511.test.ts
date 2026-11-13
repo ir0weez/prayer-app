@@ -60,14 +60,21 @@ describe('v511 Ten Stops registry — four tours', () => {
     // and hosted the same way and registered in v516, appended
     // after Joshua — the registry now holds five; the four
     // tours of v511 still lead in the same order.
+    // v518 RE-BASE (2026-11-12): 1 Samuel and 2 Samuel were
+    // generated, verified and hosted the same way and
+    // registered together in v518, appended after Ruth — the
+    // registry now holds seven; the four tours of v511 still
+    // lead in the same order.
     const all = tenStopsRegistry();
-    expect(all.length).toBe(5);
+    expect(all.length).toBe(7);
     expect(all.map((e) => e.book)).toEqual([
       'Hebrews',
       'Genesis',
       'Deuteronomy',
       'Joshua',
       'Ruth',
+      '1 Samuel',
+      '2 Samuel',
     ]);
     expect(all[0].book).toBe('Hebrews');
   });

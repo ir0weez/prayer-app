@@ -36,6 +36,15 @@
  * belongs — the CHAPTER sessions' paragraph camera — and (b),
  * (c) and (d) stand as they were.
  *
+ * v522 RE-BASE (2026-11-13): the transcript is a toggled
+ * view now (Apple Music lyrics model — his named reference).
+ * (a)'s beats hold as written — they run with the view OFF,
+ * where boundaries, drags and the grace move nothing — and
+ * its line-tap beat first toggles the view on and releases
+ * the follow with a drag, the state the beat always ran in.
+ * The follow switch itself is pinned in
+ * devotional-player-v522.test.tsx.
+ *
  * The rig follows the v508 listen rig (react-test-renderer over
  * string hosts) with three richer doubles the behaviours need:
  * a ScrollView class that records scrollTo, a BackHandler that
@@ -351,9 +360,26 @@ describe('v510 follow-along — the camera yields to the reader', () => {
     // A seek is deliberate: tap a line — the tap seeks AND
     // seats the tapped segment exactly once, at the (b) seat.
     // The next boundary follows nothing.
+    // v522 RE-BASE (2026-11-13): the transcript now starts
+    // OFF (Apple Music lyrics model), so before this beat the
+    // reader toggles it on — the landing seats the voice
+    // once (the toggle-on seat, pinned in
+    // devotional-player-v522.test.tsx) — and his drag
+    // releases the follow, the released state this beat has
+    // always run in. The landing's scroll is setup, cleared
+    // with the layout seating below.
+    const toggle = root
+      .findAllByType('Pressable' as never)
+      .find((p) => p.props.accessibilityLabel === 'Transcript');
+    expect(toggle).toBeDefined();
+    act(() => {
+      toggle!.props.onPress();
+    });
     act(() => {
       scrollHost(root).props.onScrollBeginDrag();
     });
+    seatLayout(root);
+    scroll.to.length = 0;
     const door = segmentDoor(root, SEGS[20].startSec);
     expect(door).toBeDefined();
     act(() => {

@@ -298,8 +298,21 @@ describe('v515 expand — the first paint is the light face only', () => {
     });
 
     const page = texts(view.root);
-    expect(page).toContain('TRANSCRIPT');
+    // v522 RE-BASE (2026-11-13): the hydration tick now stands
+    // the GUIDEPOSTS panel only — the transcript panel is
+    // behind the Transcript toggle (Apple Music lyrics model),
+    // off at every open. The phase boundary this file pins is
+    // untouched; the transcript's mount below is the toggle's.
+    expect(page).not.toContain('TRANSCRIPT');
     expect(page).toContain('THE TEN STOPS');
+    const toggle = view.root
+      .findAllByType('Pressable' as never)
+      .find((p) => p.props.accessibilityLabel === 'Transcript');
+    expect(toggle).toBeDefined();
+    await act(async () => {
+      toggle!.props.onPress();
+    });
+    expect(texts(view.root)).toContain('TRANSCRIPT');
     // v519 RE-BASE (2026-11-13): the hydration no longer mounts
     // every segment — the transcript mounts its WINDOW (the
     // performance cleanup: ~50 rows around the voice and the
@@ -315,7 +328,8 @@ describe('v515 expand — the first paint is the light face only', () => {
     );
     expect(doors.length).toBeLessThan(SEGS.length);
     // An in-window segment's own words are on the page.
-    expect(page.join('\n')).toContain(SEGS[10].text.slice(0, 24));
+    // (v522: read fresh — the words arrive with the toggle.)
+    expect(texts(view.root).join('\n')).toContain(SEGS[10].text.slice(0, 24));
     await act(async () => {
       view.unmount();
     });

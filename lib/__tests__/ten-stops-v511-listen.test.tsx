@@ -192,6 +192,24 @@ const segmentDoor = (root: ReactTestInstance, startSec: number) =>
     .findAllByType('Pressable' as any)
     .find((p) => p.props.accessibilityLabel === `Play from ${formatClock(startSec)}`);
 
+// v522 RE-BASE (2026-11-13): the transcript panel is behind
+// the Transcript toggle now (Apple Music lyrics model — see
+// devotional-player-v522.test.tsx). It stands only once the
+// reader toggles it on; these pins exercise the standing
+// panel, so the rig presses the toggle after render. The
+// press lands the view FOLLOWING (window on the voice) —
+// the grouping, doors, dress and seek pinned below are the
+// mounted panel's, unchanged.
+const toggleTranscriptOn = (root: ReactTestInstance) => {
+  const btn = root
+    .findAllByType('Pressable' as any)
+    .find((p) => p.props.accessibilityLabel === 'Transcript');
+  expect(btn).toBeDefined();
+  act(() => {
+    btn!.props.onPress();
+  });
+};
+
 beforeEach(() => {
   player.openDevotional.mockClear();
   player.seekDevotional.mockClear();
@@ -207,6 +225,7 @@ describe('v511 player — the Joshua session carries its transcript', () => {
 
   it('renders the TRANSCRIPT panel with its stop grouping', () => {
     const root = render(session, 0);
+    toggleTranscriptOn(root);
     const all = texts(root);
     expect(all).toContain('TRANSCRIPT');
     // The words before Stop 1 sit under Introduction; the stops
@@ -228,6 +247,7 @@ describe('v511 player — the Joshua session carries its transcript', () => {
 
   it('every segment is a seek door labelled by its own start', () => {
     const root = render(session, 0);
+    toggleTranscriptOn(root);
     // v519 RE-BASE (2026-11-13): in-window segments at rest;
     // out-of-window segments (100, 288 before) mount when the
     // window arrives — pinned in devotional-player-v519.test.tsx.
@@ -247,6 +267,7 @@ describe('v511 player — the Joshua session carries its transcript', () => {
     // devotional-player-v520.test.tsx.
     const at = segs[5].startSec + 0.05;
     const root = render(session, at);
+    toggleTranscriptOn(root);
     const theme = devotionalPlayerTheme('Joshua', false);
     const activeIdx = activeTenStopsTranscriptSegment(segs, at);
     const activeDoor = segmentDoor(root, segs[activeIdx].startSec);
@@ -265,6 +286,7 @@ describe('v511 player — the Joshua session carries its transcript', () => {
 
   it('tapping a segment seeks the controller to its start', () => {
     const root = render(session, 0);
+    toggleTranscriptOn(root);
     // v519 RE-BASE (2026-11-13): the tap target sits inside
     // the standing window (segment 42's row now mounts when
     // the window travels to it; the door-and-seek behaviour it

@@ -24,6 +24,15 @@
  * returns when the voice leaves the view again. The chapter
  * half below stands EXACTLY as written in v512: the paragraph
  * camera, its park, and its re-engagement are unchanged.
+ *
+ * v522 RE-BASE (2026-11-13): the tour half is re-pinned once
+ * more, to the Apple Music lyrics model Jonathan named: the
+ * transcript is a toggled view (off at every open), and the
+ * capsule lives inside its on state — standing only while
+ * on + released + spoken-out-of-view, its tap re-engaging
+ * the follow it seats into. See the tour describe's own
+ * note. The chapter half STILL stands exactly as written
+ * in v512.
  */
 import React from 'react';
 import TestRenderer, { act, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
@@ -175,12 +184,7 @@ vi.mock('../../components/wavy-progress', () => ({
   WavyProgress: 'WavyProgress',
 }));
 
-import {
-  DevotionalListenView,
-  followScrollTarget,
-  transcriptCharsPerLine,
-  transcriptRowOffsets,
-} from '../../components/devotional-listen';
+import { DevotionalListenView, followScrollTarget } from '../../components/devotional-listen';
 import { devotionalGuideposts, formatClock, getDevotional, type Devotional } from '../devotionals';
 import { getTenStops, tenStopsAsDevotional } from '../ten-stops';
 import { tenStopsTranscript, tenStopsTranscriptRows } from '../ten-stops-transcripts';
@@ -192,8 +196,6 @@ const segY = (index: number) => index * 100;
 const TOUR = tenStopsAsDevotional(getTenStops('Genesis')!);
 const SEGS = tenStopsTranscript('Genesis')!;
 const ROWS = tenStopsTranscriptRows(SEGS, devotionalGuideposts(TOUR)!);
-const rowOfSeg = (segIndex: number) =>
-  ROWS.findIndex((r) => r.kind === 'segment' && r.index === segIndex);
 const inSeg = (index: number) => SEGS[index].startSec + 0.05;
 
 const CHAPTER_BASE = getDevotional('Genesis', 12)!;
@@ -283,17 +285,44 @@ describe('v512 Catch up — a Ten Stops tour (transcript follow-along)', () => {
   // exists for transcripts. The pill's new standing and the
   // tap's new semantics are pinned here; the dress, the seat
   // math, and the label are the v512 ones.
-  it('stands when the spoken segment leaves the view; the tap snaps to it once and nothing follows', async () => {
+  // v522 RE-BASE (2026-11-13): the Apple Music lyrics model
+  // (Jonathan's named reference) moves the capsule INSIDE the
+  // transcript's toggled-on state. It can stand only while
+  // the panel is on, follow has been released by the reader's
+  // swipe, and the spoken segment is out of view — never at
+  // open (the view starts OFF), never while following. The
+  // tap seats AND re-engages follow (boundaries seat again);
+  // a fresh swipe releases it again and the capsule returns.
+  // The dress, the seat math, and the label are still the
+  // v512 ones. The full machine is pinned in
+  // devotional-player-v522.test.tsx.
+  it('stands only inside on + released + out of view; the tap seats and re-engages follow', async () => {
     const renderer = await renderPlayer(TOUR, inSeg(2));
     const root = renderer.root;
-    seatTourLayout(root);
-    scroll.to.length = 0;
 
-    // The voice is inside the reader's view: no button anywhere.
+    // At open the transcript is OFF: no capsule can stand.
     expect(catchUpButton(root)).toHaveLength(0);
 
-    // The voice walks far past the view. The page does NOT
-    // move — there is no camera any more — and the pill stands.
+    // Toggle it on: the landing seats the voice (segment 2)
+    // once — setup for this beat, cleared with the seating.
+    const toggle = root
+      .findAllByType('Pressable' as never)
+      .find((p) => p.props.accessibilityLabel === 'Transcript');
+    expect(toggle).toBeDefined();
+    await act(async () => {
+      toggle!.props.onPress();
+    });
+    seatTourLayout(root);
+    scroll.to.length = 0;
+    // Following now: still no capsule.
+    expect(catchUpButton(root)).toHaveLength(0);
+
+    // His swipe releases the follow. The voice walks far past
+    // his view — the page does NOT move — and the capsule
+    // stands: on, released, spoken out of view.
+    act(() => {
+      scrollHost(root).props.onScrollBeginDrag();
+    });
     await movePlayhead(renderer, TOUR, inSeg(60));
     expect(scroll.to).toEqual([]);
     expect(catchUpButton(root)).toHaveLength(1);
@@ -322,20 +351,22 @@ describe('v512 Catch up — a Ten Stops tour (transcript follow-along)', () => {
     // follow seat (the spoken segment a third down).
     expect(scroll.to).toEqual([{ y: followScrollTarget(PANEL_TOP + segY(60), VIEWPORT_H), animated: true }]);
 
-    // The scroll lands (the rig moves the page to the panel
-    // model's seat for that row): the spoken segment stands
-    // in the reader's view again and the pill leaves.
-    const offsets = transcriptRowOffsets(ROWS, new Map(), transcriptCharsPerLine(350));
-    act(() => {
-      scrollHost(root).props.onScroll({
-        nativeEvent: { contentOffset: { y: PANEL_TOP + offsets[rowOfSeg(60)] } },
-      });
-    });
+    // Follow is ENGAGED again: the capsule hides (its standing
+    // excludes following), and the next boundary seats the
+    // voice — measure the standing window first so the seat
+    // fires off the cache.
     expect(catchUpButton(root)).toHaveLength(0);
+    seatTourLayout(root);
+    scroll.to.length = 0;
+    await movePlayhead(renderer, TOUR, inSeg(63));
+    expect(scroll.to).toEqual([{ y: followScrollTarget(PANEL_TOP + segY(63), VIEWPORT_H), animated: true }]);
 
-    // Playback moves on; the reader stays put. When the voice
-    // leaves the view again the pill returns — and still
-    // nothing has scrolled since the one snap.
+    // A fresh swipe releases it again; the voice leaves his
+    // view and the capsule returns — and nothing has scrolled
+    // since the boundary seat above.
+    act(() => {
+      scrollHost(root).props.onScrollBeginDrag();
+    });
     await movePlayhead(renderer, TOUR, inSeg(90));
     expect(catchUpButton(root)).toHaveLength(1);
     expect(scroll.to).toHaveLength(1);

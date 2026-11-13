@@ -200,6 +200,52 @@
 // found the same continual hunting there, reported to
 // Jonathan, not changed in this build (his call was about
 // the transcript).
+//
+// v522: v520 helped a little; the lag was still there
+// (Jonathan's phone, Nov 13). He named the reference model
+// himself — APPLE MUSIC LYRICS: "They aren't always on, but
+// you can toggle them on, scroll through them, and follow
+// along if you choose." And his hypothesis for the rest of
+// the lag: "maybe having a transcript toggle would help?" —
+// if the transcript is off, the player shouldn't be
+// rendering OR processing it at all. So the transcript is
+// now a toggled view with three states (the state lives in
+// this view and resets on unmount — every open starts OFF):
+//  · OFF — the state at every open. The transcript panel is
+//    NOT MOUNTED AT ALL (no rows, no window, no offsets
+//    model), and the position tick performs no transcript
+//    computation either: the active-segment lookup that fed
+//    the panel is gated off with it (see activeSegIdx
+//    below). The player is header, guideposts, controls —
+//    and the Transcript button. Zero transcript work.
+//  · The Transcript button (in the controls row, at the
+//    right margin opposite Stop) toggles the VIEW only:
+//    OFF → ON in one press, ON → OFF in one press, from
+//    either on-state. Its dress follows the view: mounted
+//    wears the book family's primary fill, off wears the
+//    quiet tonal seat Stop wears.
+//  · ON LANDS FOLLOWING — the way Apple Music lands you on
+//    the live line: the panel mounts, seats once to the
+//    spoken segment, and follow engages: on segment
+//    boundaries the camera seats the spoken segment a third
+//    down and the window anchors on the voice.
+//  · The reader's own swipe RELEASES follow (the drag
+//    lifecycle, never the camera's own scrolls): following
+//    disengages and STAYS off — no timer, no re-engagement —
+//    the panel stays mounted where he left it, its window
+//    re-anchored to his viewport, free scrolling at his own
+//    pace. The spoken segment still lights (dress only).
+//  · CATCH UP lives INSIDE the on state: the floating
+//    capsule (v512's dress) stands only while the panel is
+//    on, follow is released, and the spoken segment is out
+//    of the reader's view — never in OFF, never while
+//    following, so it is not always constantly there (his
+//    objection to the old pill). A press seats to the
+//    spoken segment AND re-engages follow; it then hides.
+// Guidepost and transcript-line taps keep their v520 shape:
+// seek + one deliberate seat when the panel is on, never
+// engaging follow, and in OFF they never mount the panel.
+// The chapter sessions are untouched entirely.
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -342,12 +388,18 @@ export interface TranscriptWindowRange {
  * the hold margin to spare on both sides, the window stands —
  * the reader's scroll re-slices nothing until the viewport
  * nears an edge or escapes it.
+ * v522: while follow is ENGAGED (the transcript toggled on
+ * and not yet released by the reader's swipe), anchorRow
+ * carries the voice's row instead — the window anchors on
+ * the spoken segment, the Apple Music landing. The moment
+ * follow releases, the anchor returns to the reader alone.
  */
 export function transcriptWindowRange(args: {
   rowCount: number;
-  /** A deliberate seat target's row position (v520), or null
-   *  when no seat is in flight — the window then belongs to
-   *  the reader's viewport alone. */
+  /** An anchor row position (v520: a deliberate seat target;
+   *  v522: also the voice's row while follow is engaged), or
+   *  null when no seat is in flight and follow is off — the
+   *  window then belongs to the reader's viewport alone. */
   anchorRow: number | null;
   /** First / last row position intersecting the viewport, in
    *  panel coordinates; null while the viewport's place in the
@@ -508,6 +560,11 @@ const GuidepostsPanel = memo(function GuidepostsPanel(props: {
 // the fact the Catch up pill stands on — and the window is
 // cut around the reader's viewport, or around a deliberate
 // seat target while one is in flight (seatSeg).
+// v522: the panel itself is now toggled (see the header
+// note) — it mounts only while the transcript view is on,
+// and while follow is engaged seatSeg carries the spoken
+// segment, so the window opens around the voice and travels
+// with it until the reader's swipe releases the follow.
 // ─── v519: a transcript row, memoised on what it wears ──────
 // A segment boundary changes exactly two rows' dress — the
 // one that lit and the one that went out — so the row renders
@@ -610,7 +667,10 @@ const TranscriptPanel = memo(function TranscriptPanel(props: {
   viewportHeight: number;
   /** v520: the segment a deliberate seat is aimed at (Catch
    *  up's spoken segment, a guidepost's first segment), or
-   *  null when no seat is in flight. */
+   *  null when no seat is in flight. v522: while follow is
+   *  engaged the parent passes the SPOKEN segment here
+   *  instead — the seat target and the follow anchor are the
+   *  same seat (transcriptWindowRange's anchorRow). */
   seatSeg: number | null;
   /** v520: reports whether the spoken segment stands within
    *  the reader's current view — the Catch up pill's standing
@@ -673,6 +733,11 @@ const TranscriptPanel = memo(function TranscriptPanel(props: {
   // viewport — re-cut only when the viewport nears an edge, or
   // jumped to a deliberate seat target while one is in flight.
   // The playhead is NOT an input: a tick never re-slices.
+  // v522: the panel mounts only when toggled on, and it lands
+  // FOLLOWING — seatSeg carries the spoken segment from the
+  // first derivation, so the window opens around the voice;
+  // once the reader's swipe releases follow, seatSeg clears
+  // and the viewport anchor above takes over again.
   const [win, setWin] = useState<TranscriptWindowRange>(() =>
     transcriptWindowRange({ rowCount: rows.length, anchorRow: null, viewFirst: null, viewLast: null, current: null }),
   );
@@ -942,6 +1007,13 @@ const ControlsRow = memo(function ControlsRow(props: {
   stopBtnRef: React.RefObject<any>;
   onStop: () => void;
   onToggle: () => void;
+  /** v522: the Transcript toggle (transcript sessions only —
+   *  null for a chapter, which has no transcript to toggle).
+   *  transcriptOn is the VIEW's state: the chip wears the
+   *  book family's primary fill while the panel stands and
+   *  the quiet tonal seat while it is off. */
+  transcriptOn: boolean;
+  onToggleTranscript: (() => void) | null;
 }) {
   return (
     <View style={styles.controls}>
@@ -954,6 +1026,37 @@ const ControlsRow = memo(function ControlsRow(props: {
         <MaterialIcons name="stop" size={14} color={props.accent} />
         <Text style={[styles.stopText, { color: props.accent }]}>Stop</Text>
       </Pressable>
+      {/* v522: the Transcript toggle — a control in the page,
+          in the controls row at the right margin opposite
+          Stop (Apple Music's lyrics button, in this page's
+          own pill vocabulary: the Stop pill's seat and shape,
+          the play button's fill while on). It toggles the
+          transcript VIEW and nothing else. */}
+      {props.onToggleTranscript ? (
+        <Pressable
+          onPress={props.onToggleTranscript}
+          style={[
+            styles.transcriptBtn,
+            { backgroundColor: props.transcriptOn ? props.primary : props.stopSeat },
+          ]}
+          accessibilityLabel="Transcript"
+          accessibilityState={{ selected: props.transcriptOn }}
+        >
+          <MaterialIcons
+            name="subtitles"
+            size={15}
+            color={props.transcriptOn ? '#FFFFFF' : props.accent}
+          />
+          <Text
+            style={[
+              styles.transcriptText,
+              { color: props.transcriptOn ? '#FFFFFF' : props.accent },
+            ]}
+          >
+            Transcript
+          </Text>
+        </Pressable>
+      ) : null}
       <Pressable
         onPress={props.onToggle}
         style={[styles.playBtn, { backgroundColor: props.primary, shadowColor: props.primary }]}
@@ -1086,9 +1189,32 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
         : null,
     [devotional, guideposts],
   );
-  const activeSegIdx = transcriptRows
-    ? activeTenStopsTranscriptSegment(devotional.transcriptSegments!, position)
-    : -1;
+  // ── v522: the transcript view's state (Apple Music lyrics) ──
+  // 'off' at every open. The Transcript button toggles the
+  // view; landing on engages follow ('following'); the
+  // reader's own swipe releases it ('released'), and nothing
+  // but the Catch up capsule re-engages it. The ref is the
+  // logic's source of truth (the callbacks and effects below
+  // read it); the state is its React mirror for the render.
+  // Both live and die with this view — a collapse unmounts
+  // it whole — so every open starts off. Nothing persists.
+  const transcriptViewRef = useRef<'off' | 'following' | 'released'>('off');
+  const [transcriptView, setTranscriptView] = useState<'off' | 'following' | 'released'>('off');
+  const positionRef = useRef(position);
+  positionRef.current = position;
+
+  // v522: in OFF the tick does NO transcript work. The
+  // active-segment lookup is the per-tick transcript
+  // computation — a scan of the session's segments on every
+  // render the position drives — and it exists only to feed
+  // the panel (its lit dress, its window anchor, its seats).
+  // With the view off there is no panel to feed: the lookup
+  // is gated off with it, and the index reads -1 (nothing is
+  // seated anywhere) until the view turns on.
+  const activeSegIdx =
+    transcriptRows && transcriptView !== 'off'
+      ? activeTenStopsTranscriptSegment(devotional.transcriptSegments!, position)
+      : -1;
 
   // ── v515: the heavy panels hydrate after the first paint ────
   // The first render of this view is the light face only (see
@@ -1187,11 +1313,10 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     paraY.current[index] = y;
   }, []);
 
-  // ── v520: the transcript's ONLY seat — a deliberate one-shot ──
+  // ── v520: the transcript's seat — a deliberate one-shot ──
   // Segment offsets are measured within the transcript panel,
   // the panel's own offset within the page — together they are
-  // a seat. Nothing reads them on a tick or a boundary any
-  // more. A seat is requested only by a deliberate act: Catch
+  // a seat. A seat is requested by a deliberate act: Catch
   // up (the spoken segment), a guidepost tap, a transcript
   // line, the seek bar (the tapped stop's / point's segment).
   // If the target row has already measured, the seat fires at
@@ -1199,7 +1324,15 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   // outside the window), the request arms: seatSeg slices the
   // window to the row, and the layout callback below completes
   // the seat — exactly one scroll — when the measurement
-  // lands. After the seat, nothing keeps following.
+  // lands. After a deliberate seat, nothing keeps following.
+  // ── v522: the one standing exception ──
+  // While follow is ENGAGED (the transcript toggled on and
+  // not yet released by the reader's swipe), segment
+  // boundaries request this same seat for the spoken segment
+  // — that IS the follow. The engagement is the reader's own
+  // switch, never a default: it begins only at the toggle-on
+  // landing or a Catch up press, and it ends at his swipe or
+  // the toggle off. See the transitions below.
   const segY = useRef<number[]>([]);
   const transcriptTop = useRef(0);
   const pendingSeatSegRef = useRef<number | null>(null);
@@ -1209,6 +1342,9 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   // up pill's standing fact for a transcript session. Assumed
   // in view until the panel says otherwise, so the pill never
   // flashes on open.
+  // v522: the panel reports only while it stands (the view
+  // on); the fact now gates the capsule inside the
+  // on-and-released state (see the render below).
   const [spokenInView, setSpokenInView] = useState(true);
   const handleSpokenInViewChange = useCallback((inView: boolean) => {
     setSpokenInView(inView);
@@ -1248,6 +1384,31 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   }, []);
   const handleTranscriptPanelLayout = useCallback((y: number) => {
     transcriptTop.current = y;
+  }, []);
+
+  // ── v522: the Transcript button — it toggles the VIEW ─────
+  // OFF → ON: the engagement begins ('following'). The
+  // landing seat is deliberately NOT requested here: off
+  // gates activeSegIdx to -1, so the render that turns the
+  // view on computes the real spoken segment for the first
+  // time, and the boundary effect below reads that -1 →
+  // segment step as the landing and seats it — once, through
+  // the measurement machinery above. ON → OFF (from following
+  // or released alike, one press): the engagement ends, and
+  // any seat still in flight dies with the view — a stale
+  // completion must not scroll a page the transcript has
+  // left. Either way, an in-flight seat is cleared first:
+  // the toggle is the newest word on where the page goes.
+  const toggleTranscript = useCallback(() => {
+    pendingSeatSegRef.current = null;
+    setSeatSeg(null);
+    if (transcriptViewRef.current === 'off') {
+      transcriptViewRef.current = 'following';
+      setTranscriptView('following');
+    } else {
+      transcriptViewRef.current = 'off';
+      setTranscriptView('off');
+    }
   }, []);
 
   // ── v510: the follow-along camera yields to the reader ──────
@@ -1344,15 +1505,54 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
     }
   }, [activeIdx, screenH]);
 
-  // v520: THERE IS NO SEGMENT-BOUNDARY EFFECT. The effect that
-  // stood here scrolled the page to the spoken segment on every
-  // boundary (and, through the layout callback, again whenever
-  // its row re-measured) — the continual hunting Jonathan named.
-  // The spoken segment's lit dress is computed in the render
-  // (activeSegIdx → the panel's row states) and costs no camera
-  // work at all. The transcript moves only when a person asks:
-  // Catch up, a guidepost, a transcript line, the seek bar —
-  // each a one-shot seat through requestSeat above.
+  // v522: the segment-boundary effect is back — but it answers
+  // to the reader's switch alone. v510's camera followed by
+  // default; v520 removed it outright (the continual hunting
+  // Jonathan named). The Apple Music model he named puts the
+  // following behind his toggle: this effect seats the spoken
+  // segment on a boundary ONLY while the transcript view is
+  // on and follow is engaged. Off, or released by his swipe,
+  // a boundary moves nothing — the spoken segment's lit dress
+  // is computed in the render (activeSegIdx → the panel's row
+  // states) and costs no camera work at all. The toggle-on
+  // landing rides this same effect: off gates the index to
+  // -1, so turning the view on steps it to the spoken segment
+  // and the effect seats it exactly once. A deliberate seat
+  // (Catch up, a guidepost, a transcript line, the seek bar)
+  // still rides requestSeat above, in any on-state, and never
+  // flips the engagement either way.
+  useEffect(() => {
+    if (transcriptViewRef.current !== 'following') return;
+    if (activeSegIdx < 0) return;
+    requestSeat(activeSegIdx);
+  }, [activeSegIdx, requestSeat]);
+
+  // The reader's own swipe releases the follow. The drag
+  // lifecycle is the discriminator: onScrollBeginDrag fires
+  // for a genuine touch drag and never for the camera's own
+  // programmatic scrolls, so only his hand moves following →
+  // released. The release cancels a seat still in flight —
+  // the camera stops with his grab. (A deliberate seat armed
+  // in the RELEASED state is untouched: this runs only from
+  // following, so v520's one-shot stands even if he scrolls
+  // while it lands.)
+  const releaseTranscriptFollow = useCallback(() => {
+    if (transcriptViewRef.current !== 'following') return;
+    transcriptViewRef.current = 'released';
+    setTranscriptView('released');
+    pendingSeatSegRef.current = null;
+    setSeatSeg(null);
+  }, []);
+
+  // One drag, both yields: the chapter camera's park (above)
+  // and the transcript follow's release. Each reads its own
+  // state; a transcript session has no paragraphs for the
+  // chapter half to move, and a chapter session has no
+  // transcript view for this half to release.
+  const handleScrollBeginDrag = useCallback(() => {
+    suspendFollow();
+    releaseTranscriptFollow();
+  }, [suspendFollow, releaseTranscriptFollow]);
 
   const seek = (fraction: number) => {
     if (duration > 0) {
@@ -1641,7 +1841,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
         contentContainerStyle={{ flexGrow: 1 }}
         scrollEnabled={!stopping}
         pointerEvents={closing || stopping ? 'none' : 'auto'}
-        onScrollBeginDrag={suspendFollow}
+        onScrollBeginDrag={handleScrollBeginDrag}
         onScrollEndDrag={noteManualScrollEnd}
         onMomentumScrollEnd={noteManualScrollEnd}
         onScroll={(e) => {
@@ -1708,6 +1908,8 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
             stopBtnRef={stopBtnRef}
             onStop={stop}
             onToggle={toggleDevotionalPlayback}
+            transcriptOn={transcriptView !== 'off'}
+            onToggleTranscript={transcriptRows ? toggleTranscript : null}
           />
 
           {/* The guideposts — only where real timed movements
@@ -1733,8 +1935,15 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               there. Tours only: chapter sessions carry none.
               v515: hydrates with the panels (see above) — its
               ~300–500 rows were the build that held the expand
-              on a bare coloured screen. */}
-          {panelsReady && transcriptRows ? (
+              on a bare coloured screen.
+              v522: behind the Transcript toggle now — mounted
+              only while the view is on. Off is a true unmount:
+              no rows, no window, no offsets model runs. While
+              follow is engaged the panel's seat target is the
+              spoken segment itself (the follow anchor); in
+              the released state it is the deliberate seat, if
+              one is in flight. */}
+          {panelsReady && transcriptRows && transcriptView !== 'off' ? (
             <TranscriptPanel
               rows={transcriptRows}
               activeIdx={activeSegIdx}
@@ -1748,7 +1957,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               onPanelLayout={handleTranscriptPanelLayout}
               scrollY={scrollHint}
               viewportHeight={screenH}
-              seatSeg={seatSeg}
+              seatSeg={transcriptView === 'following' ? activeSegIdx : seatSeg}
               onSpokenInViewChange={handleSpokenInViewChange}
             />
           ) : null}
@@ -1791,28 +2000,38 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
           'Catch Up' button at the bottom of the screen that takes
           you right to where the transcript currently is."
           v520 (his design call, Nov 13): for a TRANSCRIPT session
-          the pill is the whole follow mechanism — it stands
-          whenever the spoken segment is not seated within the
-          reader's current view (the panel reports the fact), and
-          a tap makes the one-shot snap to the spoken segment at
-          the follow seat (a third down) — after which nothing
-          follows, and the pill returns when the voice leaves
-          the view again. For a CHAPTER session it keeps its
-          v512 standing exactly: it exists only while the
-          paragraph camera is parked (the v510 yield state), and
-          the tap seats the active paragraph and re-engages
-          that camera. Never offered when the session has no
-          follow-along at all. Dressed in the player's own
-          chrome: the book family's primary, the pill's capsule
-          shape, white on it. */}
+          the pill was the whole follow mechanism — it stood
+          whenever the spoken segment was outside the reader's
+          view, and a tap made the one-shot snap.
+          v522 (the Apple Music model, Nov 13): the capsule now
+          lives INSIDE the transcript's on state — it stands
+          only while the panel is on, follow has been released
+          by the reader's swipe, and the spoken segment is out
+          of his view (the panel reports the fact). Never in
+          OFF, never while following — so it is not always
+          constantly there (his objection to the v520 standing).
+          A tap is Apple Music's jump back to the live line: it
+          seats the spoken segment AND re-engages follow, then
+          hides (its standing excludes following). For a
+          CHAPTER session it keeps its v512 standing exactly:
+          it exists only while the paragraph camera is parked
+          (the v510 yield state), and the tap seats the active
+          paragraph and re-engages that camera. Never offered
+          when the session has no follow-along at all. Dressed
+          in the player's own chrome: the book family's primary,
+          the pill's capsule shape, white on it. */}
       {!closing &&
       !stopping &&
-      (transcriptRows != null ? !spokenInView : followParked && devotional.paragraphs.length > 0) ? (
+      (transcriptRows != null
+        ? transcriptView === 'released' && !spokenInView
+        : followParked && devotional.paragraphs.length > 0) ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Catch up to the audio"
           onPress={() => {
             if (transcriptRows != null) {
+              transcriptViewRef.current = 'following';
+              setTranscriptView('following');
               requestSeat(activeSegIdx);
             } else {
               engageFollow();
@@ -1880,6 +2099,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   stopText: { fontSize: 14, fontWeight: '700' },
+  // v522: the Transcript chip — the Stop pill's geometry,
+  // mirrored to the controls row's right margin.
+  transcriptBtn: {
+    position: 'absolute',
+    right: 0,
+    top: (64 - 43) / 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    borderRadius: 999,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+  },
+  transcriptText: { fontSize: 14, fontWeight: '700' },
   playBtn: {
     position: 'absolute',
     left: '50%',

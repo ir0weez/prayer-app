@@ -52,6 +52,23 @@
  * devotional-player-v510.test.tsx and
  * devotional-catchup-v512.test.tsx.
  *
+ * v522 RE-BASE (2026-11-13): Jonathan refined the design
+ * again the same day — the APPLE MUSIC LYRICS model, his
+ * named reference: the transcript is a toggled view (OFF at
+ * every open, no panel and no tick work at all), toggling
+ * on lands FOLLOWING, his swipe releases the follow, and
+ * Catch Up lives inside the on state (re-engaging follow).
+ * The pins below are re-based to that machine: (a) now runs
+ * its walk in OFF (no panel stands at all) and reads the
+ * dress at the toggle-on landing; (b) pins the reopen in
+ * OFF; (c)'s seats run in the on state — Catch Up's tap now
+ * re-engages follow, so the boundaries after it seat (the
+ * v522 semantics), while the guidepost's one-shot stands
+ * in the released state exactly as v520 pinned it; (d)
+ * runs released, the standing behaviour it always named.
+ * The machine itself is pinned whole in
+ * devotional-player-v522.test.tsx.
+ *
  * The rig is the v519 one (real controller over a fake
  * expo-audio, react-test-renderer over string hosts, a
  * ScrollView that records scrollTo).
@@ -351,15 +368,20 @@ describe('v520 transcript — playback does no position work', () => {
     expect(openDevotional(TOUR, { uri: 'file:///genesis-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer();
     const root = view.root;
-    seatMountedLayout(root);
-    scroll.to.length = 0;
+    // v522 RE-BASE (2026-11-13): the walk below now runs in
+    // the transcript's OFF state — no panel is mounted at
+    // all (the seatMountedLayout this test opened with has
+    // nothing to seat), which is the strongest form of the
+    // v520 pin: no camera, and no panel for one to move.
 
     // Inside-segment ticks and boundary after boundary,
-    // hands off: nothing scrolls, nothing seats.
+    // hands off: nothing scrolls, nothing seats, nothing
+    // mounts.
     for (const i of [1, 2, 3, 5, 8, 13, 21]) {
       await emitPosition((SEGS[i].startSec + SEGS[i + 1].startSec) / 2); // inside segment i
       await emitPosition(inSeg(i + 1)); // across its boundary
       expect(scroll.to).toEqual([]);
+      expect(segmentDoors(root)).toHaveLength(0);
     }
 
     // A drag mid-walk, and long past any resume grace: still
@@ -377,15 +399,26 @@ describe('v520 transcript — playback does no position work', () => {
     });
     await emitPosition(inSeg(32));
     expect(scroll.to).toEqual([]);
+    expect(segmentDoors(root)).toHaveLength(0);
 
-    // And the dress DID follow the whole time: segment 32
-    // stands lit in the book's family (it is inside the
-    // standing window), its predecessor does not.
+    // And when the reader toggles the transcript on, the
+    // dress is there waiting: segment 32 stands lit in the
+    // book's family at the landing (the window on the voice),
+    // its predecessor does not. The landing's seat is armed
+    // (no layout reported in this rig), so still no scrolls.
+    const toggle = root
+      .findAllByType('Pressable' as never)
+      .find((p) => p.props.accessibilityLabel === 'Transcript');
+    expect(toggle).toBeDefined();
+    await act(async () => {
+      toggle!.props.onPress();
+    });
     const theme = devotionalPlayerTheme('Genesis', false);
     const lit = doorFor(root, SEGS[32].startSec);
     expect(lit).toBeDefined();
     expect(flat(lit!.props.style).backgroundColor).toBe(theme.stopSeat);
     expect(flat(lit!.props.style).borderLeftColor).toBe(theme.primary);
+    expect(scroll.to).toEqual([]);
     await act(async () => {
       view.unmount();
     });
@@ -408,22 +441,28 @@ describe('v520 transcript — opening the player', () => {
     });
     scroll.to.length = 0;
 
-    // Reopen (the pill path mounts a fresh listen view over
-    // the live session): the transcript stands at the TOP of
-    // its panel — the deep segment's row is not mounted, the
-    // first rows are — and seating the layout the phone
-    // would report completes NO seat: zero scroll calls.
+    // v522 RE-BASE (2026-11-13): a reopen now opens with the
+    // transcript OFF (the Apple Music model: the view state
+    // resets with the unmount) — no panel stands at all, not
+    // even the panel's first rows, and there is no layout to
+    // seat and no seat to complete: zero scroll calls, and
+    // no Catch up (the capsule lives inside the on state).
     const view = await renderPlayer();
     const root = view.root;
-    expect(doorFor(root, SEGS[0].startSec)).toBeDefined();
+    expect(panelOf(root)).toBeUndefined();
+    expect(segmentDoors(root)).toHaveLength(0);
     expect(doorFor(root, SEGS[deepIdx].startSec)).toBeUndefined();
-    seatMountedLayout(root);
     expect(scroll.to).toEqual([]);
-    expect(doorFor(root, SEGS[deepIdx].startSec)).toBeUndefined();
+    expect(catchUpButton(root)).toHaveLength(0);
 
-    // What stands instead is the Catch up pill: the voice is
-    // deep, the reader is at the top — out of view by design.
-    expect(catchUpButton(root)).toHaveLength(1);
+    // What stands instead is the Transcript button in its
+    // quiet dress — the door to the words, closed.
+    const toggle = root
+      .findAllByType('Pressable' as never)
+      .find((p) => p.props.accessibilityLabel === 'Transcript');
+    expect(toggle).toBeDefined();
+    const theme = devotionalPlayerTheme('Genesis', false);
+    expect(flat(toggle!.props.style).backgroundColor).toBe(theme.stopSeat);
     await act(async () => {
       view.unmount();
     });
@@ -438,6 +477,29 @@ describe('v520 transcript — the deliberate seats', () => {
     const view = await renderPlayer();
     const root = view.root;
     const offsets390 = transcriptRowOffsets(ROWS, new Map(), transcriptCharsPerLine(390));
+
+    // v522 RE-BASE (2026-11-13): the scenario below runs in
+    // the transcript's ON-and-RELEASED state — toggled on,
+    // then released by the reader's drag, so the scrolls are
+    // his alone, as they were under v520. (The toggle's
+    // landing seat stays armed but never completes: no
+    // layout in this rig reports its row before the deep
+    // scroll — the [] assertions below prove no scroll
+    // issued. No layout is seated in this preamble on
+    // purpose: measuring the head rows here would change
+    // the panel's offsets model from the one this scenario
+    // has always run under.)
+    const toggle = root
+      .findAllByType('Pressable' as never)
+      .find((p) => p.props.accessibilityLabel === 'Transcript');
+    expect(toggle).toBeDefined();
+    await act(async () => {
+      toggle!.props.onPress();
+    });
+    const host = root.findByType('RNScrollView' as never);
+    act(() => {
+      host.props.onScrollBeginDrag();
+    });
 
     // The reader scrolls deep — to segment 100's region — and
     // the rows there measure (the rig's convention).
@@ -471,11 +533,18 @@ describe('v520 transcript — the deliberate seats', () => {
       { y: followScrollTarget(PANEL_TOP + 97 * 100, VIEWPORT_H), animated: true },
     ]);
 
-    // Playback moves on: boundaries add nothing. The one
-    // snap is the whole follow.
+    // v522: the tap also RE-ENGAGES follow (the v520 pin —
+    // "boundaries add nothing" — is superseded by Jonathan's
+    // Apple Music refinement): playback moves on and the
+    // boundaries seat the voice, one seat each, off the
+    // cached measurements.
     await emitPosition(inSeg(100));
     await emitPosition(inSeg(103));
-    expect(scroll.to).toHaveLength(1);
+    expect(scroll.to).toEqual([
+      { y: followScrollTarget(PANEL_TOP + 97 * 100, VIEWPORT_H), animated: true },
+      { y: followScrollTarget(PANEL_TOP + 100 * 100, VIEWPORT_H), animated: true },
+      { y: followScrollTarget(PANEL_TOP + 103 * 100, VIEWPORT_H), animated: true },
+    ]);
     await act(async () => {
       view.unmount();
     });
@@ -485,8 +554,23 @@ describe('v520 transcript — the deliberate seats', () => {
     expect(openDevotional(TOUR, { uri: 'file:///genesis-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer();
     const root = view.root;
+    // v522: on and released — the deliberate seat this pin
+    // describes lives in the on state (in OFF the tap is a
+    // bare seek; pinned in devotional-player-v522.test.tsx),
+    // and only the released state keeps "nothing after" true:
+    // following would seat the boundaries that follow.
+    const toggle = root
+      .findAllByType('Pressable' as never)
+      .find((p) => p.props.accessibilityLabel === 'Transcript');
+    expect(toggle).toBeDefined();
+    await act(async () => {
+      toggle!.props.onPress();
+    });
     seatMountedLayout(root);
     scroll.to.length = 0;
+    act(() => {
+      root.findByType('RNScrollView' as never).props.onScrollBeginDrag();
+    });
 
     // Tap Stop 9's guidepost (the v519 (e) seat): the seek
     // runs, no scroll is aimed before the measurement…
@@ -531,6 +615,21 @@ describe('v520 transcript — the window’s only anchor is the reader', () => {
     expect(openDevotional(TOUR, { uri: 'file:///genesis-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer();
     const root = view.root;
+
+    // v522: on and released — the reader-anchored window this
+    // pin describes is the released state (while FOLLOWING
+    // the window anchors on the voice instead; pinned in
+    // devotional-player-v522.test.tsx).
+    const toggle = root
+      .findAllByType('Pressable' as never)
+      .find((p) => p.props.accessibilityLabel === 'Transcript');
+    expect(toggle).toBeDefined();
+    await act(async () => {
+      toggle!.props.onPress();
+    });
+    act(() => {
+      root.findByType('RNScrollView' as never).props.onScrollBeginDrag();
+    });
 
     // The reader scrolls to segment 200's region (no panel
     // layout seated in this rig: the panel's seat is its

@@ -58,6 +58,22 @@
  * inputs (anchorRow is a deliberate seat target or null;
  * the viewport range is the standing anchor).
  *
+ * v522 RE-BASE (2026-11-13): the transcript is a toggled
+ * view now (Apple Music lyrics model — Jonathan's named
+ * reference): OFF at every open, the button mounts it
+ * landing FOLLOWING, his swipe releases the follow. The
+ * component pins below exercise the MOUNTED panel, so each
+ * rig toggles it on after render; the pins that were
+ * re-based in v520 to the reader-anchored standing behaviour
+ * then release the follow with a drag, landing in exactly
+ * the state they pinned. (a) reads the window at the
+ * toggle-on landing (the voice at the tour's head — the
+ * same head window, now voice-anchored by the landing).
+ * The machine itself is pinned in
+ * devotional-player-v522.test.tsx; the model pins above
+ * are untouched (anchorRow now also carries the voice
+ * while follow is engaged — the same input, the same cut).
+ *
  * What this rig CANNOT prove: on-device frame timing. That
  * the travel and the transcript scroll feel light on
  * Jonathan's phone is his phone's verdict, as always.
@@ -337,6 +353,27 @@ const fireScroll = (root: ReactTestInstance, y: number) => {
   });
 };
 
+/** v522: the Transcript toggle press (see the header note) —
+ *  mounts the panel, landing following. */
+const toggleTranscriptOn = async (root: ReactTestInstance) => {
+  const btn = root
+    .findAllByType('Pressable' as never)
+    .find((p) => p.props.accessibilityLabel === 'Transcript');
+  expect(btn).toBeDefined();
+  await act(async () => {
+    btn!.props.onPress();
+  });
+};
+
+/** v522: the reader's swipe — following releases to the
+ *  standing (released) state the v520 pins describe. */
+const beginDrag = (root: ReactTestInstance) => {
+  const host = root.findByType('RNScrollView' as never);
+  act(() => {
+    host.props.onScrollBeginDrag();
+  });
+};
+
 async function renderPlayer() {
   let renderer!: ReactTestRenderer;
   await act(async () => {
@@ -481,6 +518,10 @@ describe('v519 transcript — the mounted window at rest', () => {
     expect(openDevotional(TOUR, { uri: 'file:///genesis-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer();
     const root = view.root;
+    // v522: the window at rest is the toggle-on landing's
+    // window — the voice at the tour's head, so the landing
+    // anchor and the old head window are the same slice.
+    await toggleTranscriptOn(root);
 
     expect(SEGS.length).toBe(506);
     expect(ROWS.length).toBe(517);
@@ -526,6 +567,13 @@ describe('v519 transcript — the window follows the voice', () => {
     expect(openDevotional(TOUR, { uri: 'file:///genesis-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer();
     const root = view.root;
+    // v522: toggled on, then released by his swipe — the
+    // standing state this pin has described since v520.
+    // (While FOLLOWING, a deep playhead WOULD carry the
+    // window — that is the toggle's own landing behaviour,
+    // pinned in devotional-player-v522.test.tsx.)
+    await toggleTranscriptOn(root);
+    beginDrag(root);
     const atRest = mountedWindow(root);
     expect(doorFor(root, SEGS[0].startSec)).toBeDefined();
     expect(doorFor(root, SEGS[500].startSec)).toBeUndefined();
@@ -552,6 +600,9 @@ describe('v519 transcript — the window follows the voice', () => {
     expect(openDevotional(TOUR, { uri: 'file:///genesis-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer();
     const root = view.root;
+    // v522: on and released (see the sibling pin's note).
+    await toggleTranscriptOn(root);
+    beginDrag(root);
     expect(doorFor(root, SEGS[500].startSec)).toBeUndefined();
 
     // The voice sits at the tour's head the whole time — the
@@ -600,6 +651,10 @@ describe('v519 transcript — measured heights inform the spacers', () => {
     expect(openDevotional(TOUR, { uri: 'file:///genesis-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer();
     const root = view.root;
+    // v522: on and released — the travel below is the
+    // reader's scroll, as it has been since v520.
+    await toggleTranscriptOn(root);
+    beginDrag(root);
     const panel = panelOf(root);
 
     // Seat the panel at its page offset and the wide measure.
@@ -655,6 +710,11 @@ describe('v519 transcript — what a position tick re-renders', () => {
     expect(openDevotional(TOUR, { uri: 'file:///genesis-ten-stops.m4a' })).toBe(true);
     const view = await renderPlayer();
     const root = view.root;
+    // v522: on and released before the reader's scroll below
+    // (the toggle-on landing is at the tour's head; nothing
+    // here reads it).
+    await toggleTranscriptOn(root);
+    beginDrag(root);
     // v520 RE-BASE (2026-11-13): the window is carried to
     // segment 200's neighbourhood by the READER's scroll —
     // the playhead no longer carries it there. (No panel
@@ -733,6 +793,16 @@ describe('v519 transcript — the camera after a far seek', () => {
     const view = await renderPlayer();
     const root = view.root;
     const PANEL_TOP = 500;
+    // v522 RE-BASE (2026-11-13): the panel is toggled on and
+    // the follow released first — in OFF a guidepost seek
+    // mounts nothing (pinned in
+    // devotional-player-v522.test.tsx), and this pin is the
+    // deliberate seat's, which lives in the on state. The
+    // assertions below are unchanged: the tap arms the seat,
+    // no scroll is aimed at an estimate, the measurement
+    // completes it once.
+    await toggleTranscriptOn(root);
+    beginDrag(root);
 
     // Seat the layout the phone would report at the top of the
     // tour: the panel at its offset, each mounted segment

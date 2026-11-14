@@ -222,10 +222,18 @@ vi.mock('expo-keep-awake', () => ({
   deactivateKeepAwake: () => undefined,
 }));
 
-// A bundled-asset stand-in: the session must actually open in the
-// real controller, so the audio source resolves to a fake id.
-vi.mock('@/lib/devotional-audio', () => ({
-  devotionalAudioFor: () => 101,
+// v527 RE-BASE (2026-11-14): chapter audio is a download now —
+// the listen view resolves a chapter through
+// lib/devotional-download, not the deleted bundled map. The seam
+// stands at "already on this phone", and the local source is the
+// same fake id the bundled map used to hand over: the session
+// must actually open in the real controller.
+vi.mock('@/lib/devotional-download', () => ({
+  useDevotionalDownloadState: () => ({ status: 'ready' }),
+  refreshDevotionalDownload: async () => ({ status: 'ready' }),
+  startDevotionalDownload: async () => undefined,
+  cancelDevotionalDownload: async () => undefined,
+  devotionalLocalSource: () => 101,
 }));
 
 vi.mock('@/lib/bible-v205/verses', () => ({

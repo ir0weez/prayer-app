@@ -156,7 +156,11 @@ import {
   type BiblePalette,
   type BibleSectionTone,
 } from './palette';
-import { getDevotional } from '@/lib/devotionals';
+import { getDevotional, type Devotional } from '@/lib/devotionals';
+import {
+  refreshDevotionalDownload,
+  useDevotionalDownloadState,
+} from '@/lib/devotional-download';
 import { getTenStops } from '@/lib/ten-stops';
 import {
   stopMarkRoles,
@@ -196,6 +200,18 @@ export interface ChapterPageProps {
 
 /** App-level read-mode preference ("With notes" is the default). */
 export const READ_MODE_KEY = 'prayercircle.bible.v205.readmode.v1';
+
+/** v527: the download-state hook's seat for a chapter with no
+ * devotional — never rendered, never read; it only keeps the
+ * hook unconditional. */
+const NO_DEVOTIONAL: Devotional = {
+  book: '',
+  chapter: 0,
+  title: '',
+  audioFile: '',
+  durationSec: 0,
+  paragraphs: [],
+};
 
 /**
  * v251 — the header clearance is MEASURED, never guessed (the v246
@@ -385,6 +401,18 @@ export function ChapterPageView(props: ChapterPageProps) {
   const seedPalette = useBiblePalette();
   // v230: this chapter's devotional, if the registry carries one.
   const devotional = useMemo(() => getDevotional(book, chapter), [book, chapter]);
+  // v527: the devotional's download state, for the door's icon —
+  // the file is a download now, and the door says so quietly:
+  // a download glyph until the chapter is on this phone, the
+  // play glyph once it is. Disk truth is asked on mount, the
+  // TenStopsCard's pattern. (The stand-in entry is only the
+  // hook's seat for chapters with no devotional — its door never
+  // renders, and its state is never read.)
+  const devotionalDownload = useDevotionalDownloadState(devotional ?? NO_DEVOTIONAL);
+  useEffect(() => {
+    if (devotional) void refreshDevotionalDownload(devotional);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [book, chapter]);
   // v507: this book's Ten Stops tour, if the registry carries one
   // (lib/ten-stops) — where one exists, the chapter wears the
   // picked blend's indicator: the route strip under the cover and
@@ -1594,7 +1622,15 @@ export function ChapterPageView(props: ChapterPageProps) {
                 onPress={props.onListen}
                 accessibilityLabel={`Devotional — ${devotional.title}`}
               >
-                <MaterialIcons name="play-arrow" size={18} color={palette.raspDeep} />
+                {/* v527: the door's icon carries the download
+                    state — play once the chapter is on this
+                    phone, the download glyph until then (the tap
+                    itself fetches first, then plays). */}
+                <MaterialIcons
+                  name={devotionalDownload.status === 'ready' ? 'play-arrow' : 'file-download'}
+                  size={18}
+                  color={palette.raspDeep}
+                />
                 <Text style={[styles.doorBtnText, { color: palette.raspDeep }]}>Devotional</Text>
               </Pressable>
             ) : null}

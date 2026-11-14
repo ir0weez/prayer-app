@@ -66,6 +66,10 @@ vi.mock('@/lib/devotional-player', () => ({
   consumeDevotionalExpandMorph: () => false,
   requestDevotionalPillHandoff: player.pillHandoff,
   useDevotionalPlayerState: () => player.state,
+  // v527 RE-BASE (2026-11-14): the listen view asks the
+  // controller for its live snapshot on mount — a chapter's
+  // download-then-play leaves a live session untouched.
+  getDevotionalPlayerSnapshot: () => player.state,
   setDevotionalPlayerViewOpen: () => undefined,
   useDevotionalPlayerViewOpen: () => false,
 }));
@@ -164,8 +168,18 @@ vi.mock('expo-keep-awake', () => ({
   deactivateKeepAwake: () => undefined,
 }));
 
-vi.mock('@/lib/devotional-audio', () => ({
-  devotionalAudioFor: () => null,
+// v527 RE-BASE (2026-11-14): chapter audio is a download now —
+// the listen view resolves a chapter through
+// lib/devotional-download, not the deleted bundled map. The seam
+// stands at "already on this phone": the disk check finds the
+// file and the local source is ready, so the view opens the
+// session exactly as it did from the bundle.
+vi.mock('@/lib/devotional-download', () => ({
+  useDevotionalDownloadState: () => ({ status: 'ready' }),
+  refreshDevotionalDownload: async () => ({ status: 'ready' }),
+  startDevotionalDownload: async () => undefined,
+  cancelDevotionalDownload: async () => undefined,
+  devotionalLocalSource: () => ({ uri: 'file:///docs/devotionals/chapter.m4a' }),
 }));
 
 vi.mock('@/lib/bible-v205/verses', () => ({

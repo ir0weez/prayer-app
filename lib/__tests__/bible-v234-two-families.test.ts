@@ -28,6 +28,11 @@ describe('the chapter sheet — two labeled groups', () => {
   it('the reading controls live under READING', () => {
     // Distinctive wiring for each reading-family control, all
     // between the two headers.
+    // v527 RE-BASE (2026-11-14): the search starts at the READING
+    // header — openChapter(false) now also appears earlier in the
+    // file, inside the chapter grid's double-tap handler (a second
+    // tap on the selected chapter takes the same Read door in).
+    // The pin's claim is unchanged: the door itself stands here.
     const controls: Array<[string, string]> = [
       ['Read Chapter', 'openChapter(false)'],
       ['Read as Stories', 'openChapter(true)'],
@@ -36,7 +41,7 @@ describe('the chapter sheet — two labeled groups', () => {
       ['the read date line', 'formatReadDate(selReadDate)'],
     ];
     for (const [name, needle] of controls) {
-      const at = src.indexOf(needle);
+      const at = src.indexOf(needle, readingAt);
       expect(at, name).toBeGreaterThan(readingAt);
       expect(at, name).toBeLessThan(writingAt);
     }

@@ -63,6 +63,7 @@ import {
 import { STATUS_LABEL } from '@/components/bible-v205/blocks';
 import { BookCompleteCelebration } from '@/components/bible-v205/celebration';
 import { TenStopsCard } from '@/components/ten-stops-card';
+import { DevotionalDownloadAllBar } from '@/components/devotional-download-all';
 import { getTenStops } from '@/lib/ten-stops';
 import {
   cellDressFor,
@@ -236,6 +237,24 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
         params: bibleShellParamsForRoute({ name: 'chapter', book, chapter: selected, stories }),
       });
   };
+  // v527 (Jonathan, Nov 14): the chapter grid's double-tap, in his
+  // words — a single tap pops the bottom box up for that chapter;
+  // tapping THE SAME chapter again while the box is up for it goes
+  // straight into the chapter. The box's own state is the whole
+  // mechanism: boxChapter is the chapter the box is up for (none
+  // yet at first paint, whatever the default selection shows), a
+  // tap on it opens the chapter, and a tap anywhere else just
+  // moves the selection and the box, as it always has. No timer
+  // anywhere — the first tap answers at once, never gated.
+  const [boxChapter, setBoxChapter] = useState<number | null>(null);
+  const onChapterCellPress = (c: number) => {
+    if (boxChapter === c) {
+      openChapter(false);
+    } else {
+      setSelected(c);
+      setBoxChapter(c);
+    }
+  };
   const goBack = () => {
     if (props.pane) props.pane.nav.back();
     else router.back();
@@ -331,6 +350,11 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
         {/* v501: the Ten Stops entry — the top of the chapter list,
             before chapter 1, for the books that have a tour. */}
         {tenStops ? <TenStopsCard entry={tenStops} palette={bookPal} /> : null}
+        {/* v527: the "Download all" bar — directly beneath the Ten
+            Stops card (in that seat for a book with no tour), for
+            the books that carry chapter devotionals; the bar
+            itself renders nothing for any other book. */}
+        <DevotionalDownloadAllBar book={book} palette={bookPal} />
         {/* v313: the grid at the drawing's measure — rows of five,
             10px gaps both ways, each cell flexing to the row (the
             last row pads with invisible spacers so its cells keep
@@ -358,7 +382,7 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
                       { backgroundColor: st.backgroundColor, borderColor: st.borderColor ?? 'transparent' },
                       isSel ? { borderColor: bookPal.ink, borderWidth: 2 } : null,
                     ]}
-                    onPress={() => setSelected(c)}
+                    onPress={() => onChapterCellPress(c)}
                   >
                     <Text style={[styles.cellN, { color: st.color }]}>{c}</Text>
                     {d.displayRead ? (

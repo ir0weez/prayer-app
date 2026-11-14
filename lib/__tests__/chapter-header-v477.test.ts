@@ -165,7 +165,12 @@ describe('v477 — (5) one even action row: Stories / Devotional / Contents', ()
     expect(doorway).toContain('props.onListen && devotional ? (');
     expect(doorway).toContain('backgroundColor: palette.primCont');
     expect(doorway).not.toContain('backgroundColor: palette.rasp }');
-    expect(doorway).toContain('name="play-arrow"');
+    // v527 RE-BASE (2026-11-14): the door's icon is state-driven
+    // now — the chapter's audio is a download, so the door wears
+    // the download glyph until the chapter is on this phone and
+    // the play glyph once it is. The play glyph still stands,
+    // as the ready branch of the one icon.
+    expect(doorway).toContain("devotionalDownload.status === 'ready' ? 'play-arrow' : 'file-download'");
   });
 });
 

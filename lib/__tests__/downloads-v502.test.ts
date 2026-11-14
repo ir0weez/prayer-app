@@ -193,9 +193,13 @@ describe('v502 Downloads page model', () => {
       fakeItem('Genesis', 300, 2),
       fakeItem('Hebrews', 100, 1),
     ]);
+    // v527 RE-BASE (2026-11-14): each segment now also carries
+    // the item's own id (downloadItemKey) — several downloads can
+    // share a book (a tour and its chapters), so the bar's slices
+    // key on the item, not the book.
     expect(model.segments).toEqual([
-      { book: 'Genesis', sizeBytes: 300, fraction: 0.75 },
-      { book: 'Hebrews', sizeBytes: 100, fraction: 0.25 },
+      { id: 'ten-stops|Genesis', book: 'Genesis', sizeBytes: 300, fraction: 0.75 },
+      { id: 'ten-stops|Hebrews', book: 'Hebrews', sizeBytes: 100, fraction: 0.25 },
     ]);
     expect(model.totalLine).toBe('0.0 MB used by downloads');
     expect(model.countLine).toBe('2 items');
@@ -421,8 +425,12 @@ describe('v502 — no audio ships in the app', () => {
   // (12 chapters) registered.
   // v526 RE-BASE (2026-11-14): the bundled set moved 257 → 265 when Song of Solomon
   // (8 chapters) registered.
-  it('assets/ still holds exactly the 265 bundled chapter devotionals', () => {
+  // v527 RE-BASE (2026-11-14): the bundled set is GONE — the
+  // chapter devotionals switched to download-on-demand (hosted in
+  // the devotional-library release), so assets/ holds no .m4a at
+  // all. The full no-bundled-audio pin lives in devotionals-v527.
+  it('assets/ holds no bundled audio anymore — devotionals are downloads', () => {
     const files = walk(join(root, 'assets'));
-    expect(files.filter((f) => f.endsWith('.m4a')).length).toBe(265);
+    expect(files.filter((f) => f.endsWith('.m4a'))).toEqual([]);
   });
 });

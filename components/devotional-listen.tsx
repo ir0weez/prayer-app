@@ -286,7 +286,13 @@ import {
   type Devotional,
   type DevotionalMovement,
 } from '@/lib/devotionals';
-import { devotionalAudioFor } from '@/lib/devotional-audio';
+import {
+  cancelDevotionalDownload,
+  devotionalLocalSource,
+  refreshDevotionalDownload,
+  startDevotionalDownload,
+  useDevotionalDownloadState,
+} from '@/lib/devotional-download';
 import { getTenStops } from '@/lib/ten-stops';
 import {
   activeTenStopsTranscriptSegment,
@@ -298,6 +304,7 @@ import { loadChapterVerses } from '@/lib/bible-v205/verses';
 import {
   consumeDevotionalExpandMorph,
   devotionalEnded,
+  getDevotionalPlayerSnapshot,
   openDevotional,
   requestDevotionalPillHandoff,
   seekDevotional,
@@ -1120,11 +1127,19 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   // Load this devotional into the shared player. A different
   // devotional replaces the source and plays; the same one (a reopen
   // from the pill) is left exactly as it is. The source is the
-  // caller's resolver (the controller stays source-agnostic): the
-  // bundled asset for a chapter's devotional, or — for a book-level
-  // Ten Stops tour (v501) — the downloaded local file, resolved only
-  // when a disk check has found it complete (tenStopsLocalSource).
+  // caller's resolver (the controller stays source-agnostic): a
+  // downloaded local file — for a book-level Ten Stops tour (v501)
+  // resolved only when a disk check has found it complete
+  // (tenStopsLocalSource), and, since v527, for a chapter's
+  // devotional the same way (devotionalLocalSource): the audio is
+  // a download now, never a bundled asset.
   const tenStopsEntry = devotional.bookLevel ? getTenStops(devotional.book) : null;
+  // v527: this chapter's download state (chapter sessions only —
+  // a tour's state lives in its own store and is untouched here).
+  const downloadState = useDevotionalDownloadState(devotional);
+  // Set when this view opened a chapter that was not yet on the
+  // phone: when its download lands, this view starts the session.
+  const wantPlayRef = useRef(false);
 
   // v512: register this view's openness with the controller.
   // The pill renders from that fact (a live session and no open
@@ -1142,15 +1157,60 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   }, []);
 
   useEffect(() => {
-    openDevotional(
-      devotional,
-      devotional.bookLevel
-        ? tenStopsEntry
-          ? tenStopsLocalSource(tenStopsEntry)
-          : null
-        : devotionalAudioFor(devotional.book, devotional.chapter),
-    );
+    if (devotional.bookLevel) {
+      openDevotional(devotional, tenStopsEntry ? tenStopsLocalSource(tenStopsEntry) : null);
+      return;
+    }
+    // v527: a chapter's devotional is a download. A session already
+    // live for this chapter (a reopen from the pill) is left
+    // exactly as it is — the file it plays from is already here.
+    const live = getDevotionalPlayerSnapshot();
+    if (
+      live.devotional &&
+      devotionalKey(live.devotional.book, live.devotional.chapter) ===
+        devotionalKey(devotional.book, devotional.chapter)
+    ) {
+      return;
+    }
+    // Otherwise this open IS the Play tap: ask the disk, play at
+    // once when the file is here, and fetch it first when it is
+    // not — the landed effect below starts the session the moment
+    // the download verifies.
+    wantPlayRef.current = true;
+    void (async () => {
+      const settled = await refreshDevotionalDownload(devotional);
+      if (settled.status === 'ready') {
+        wantPlayRef.current = false;
+        openDevotional(devotional, devotionalLocalSource(devotional));
+      } else if (settled.status !== 'downloading') {
+        void startDevotionalDownload(devotional);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [devotional]);
+
+  // v527: the download this view asked for has landed — start the
+  // session from the local file.
+  useEffect(() => {
+    if (devotional.bookLevel) return;
+    if (downloadState.status === 'ready' && wantPlayRef.current) {
+      wantPlayRef.current = false;
+      openDevotional(devotional, devotionalLocalSource(devotional));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [downloadState.status, devotional]);
+
+  // v527: the download block's two doors — cancelling withdraws
+  // this view's play request (a later landing, e.g. from a book's
+  // Download all, does not start a session this view gave up on);
+  // retrying renews it.
+  const cancelDownload = useCallback(() => {
+    wantPlayRef.current = false;
+    void cancelDevotionalDownload(devotional);
+  }, [devotional]);
+  const retryDownload = useCallback(() => {
+    wantPlayRef.current = true;
+    void startDevotionalDownload(devotional);
   }, [devotional]);
 
   const mine =
@@ -1912,6 +1972,54 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
             onToggleTranscript={transcriptRows ? toggleTranscript : null}
           />
 
+          {/* v527: while this chapter's audio is being fetched, the
+              download stands in the page — its progress, and a
+              Cancel; a failure says so plainly, with a Retry. The
+              session starts itself the moment the file lands, so
+              nothing here is a second play door. Only while no
+              session is live for this chapter (a tour never shows
+              it — its card owns its lifecycle). */}
+          {!devotional.bookLevel && !mine && downloadState.status === 'downloading' ? (
+            <View style={styles.downloadBlock}>
+              <View style={[styles.downloadTrack, { backgroundColor: theme.track }]}>
+                <View
+                  style={[
+                    styles.downloadFill,
+                    { backgroundColor: theme.primary, width: `${Math.round(downloadState.fraction * 100)}%` },
+                  ]}
+                />
+              </View>
+              <View style={styles.downloadRow}>
+                <Text style={[styles.downloadText, { color: theme.inkSoft }]}>
+                  Downloading… {Math.round(downloadState.fraction * 100)}%
+                </Text>
+                <Pressable
+                  onPress={cancelDownload}
+                  hitSlop={8}
+                  style={[styles.downloadBtn, { backgroundColor: theme.stopSeat }]}
+                  accessibilityLabel="Cancel the download"
+                >
+                  <Text style={[styles.downloadBtnText, { color: theme.accent }]}>Cancel</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+          {!devotional.bookLevel && !mine && downloadState.status === 'error' ? (
+            <View style={styles.downloadBlock}>
+              <View style={styles.downloadRow}>
+                <Text style={[styles.downloadText, { color: theme.inkSoft, flex: 1 }]}>{downloadState.message}</Text>
+                <Pressable
+                  onPress={retryDownload}
+                  hitSlop={8}
+                  style={[styles.downloadBtn, { backgroundColor: theme.stopSeat }]}
+                  accessibilityLabel="Retry the download"
+                >
+                  <Text style={[styles.downloadBtnText, { color: theme.accent }]}>Retry</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
           {/* The guideposts — only where real timed movements
               exist (no chapter's do; the Ten Stops tour's ten
               stops do, v506 — see devotionalGuideposts). v515:
@@ -2149,6 +2257,14 @@ const styles = StyleSheet.create({
   paraText: { fontSize: 17, lineHeight: 26 },
   foot: { fontSize: 11, textAlign: 'center', marginTop: 10, fontStyle: 'italic' },
   hint: { fontSize: 11, textAlign: 'center', marginTop: 18 },
+  // v527: the chapter download's in-page block (progress + doors).
+  downloadBlock: { marginTop: 18 },
+  downloadTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  downloadFill: { height: 6, borderRadius: 3 },
+  downloadRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  downloadText: { fontSize: 12.5 },
+  downloadBtn: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 13 },
+  downloadBtnText: { fontSize: 12.5, fontWeight: '600' },
   topFade: { position: 'absolute', left: 0, right: 0, top: 0 },
   catchUp: {
     position: 'absolute',

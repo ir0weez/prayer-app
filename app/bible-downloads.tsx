@@ -43,6 +43,7 @@ import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 import { bookColorsFor, type BookColors } from '@/lib/bible-v205/book-colors';
 import {
   downloadDiscCode,
+  downloadItemKey,
   downloadKindLabel,
   downloadRowMeta,
   downloadsPageModel,
@@ -52,6 +53,7 @@ import {
   useDownloadedAudio,
   type DownloadedAudioItem,
 } from '@/lib/downloads';
+import { devotionalLocalSource } from '@/lib/devotional-download';
 import { tenStopsAsDevotional } from '@/lib/ten-stops';
 import { tenStopsLocalSource } from '@/lib/ten-stops-download';
 
@@ -104,17 +106,28 @@ export default function BibleDownloadsScreen(props: { pane?: BibleDownloadsPaneP
   };
 
   const play = (item: DownloadedAudioItem) => {
-    const source = tenStopsLocalSource(item.entry);
-    if (!source) return;
-    // The v501 book-page Play, unchanged: the tour loads as a
-    // book-level session from its local file, then the player
-    // route opens bare and resolves the session it was handed.
     // The controller loads LAZILY (the Ten Stops card's pattern):
     // it pulls expo-audio's native module in with it, and this
     // screen's module must stay importable anywhere, tests
     // included.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { openDevotional } = require('../lib/devotional-player') as typeof import('@/lib/devotional-player');
+    if (item.kind === 'devotional') {
+      // v527: a downloaded chapter plays as its own chapter
+      // session from its local file — the same door the chapter
+      // page's Devotional button opens.
+      const source = devotionalLocalSource(item.entry);
+      if (!source) return;
+      if (openDevotional(item.entry, source)) {
+        router.push({ pathname: '/devotional', params: {} });
+      }
+      return;
+    }
+    const source = tenStopsLocalSource(item.entry);
+    if (!source) return;
+    // The v501 book-page Play, unchanged: the tour loads as a
+    // book-level session from its local file, then the player
+    // route opens bare and resolves the session it was handed.
     if (openDevotional(tenStopsAsDevotional(item.entry), source)) {
       router.push({ pathname: '/devotional', params: {} });
     }
@@ -126,7 +139,7 @@ export default function BibleDownloadsScreen(props: { pane?: BibleDownloadsPaneP
     const colors = bookColorsFor(item.entry.book, palette.isDark) ?? FALLBACK_COLORS;
     return (
       <View
-        key={item.entry.book}
+        key={downloadItemKey(item)}
         style={[styles.item, { backgroundColor: palette.paper2 }, palette.cardDress, { borderRadius: 18 }]}
       >
         <View style={[styles.disc, { backgroundColor: colors.tintA }]}>
@@ -180,7 +193,7 @@ export default function BibleDownloadsScreen(props: { pane?: BibleDownloadsPaneP
                 const colors = bookColorsFor(seg.book, palette.isDark) ?? FALLBACK_COLORS;
                 return (
                   <View
-                    key={seg.book}
+                    key={seg.id}
                     style={{ height: '100%', width: `${seg.fraction * 100}%`, backgroundColor: colors.primary }}
                   />
                 );

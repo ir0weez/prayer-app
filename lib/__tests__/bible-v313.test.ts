@@ -27,7 +27,13 @@ describe('v313 — the chapter box is inline, not a sheet', () => {
   });
 
   it('a cell tap only selects — the box below follows the selection', () => {
-    expect(book).toContain('onPress={() => setSelected(c)}');
+    // v527 RE-BASE (2026-11-14): the cell press runs through
+    // onChapterCellPress now — a FIRST tap still only selects and
+    // the box follows (this pin's claim); a second tap on the
+    // chapter whose box is already up takes the Read door in
+    // (Jonathan's double-tap, pinned behaviourally in
+    // devotionals-v527-bookpage.test.tsx).
+    expect(book).toContain('onPress={() => onChapterCellPress(c)}');
     expect(book).toContain('styles.detailBox');
   });
 

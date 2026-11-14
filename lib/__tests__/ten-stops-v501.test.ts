@@ -516,11 +516,16 @@ describe('v501 — no audio ships in the app', () => {
   // (12 chapters) registered.
   // v526 RE-BASE (2026-11-14): the bundled set moved 257 → 265 when Song of Solomon
   // (8 chapters) registered.
-  it('no Ten Stops audio anywhere under assets/, and the bundled set is still the 265 chapters', () => {
+  // v527 RE-BASE (2026-11-14): the bundled set is GONE — the
+  // chapter devotionals switched to download-on-demand (hosted in
+  // the devotional-library release, the very bytes that bundled),
+  // so no .m4a of any kind stands under assets/ anymore. The
+  // registry↔hosting integrity pin lives in devotionals-v527.
+  it('no Ten Stops audio anywhere under assets/, and no bundled audio at all anymore', () => {
     const files = walk(join(root, 'assets'));
     expect(files.filter((f) => f.toLowerCase().includes('ten-stops'))).toEqual([]);
     expect(files.filter((f) => f.toLowerCase().includes('ten_stops'))).toEqual([]);
-    expect(files.filter((f) => f.endsWith('.m4a')).length).toBe(265);
+    expect(files.filter((f) => f.endsWith('.m4a'))).toEqual([]);
   });
 
   it('the ten-stops modules never reach into the bundled assets', () => {

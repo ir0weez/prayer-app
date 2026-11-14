@@ -88,12 +88,19 @@ describe('v474 registry — all of Deuteronomy, PROGRESS titles', () => {
   });
 });
 
-describe('v474 bundled audio — compressed, complete, wired', () => {
-  it('all 34 assets exist, each voice-grade small, total ≤ 20 MB', () => {
+// v527 RE-BASE (2026-11-14): this book's audio is HOSTED now, not
+// bundled — the chapter devotionals switched to download-on-demand
+// (Jonathan: "Switch them all to downloadable"). The very bytes
+// that shipped in assets/audio/ were uploaded to the public
+// devotional-library release under the same names; the registry
+// carries each chapter's hosted name and exact byte size, and
+// nothing is bundled anymore. The full registry↔hosting table is
+// pinned in devotionals-v527.test.ts.
+describe('v474 hosted audio — hosted, complete, wired (was: bundled)', () => {
+  it('all 34 chapters carry their hosted size, each voice-grade small, total ≤ 20 MB', () => {
     let total = 0;
     for (const [n] of EXPECTED) {
-      const p = join(__dirname, '..', '..', 'assets', 'audio', `devotional-deuteronomy-${n}.m4a`);
-      const size = statSync(p).size;
+      const size = getDevotional('Deuteronomy', n)!.sizeBytes!;
       expect(size, `chapter ${n}`).toBeGreaterThan(100_000);
       expect(size, `chapter ${n}`).toBeLessThanOrEqual(700_000);
       total += size;
@@ -101,12 +108,15 @@ describe('v474 bundled audio — compressed, complete, wired', () => {
     expect(total).toBeLessThanOrEqual(20_000_000);
   });
 
-  it('the audio module requires exactly the 34 registered files', () => {
-    const audio = read('lib/devotional-audio.ts');
-    const requires = audio.match(/require\('@\/assets\/audio\/devotional-deuteronomy-\d+\.m4a'\)/g) ?? [];
-    expect(requires.length).toBe(34);
+  it('the registry names exactly the 34 hosted files, and nothing is bundled', () => {
     for (const [n] of EXPECTED) {
-      expect(audio).toContain(`[devotionalKey('Deuteronomy', ${n})]: require('@/assets/audio/devotional-deuteronomy-${n}.m4a')`);
+      const d = getDevotional('Deuteronomy', n)!;
+      expect(d.audioFile).toBe(`devotional-deuteronomy-${n}.m4a`);
+      // No bundled copy stands in the app anymore.
+      expect(() => statSync(join(__dirname, '..', '..', 'assets', 'audio', d.audioFile))).toThrow();
     }
+    // The bundled require map is gone with the bundle.
+    expect(() => read('lib/devotional-audio.ts')).toThrow();
   });
 });
+

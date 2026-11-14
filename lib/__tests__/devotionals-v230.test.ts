@@ -79,9 +79,13 @@ describe('v230 wiring (as moved by v293)', () => {
     expect(screen).toContain('activateKeepAwakeAsync');
     expect(screen).toContain('activeParagraphIndex');
     expect(screen).toContain('openDevotional');
-    const audio = read('lib/devotional-audio.ts');
-    expect(audio).toContain("require('@/assets/audio/devotional-genesis-1.m4a')");
-    // The registry names the same file the audio module requires.
+    // v527 RE-BASE (2026-11-14): the bundled audio module is gone —
+    // the chapter's file is hosted in the devotional-library
+    // release under the registry's name, and the listen view
+    // resolves it through the download store.
+    expect(() => read('lib/devotional-audio.ts')).toThrow();
+    expect(screen).toContain('devotionalLocalSource');
+    // The registry names the same file that is hosted.
     expect(getDevotional('Genesis', 1)!.audioFile).toBe('devotional-genesis-1.m4a');
   });
 });

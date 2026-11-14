@@ -120,12 +120,19 @@ describe('v293 copy — it is a narration of his words, not his voice', () => {
   });
 });
 
-describe('v293 bundled audio — compressed, complete, wired', () => {
-  it('all 50 assets exist, each voice-grade small, total ≤ 30 MB', () => {
+// v527 RE-BASE (2026-11-14): this book's audio is HOSTED now, not
+// bundled — the chapter devotionals switched to download-on-demand
+// (Jonathan: "Switch them all to downloadable"). The very bytes
+// that shipped in assets/audio/ were uploaded to the public
+// devotional-library release under the same names; the registry
+// carries each chapter's hosted name and exact byte size, and
+// nothing is bundled anymore. The full registry↔hosting table is
+// pinned in devotionals-v527.test.ts.
+describe('v293 hosted audio — hosted, complete, wired (was: bundled)', () => {
+  it('all 50 chapters carry their hosted size, each voice-grade small, total ≤ 30 MB', () => {
     let total = 0;
     for (const [n] of EXPECTED) {
-      const p = join(__dirname, '..', '..', 'assets', 'audio', `devotional-genesis-${n}.m4a`);
-      const size = statSync(p).size;
+      const size = getDevotional('Genesis', n)!.sizeBytes!;
       expect(size, `chapter ${n}`).toBeGreaterThan(100_000);
       expect(size, `chapter ${n}`).toBeLessThanOrEqual(700_000);
       total += size;
@@ -133,15 +140,18 @@ describe('v293 bundled audio — compressed, complete, wired', () => {
     expect(total).toBeLessThanOrEqual(30_000_000);
   });
 
-  it('the audio module requires exactly the 50 registered files', () => {
-    const audio = read('lib/devotional-audio.ts');
-    const requires = audio.match(/require\('@\/assets\/audio\/devotional-genesis-\d+\.m4a'\)/g) ?? [];
-    expect(requires.length).toBe(50);
+  it('the registry names exactly the 50 hosted files, and nothing is bundled', () => {
     for (const [n] of EXPECTED) {
-      expect(audio).toContain(`require('@/assets/audio/devotional-genesis-${n}.m4a')`);
+      const d = getDevotional('Genesis', n)!;
+      expect(d.audioFile).toBe(`devotional-genesis-${n}.m4a`);
+      // No bundled copy stands in the app anymore.
+      expect(() => statSync(join(__dirname, '..', '..', 'assets', 'audio', d.audioFile))).toThrow();
     }
+    // The bundled require map is gone with the bundle.
+    expect(() => read('lib/devotional-audio.ts')).toThrow();
   });
 });
+
 
 describe('v293 doors and player wiring', () => {
   it('chapter-top door sits beside Stories; Stories cover carries the second door', () => {

@@ -302,6 +302,7 @@ export function tenStopsAsDevotional(entry: TenStops): Devotional {
     chapter: 0,
     title: entry.title,
     audioFile: entry.fileName,
+    sizeBytes: entry.sizeBytes,
     durationSec: entry.durationSec,
     paragraphs: [],
     bookLevel: true,

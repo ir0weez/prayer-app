@@ -1,4 +1,4 @@
-// ─── Devotionals registry (v230 pilot → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings → v523: 2 Kings → v524: Proverbs → v525: Ecclesiastes) ─
+// ─── Devotionals registry (v230 pilot → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings → v523: 2 Kings → v524: Proverbs → v525: Ecclesiastes → v526: Song of Solomon) ─
 //
 // Each entry is a short spoken devotional for one chapter: a NotebookLM
 // narration of Jonathan's own written commentary for that chapter — his
@@ -2183,6 +2183,75 @@ const REGISTRY: Devotional[] = [
     title: 'Fear God and Prepare for Eternity',
     audioFile: 'devotional-ecclesiastes-12.m4a',
     durationSec: 89,
+    paragraphs: [],
+  },
+  // ── Song of Solomon (v526) — same NotebookLM recipe as Genesis/
+  // Deuteronomy/Joshua/Ruth/1 Samuel/2 Samuel/1 Kings/2 Kings/
+  // Proverbs/Ecclesiastes; titles and durations per the PROGRESS.md
+  // record. All 8 titles distinct, and none shared with an earlier
+  // book. ──
+  {
+    book: 'Song of Solomon',
+    chapter: 1,
+    title: "The King's Table in Song of Solomon",
+    audioFile: 'devotional-songofsolomon-1.m4a',
+    durationSec: 83,
+    paragraphs: [],
+  },
+  {
+    book: 'Song of Solomon',
+    chapter: 2,
+    title: 'Catching Little Foxes in Song of Solomon',
+    audioFile: 'devotional-songofsolomon-2.m4a',
+    durationSec: 100,
+    paragraphs: [],
+  },
+  {
+    book: 'Song of Solomon',
+    chapter: 3,
+    title: 'Beholding Christ in Song of Solomon 3',
+    audioFile: 'devotional-songofsolomon-3.m4a',
+    durationSec: 94,
+    paragraphs: [],
+  },
+  {
+    book: 'Song of Solomon',
+    chapter: 4,
+    title: 'How Christ Sees His Spotless Bride',
+    audioFile: 'devotional-songofsolomon-4.m4a',
+    durationSec: 89,
+    paragraphs: [],
+  },
+  {
+    book: 'Song of Solomon',
+    chapter: 5,
+    title: 'Why Christ Is Altogether Lovely',
+    audioFile: 'devotional-songofsolomon-5.m4a',
+    durationSec: 99,
+    paragraphs: [],
+  },
+  {
+    book: 'Song of Solomon',
+    chapter: 6,
+    title: 'Why Christ Chooses the Lowly Bride',
+    audioFile: 'devotional-songofsolomon-6.m4a',
+    durationSec: 100,
+    paragraphs: [],
+  },
+  {
+    book: 'Song of Solomon',
+    chapter: 7,
+    title: 'How Christ Works Through His Bride',
+    audioFile: 'devotional-songofsolomon-7.m4a',
+    durationSec: 84,
+    paragraphs: [],
+  },
+  {
+    book: 'Song of Solomon',
+    chapter: 8,
+    title: 'Unquenchable Love in Song of Solomon 8',
+    audioFile: 'devotional-songofsolomon-8.m4a',
+    durationSec: 91,
     paragraphs: [],
   },
 ];

@@ -62,8 +62,10 @@ describe('v523 registry — all of 2 Kings, PROGRESS titles', () => {
   // Proverbs (31 chapters) registered; the per-book pins below stand.
   // v525 RE-BASE (2026-11-14): the whole-registry total moved 245 → 257 when
   // Ecclesiastes (12 chapters) registered; the per-book pins below stand.
-it('the whole registry is now 257 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31 + 2 Samuel 24 + 1 Kings 22 + 2 Kings 25 + Proverbs 31 + Ecclesiastes 12', () => {
-    expect(devotionalRegistry().length).toBe(257);
+  // v526 RE-BASE (2026-11-14): the whole-registry total moved 257 → 265 when
+  // Song of Solomon (8 chapters) registered; the per-book pins below stand.
+it('the whole registry is now 265 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31 + 2 Samuel 24 + 1 Kings 22 + 2 Kings 25 + Proverbs 31 + Ecclesiastes 12 + Song of Solomon 8', () => {
+    expect(devotionalRegistry().length).toBe(265);
     expect(devotionalRegistry().filter((d) => d.book === 'Genesis').length).toBe(50);
     expect(devotionalRegistry().filter((d) => d.book === 'Deuteronomy').length).toBe(34);
     expect(devotionalRegistry().filter((d) => d.book === 'Joshua').length).toBe(24);

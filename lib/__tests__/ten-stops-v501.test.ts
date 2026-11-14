@@ -514,11 +514,13 @@ describe('v501 — no audio ships in the app', () => {
   // (31 chapters) registered.
   // v525 RE-BASE (2026-11-14): the bundled set moved 245 → 257 when Ecclesiastes
   // (12 chapters) registered.
-  it('no Ten Stops audio anywhere under assets/, and the bundled set is still the 257 chapters', () => {
+  // v526 RE-BASE (2026-11-14): the bundled set moved 257 → 265 when Song of Solomon
+  // (8 chapters) registered.
+  it('no Ten Stops audio anywhere under assets/, and the bundled set is still the 265 chapters', () => {
     const files = walk(join(root, 'assets'));
     expect(files.filter((f) => f.toLowerCase().includes('ten-stops'))).toEqual([]);
     expect(files.filter((f) => f.toLowerCase().includes('ten_stops'))).toEqual([]);
-    expect(files.filter((f) => f.endsWith('.m4a')).length).toBe(257);
+    expect(files.filter((f) => f.endsWith('.m4a')).length).toBe(265);
   });
 
   it('the ten-stops modules never reach into the bundled assets', () => {

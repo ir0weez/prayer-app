@@ -18,10 +18,11 @@
 //     passages, those seconds), the session returns them through
 //     devotionalGuideposts, a tap seeks through the controller's
 //     own seek path — and a chapter devotional still returns null:
-//     nothing was invented for the 257 narrations. (v523 re-pin:
+//     nothing was invented for the 265 narrations. (v523 re-pin:
 //     2 Kings registered, 189 → 214; v524 re-pin: Proverbs
 //     registered, 214 → 245; v525 RE-BASE (2026-11-14): Ecclesiastes
-//     registered, 245 → 257.)
+//     registered, 245 → 257; v526 RE-BASE (2026-11-14): Song of
+//     Solomon registered, 257 → 265.)
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'fs';

@@ -1,4 +1,4 @@
-// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings → v523: 2 Kings → v524: Proverbs → v525: Ecclesiastes) ────
+// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings → v523: 2 Kings → v524: Proverbs → v525: Ecclesiastes → v526: Song of Solomon) ────
 // The require() calls for bundled devotional audio live here — and ONLY
 // here — so lib/devotionals.ts (the registry + math) stays import-pure
 // for tests. One line per narration, keyed exactly like the registry.
@@ -265,6 +265,14 @@ const AUDIO: Record<string, number> = {
   [devotionalKey('Ecclesiastes', 10)]: require('@/assets/audio/devotional-ecclesiastes-10.m4a'),
   [devotionalKey('Ecclesiastes', 11)]: require('@/assets/audio/devotional-ecclesiastes-11.m4a'),
   [devotionalKey('Ecclesiastes', 12)]: require('@/assets/audio/devotional-ecclesiastes-12.m4a'),
+  [devotionalKey('Song of Solomon', 1)]: require('@/assets/audio/devotional-songofsolomon-1.m4a'),
+  [devotionalKey('Song of Solomon', 2)]: require('@/assets/audio/devotional-songofsolomon-2.m4a'),
+  [devotionalKey('Song of Solomon', 3)]: require('@/assets/audio/devotional-songofsolomon-3.m4a'),
+  [devotionalKey('Song of Solomon', 4)]: require('@/assets/audio/devotional-songofsolomon-4.m4a'),
+  [devotionalKey('Song of Solomon', 5)]: require('@/assets/audio/devotional-songofsolomon-5.m4a'),
+  [devotionalKey('Song of Solomon', 6)]: require('@/assets/audio/devotional-songofsolomon-6.m4a'),
+  [devotionalKey('Song of Solomon', 7)]: require('@/assets/audio/devotional-songofsolomon-7.m4a'),
+  [devotionalKey('Song of Solomon', 8)]: require('@/assets/audio/devotional-songofsolomon-8.m4a'),
 };
 
 /** The bundled audio module for a chapter's devotional, or null. */

@@ -417,8 +417,10 @@ describe('v502 — no audio ships in the app', () => {
   // (25 chapters) registered.
   // v524 re-pin: the bundled set moved 214 → 245 when Proverbs
   // (31 chapters) registered.
-  it('assets/ still holds exactly the 245 bundled chapter devotionals', () => {
+  // v525 RE-BASE (2026-11-14): the bundled set moved 245 → 257 when Ecclesiastes
+  // (12 chapters) registered.
+  it('assets/ still holds exactly the 257 bundled chapter devotionals', () => {
     const files = walk(join(root, 'assets'));
-    expect(files.filter((f) => f.endsWith('.m4a')).length).toBe(245);
+    expect(files.filter((f) => f.endsWith('.m4a')).length).toBe(257);
   });
 });

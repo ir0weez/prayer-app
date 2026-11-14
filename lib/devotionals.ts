@@ -1,4 +1,4 @@
-// ─── Devotionals registry (v230 pilot → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings → v523: 2 Kings → v524: Proverbs) ─
+// ─── Devotionals registry (v230 pilot → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings → v523: 2 Kings → v524: Proverbs → v525: Ecclesiastes) ─
 //
 // Each entry is a short spoken devotional for one chapter: a NotebookLM
 // narration of Jonathan's own written commentary for that chapter — his
@@ -2083,6 +2083,106 @@ const REGISTRY: Devotional[] = [
     title: "King Lemuel's Mother on Leadership and Virtue",
     audioFile: 'devotional-proverbs-31.m4a',
     durationSec: 97,
+    paragraphs: [],
+  },
+  // ── Ecclesiastes (v525) — same NotebookLM recipe as Genesis/
+  // Deuteronomy/Joshua/Ruth/1 Samuel/2 Samuel/1 Kings/2 Kings/
+  // Proverbs; titles and durations per the PROGRESS.md record.
+  // All 12 titles distinct, and none shared with an earlier book. ──
+  {
+    book: 'Ecclesiastes',
+    chapter: 1,
+    title: 'Why Life Feels Like Chasing Wind',
+    audioFile: 'devotional-ecclesiastes-1.m4a',
+    durationSec: 98,
+    paragraphs: [],
+  },
+  {
+    book: 'Ecclesiastes',
+    chapter: 2,
+    title: 'Why Earthly Wealth Cannot Cure Death',
+    audioFile: 'devotional-ecclesiastes-2.m4a',
+    durationSec: 92,
+    paragraphs: [],
+  },
+  {
+    book: 'Ecclesiastes',
+    chapter: 3,
+    title: 'Why Hard Seasons Build Spiritual Endurance',
+    audioFile: 'devotional-ecclesiastes-3.m4a',
+    durationSec: 98,
+    paragraphs: [],
+  },
+  {
+    book: 'Ecclesiastes',
+    chapter: 4,
+    title: 'The Trap of Doing Life Alone',
+    audioFile: 'devotional-ecclesiastes-4.m4a',
+    durationSec: 95,
+    paragraphs: [],
+  },
+  {
+    book: 'Ecclesiastes',
+    chapter: 5,
+    title: 'Why Hollow Religion and Wealth Fail',
+    audioFile: 'devotional-ecclesiastes-5.m4a',
+    durationSec: 92,
+    paragraphs: [],
+  },
+  {
+    book: 'Ecclesiastes',
+    chapter: 6,
+    title: 'Why Chasing Wealth Leaves You Empty',
+    audioFile: 'devotional-ecclesiastes-6.m4a',
+    durationSec: 87,
+    paragraphs: [],
+  },
+  {
+    book: 'Ecclesiastes',
+    chapter: 7,
+    title: 'Stop Walking the Middle Road',
+    audioFile: 'devotional-ecclesiastes-7.m4a',
+    durationSec: 100,
+    paragraphs: [],
+  },
+  {
+    book: 'Ecclesiastes',
+    chapter: 8,
+    title: 'No Room for Lukewarm Faith',
+    audioFile: 'devotional-ecclesiastes-8.m4a',
+    durationSec: 74,
+    paragraphs: [],
+  },
+  {
+    book: 'Ecclesiastes',
+    chapter: 9,
+    title: 'The Forgotten Hero of Ecclesiastes 9',
+    audioFile: 'devotional-ecclesiastes-9.m4a',
+    durationSec: 81,
+    paragraphs: [],
+  },
+  {
+    book: 'Ecclesiastes',
+    chapter: 10,
+    title: 'How Small Mistakes Destroy Good Leadership',
+    audioFile: 'devotional-ecclesiastes-10.m4a',
+    durationSec: 81,
+    paragraphs: [],
+  },
+  {
+    book: 'Ecclesiastes',
+    chapter: 11,
+    title: "Don't Wait for Perfect Conditions to Give",
+    audioFile: 'devotional-ecclesiastes-11.m4a',
+    durationSec: 94,
+    paragraphs: [],
+  },
+  {
+    book: 'Ecclesiastes',
+    chapter: 12,
+    title: 'Fear God and Prepare for Eternity',
+    audioFile: 'devotional-ecclesiastes-12.m4a',
+    durationSec: 89,
     paragraphs: [],
   },
 ];

@@ -1,4 +1,4 @@
-// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings → v523: 2 Kings → v524: Proverbs) ────
+// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings → v523: 2 Kings → v524: Proverbs → v525: Ecclesiastes) ────
 // The require() calls for bundled devotional audio live here — and ONLY
 // here — so lib/devotionals.ts (the registry + math) stays import-pure
 // for tests. One line per narration, keyed exactly like the registry.
@@ -253,6 +253,18 @@ const AUDIO: Record<string, number> = {
   [devotionalKey('Proverbs', 29)]: require('@/assets/audio/devotional-proverbs-29.m4a'),
   [devotionalKey('Proverbs', 30)]: require('@/assets/audio/devotional-proverbs-30.m4a'),
   [devotionalKey('Proverbs', 31)]: require('@/assets/audio/devotional-proverbs-31.m4a'),
+  [devotionalKey('Ecclesiastes', 1)]: require('@/assets/audio/devotional-ecclesiastes-1.m4a'),
+  [devotionalKey('Ecclesiastes', 2)]: require('@/assets/audio/devotional-ecclesiastes-2.m4a'),
+  [devotionalKey('Ecclesiastes', 3)]: require('@/assets/audio/devotional-ecclesiastes-3.m4a'),
+  [devotionalKey('Ecclesiastes', 4)]: require('@/assets/audio/devotional-ecclesiastes-4.m4a'),
+  [devotionalKey('Ecclesiastes', 5)]: require('@/assets/audio/devotional-ecclesiastes-5.m4a'),
+  [devotionalKey('Ecclesiastes', 6)]: require('@/assets/audio/devotional-ecclesiastes-6.m4a'),
+  [devotionalKey('Ecclesiastes', 7)]: require('@/assets/audio/devotional-ecclesiastes-7.m4a'),
+  [devotionalKey('Ecclesiastes', 8)]: require('@/assets/audio/devotional-ecclesiastes-8.m4a'),
+  [devotionalKey('Ecclesiastes', 9)]: require('@/assets/audio/devotional-ecclesiastes-9.m4a'),
+  [devotionalKey('Ecclesiastes', 10)]: require('@/assets/audio/devotional-ecclesiastes-10.m4a'),
+  [devotionalKey('Ecclesiastes', 11)]: require('@/assets/audio/devotional-ecclesiastes-11.m4a'),
+  [devotionalKey('Ecclesiastes', 12)]: require('@/assets/audio/devotional-ecclesiastes-12.m4a'),
 };
 
 /** The bundled audio module for a chapter's devotional, or null. */

@@ -510,11 +510,13 @@ describe('v501 — no audio ships in the app', () => {
 
   // v523 re-pin: the bundled set moved 189 → 214 when 2 Kings
   // (25 chapters) registered.
-  it('no Ten Stops audio anywhere under assets/, and the bundled set is still the 214 chapters', () => {
+  // v524 re-pin: the bundled set moved 214 → 245 when Proverbs
+  // (31 chapters) registered.
+  it('no Ten Stops audio anywhere under assets/, and the bundled set is still the 245 chapters', () => {
     const files = walk(join(root, 'assets'));
     expect(files.filter((f) => f.toLowerCase().includes('ten-stops'))).toEqual([]);
     expect(files.filter((f) => f.toLowerCase().includes('ten_stops'))).toEqual([]);
-    expect(files.filter((f) => f.endsWith('.m4a')).length).toBe(214);
+    expect(files.filter((f) => f.endsWith('.m4a')).length).toBe(245);
   });
 
   it('the ten-stops modules never reach into the bundled assets', () => {

@@ -58,8 +58,10 @@ describe('v523 registry — all of 2 Kings, PROGRESS titles', () => {
     expect(reg.map((d) => d.chapter).sort((a, b) => a - b)).toEqual(EXPECTED.map(([n]) => n));
   });
 
-  it('the whole registry is now 214 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31 + 2 Samuel 24 + 1 Kings 22 + 2 Kings 25', () => {
-    expect(devotionalRegistry().length).toBe(214);
+    // v524 re-pin: the whole-registry total moved 214 → 245 when
+  // Proverbs (31 chapters) registered; the per-book pins below stand.
+it('the whole registry is now 245 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31 + 2 Samuel 24 + 1 Kings 22 + 2 Kings 25 + Proverbs 31', () => {
+    expect(devotionalRegistry().length).toBe(245);
     expect(devotionalRegistry().filter((d) => d.book === 'Genesis').length).toBe(50);
     expect(devotionalRegistry().filter((d) => d.book === 'Deuteronomy').length).toBe(34);
     expect(devotionalRegistry().filter((d) => d.book === 'Joshua').length).toBe(24);

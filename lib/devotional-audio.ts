@@ -1,4 +1,4 @@
-// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings → v523: 2 Kings) ────
+// ─── Devotional audio assets (v230 → v293: Genesis → v474: Deuteronomy → v475: Joshua → v476: Ruth → v492: 1 Samuel → v493: 2 Samuel → v495: 1 Kings → v523: 2 Kings → v524: Proverbs) ────
 // The require() calls for bundled devotional audio live here — and ONLY
 // here — so lib/devotionals.ts (the registry + math) stays import-pure
 // for tests. One line per narration, keyed exactly like the registry.
@@ -222,6 +222,37 @@ const AUDIO: Record<string, number> = {
   [devotionalKey('2 Kings', 23)]: require('@/assets/audio/devotional-2kings-23.m4a'),
   [devotionalKey('2 Kings', 24)]: require('@/assets/audio/devotional-2kings-24.m4a'),
   [devotionalKey('2 Kings', 25)]: require('@/assets/audio/devotional-2kings-25.m4a'),
+  [devotionalKey('Proverbs', 1)]: require('@/assets/audio/devotional-proverbs-1.m4a'),
+  [devotionalKey('Proverbs', 2)]: require('@/assets/audio/devotional-proverbs-2.m4a'),
+  [devotionalKey('Proverbs', 3)]: require('@/assets/audio/devotional-proverbs-3.m4a'),
+  [devotionalKey('Proverbs', 4)]: require('@/assets/audio/devotional-proverbs-4.m4a'),
+  [devotionalKey('Proverbs', 5)]: require('@/assets/audio/devotional-proverbs-5.m4a'),
+  [devotionalKey('Proverbs', 6)]: require('@/assets/audio/devotional-proverbs-6.m4a'),
+  [devotionalKey('Proverbs', 7)]: require('@/assets/audio/devotional-proverbs-7.m4a'),
+  [devotionalKey('Proverbs', 8)]: require('@/assets/audio/devotional-proverbs-8.m4a'),
+  [devotionalKey('Proverbs', 9)]: require('@/assets/audio/devotional-proverbs-9.m4a'),
+  [devotionalKey('Proverbs', 10)]: require('@/assets/audio/devotional-proverbs-10.m4a'),
+  [devotionalKey('Proverbs', 11)]: require('@/assets/audio/devotional-proverbs-11.m4a'),
+  [devotionalKey('Proverbs', 12)]: require('@/assets/audio/devotional-proverbs-12.m4a'),
+  [devotionalKey('Proverbs', 13)]: require('@/assets/audio/devotional-proverbs-13.m4a'),
+  [devotionalKey('Proverbs', 14)]: require('@/assets/audio/devotional-proverbs-14.m4a'),
+  [devotionalKey('Proverbs', 15)]: require('@/assets/audio/devotional-proverbs-15.m4a'),
+  [devotionalKey('Proverbs', 16)]: require('@/assets/audio/devotional-proverbs-16.m4a'),
+  [devotionalKey('Proverbs', 17)]: require('@/assets/audio/devotional-proverbs-17.m4a'),
+  [devotionalKey('Proverbs', 18)]: require('@/assets/audio/devotional-proverbs-18.m4a'),
+  [devotionalKey('Proverbs', 19)]: require('@/assets/audio/devotional-proverbs-19.m4a'),
+  [devotionalKey('Proverbs', 20)]: require('@/assets/audio/devotional-proverbs-20.m4a'),
+  [devotionalKey('Proverbs', 21)]: require('@/assets/audio/devotional-proverbs-21.m4a'),
+  [devotionalKey('Proverbs', 22)]: require('@/assets/audio/devotional-proverbs-22.m4a'),
+  [devotionalKey('Proverbs', 23)]: require('@/assets/audio/devotional-proverbs-23.m4a'),
+  [devotionalKey('Proverbs', 24)]: require('@/assets/audio/devotional-proverbs-24.m4a'),
+  [devotionalKey('Proverbs', 25)]: require('@/assets/audio/devotional-proverbs-25.m4a'),
+  [devotionalKey('Proverbs', 26)]: require('@/assets/audio/devotional-proverbs-26.m4a'),
+  [devotionalKey('Proverbs', 27)]: require('@/assets/audio/devotional-proverbs-27.m4a'),
+  [devotionalKey('Proverbs', 28)]: require('@/assets/audio/devotional-proverbs-28.m4a'),
+  [devotionalKey('Proverbs', 29)]: require('@/assets/audio/devotional-proverbs-29.m4a'),
+  [devotionalKey('Proverbs', 30)]: require('@/assets/audio/devotional-proverbs-30.m4a'),
+  [devotionalKey('Proverbs', 31)]: require('@/assets/audio/devotional-proverbs-31.m4a'),
 };
 
 /** The bundled audio module for a chapter's devotional, or null. */

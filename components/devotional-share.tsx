@@ -1,16 +1,27 @@
-// ─── The devotional Share group (v536) ──────────────────────────────────────
-// Five quiet tonal buttons in the chapter devotional player's
-// scroll column, under the controls (Jonathan, Nov 15): Audio
-// (the chapter's own file), Square card, Story card, Square
-// video, Story video — the cards and videos drawn by the native
-// maker from the one card model (lib/devotional-share.ts) into
-// the app's CACHE, never the downloads store. A tap generates
-// its artifact if needed (the group wears a quiet working state
-// while it does — a video encode runs as long as it runs), then
-// opens the system share sheet. A failure says so plainly under
-// the buttons; nothing ever reports a share that did not
-// happen. Chapter sessions only — the listen view never mounts
-// this group for a Ten Stops tour.
+// ─── The devotional Share group (v536; seat rebuilt v541) ───────────────────
+// The shares from the chapter devotional player (Jonathan,
+// Nov 15): Audio (the chapter's own file), Square card, Story
+// card, Square video, Story video — the cards and videos drawn
+// by the native maker from the one card model
+// (lib/devotional-share.ts) into the app's CACHE, never the
+// downloads store. A tap generates its artifact if needed
+// (the group wears a quiet working state while it does — a
+// video encode runs as long as it runs), then opens the system
+// share sheet. A failure says so plainly under the group;
+// nothing ever reports a share that did not happen. Chapter
+// sessions only — the listen view never mounts this group for
+// a Ten Stops tour.
+//
+// v541 — the seat is Concept 2 "Kind first" (mockup
+// player-share-cleanup-v1; Jonathan's pick, Nov 15: "Just use
+// concept 2 from here"), ported as drawn: the SHARE heading,
+// then one segmented bar — Audio | Card | Video — in the
+// player's own family derivation, then the picked kind's two
+// shapes as outlined boxes (icon on top, the shape's name, its
+// sub-line). Audio is an action in the bar, not a selection:
+// it shares at a tap and shows no variants. The five shares
+// themselves — generation, dress, cache rule — are v536's,
+// untouched; only the seat changed.
 
 import { memo, useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -18,78 +29,110 @@ import type { Devotional } from '../lib/devotionals';
 import { useDevotionalDownloadState } from '../lib/devotional-download';
 import {
   DEVOTIONAL_SHARE_BUTTONS,
+  DEVOTIONAL_SHARE_DEFAULT_KIND,
+  DEVOTIONAL_SHARE_GROUP_SEGMENTS,
   devotionalShareAudioAvailable,
   generateAndShareDevotionalArtifact,
+  shareGroupVariants,
+  shareVariantName,
+  shareVariantSubLabel,
+  type DevotionalShareGroupKind,
   type DevotionalShareKind,
+  type DevotionalShareVariantKind,
 } from '../lib/devotional-share';
 
-/** The five buttons' glyphs — drawn, never emoji: a music note
- * for the audio file itself, a framed picture for the cards
- * (square / tall), a frame with a play triangle for the videos.
- * Built from plain Views on purpose: the group mounts inside
- * the listen view, whose test rigs (and older devices' svg
- * surfaces) do not all carry the same react-native-svg export
- * set, while a View renders everywhere the player does. */
-function ShareKindIcon({ kind, color }: { kind: DevotionalShareKind; color: string }) {
-  const frame = (tall: boolean) => (
+/** The five shares' labels, from the model's standing list. */
+function shareLabel(kind: DevotionalShareKind): string {
+  return DEVOTIONAL_SHARE_BUTTONS.find((b) => b.kind === kind)?.label ?? kind;
+}
+
+/** A frame outline drawn from a plain View, with an optional
+ * play triangle centred in it. Plain Views on purpose: the
+ * group mounts inside the listen view, whose test rigs (and
+ * older devices' svg surfaces) do not all carry the same
+ * react-native-svg export set, while a View renders everywhere
+ * the player does (the v536 lesson, kept). */
+function FrameGlyph(props: {
+  width: number;
+  height: number;
+  borderWidth: number;
+  color: string;
+  play?: { top: number; left: number };
+}) {
+  return (
     <View
-      style={[
-        styles.iconFrame,
-        tall ? styles.iconFrameTall : styles.iconFrameSquare,
-        { borderColor: color },
-      ]}
-    />
+      style={{
+        width: props.width,
+        height: props.height,
+        borderWidth: props.borderWidth,
+        borderRadius: 3.5,
+        borderColor: props.color,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {props.play ? (
+        <View
+          style={[
+            styles.playTri,
+            {
+              borderLeftColor: props.color,
+              borderTopWidth: props.play.top,
+              borderBottomWidth: props.play.top,
+              borderLeftWidth: props.play.left,
+            },
+          ]}
+        />
+      ) : null}
+    </View>
   );
-  const play = (small: boolean) => (
-    <View
-      style={[
-        styles.iconPlay,
-        small ? styles.iconPlaySmall : styles.iconPlayBig,
-        { borderLeftColor: color },
-      ]}
-    />
+}
+
+/** The music note — two stems, a slanted beam across their
+ * tops, and a rounded head at each stem's foot (the v536 glyph,
+ * unchanged). */
+function NoteGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.iconBox}>
+      <View style={[styles.iconNoteStem, { backgroundColor: color }]} />
+      <View style={[styles.iconNoteStemFar, { backgroundColor: color }]} />
+      <View style={[styles.iconNoteBeam, { backgroundColor: color }]} />
+      <View style={[styles.iconNoteHead, { backgroundColor: color }]} />
+      <View style={[styles.iconNoteHeadFar, { backgroundColor: color }]} />
+    </View>
   );
-  switch (kind) {
+}
+
+/** A segment's glyph (the drawing's 15px seat): the note for
+ * Audio, a wide frame for Card, the frame with its play
+ * triangle for Video. */
+function SegmentIcon({ segment, color }: { segment: DevotionalShareGroupKind; color: string }) {
+  switch (segment) {
     case 'audio':
+      return <NoteGlyph color={color} />;
+    case 'card':
+      return <FrameGlyph width={15} height={12} borderWidth={1.6} color={color} />;
+    case 'video':
       return (
-        <View style={styles.iconBox}>
-          <View style={[styles.iconNoteStem, { backgroundColor: color }]} />
-          <View style={[styles.iconNoteStemFar, { backgroundColor: color }]} />
-          <View style={[styles.iconNoteBeam, { backgroundColor: color }]} />
-          <View style={[styles.iconNoteHead, { backgroundColor: color }]} />
-          <View style={[styles.iconNoteHeadFar, { backgroundColor: color }]} />
-        </View>
+        <FrameGlyph width={15} height={12} borderWidth={1.6} color={color} play={{ top: 2.8, left: 4.8 }} />
       );
+  }
+}
+
+/** A variant box's glyph (the drawing's 22px seat): the
+ * shape's frame, with the play triangle for the videos. */
+function VariantIcon({ kind, color }: { kind: DevotionalShareKind; color: string }) {
+  switch (kind) {
     case 'square-card':
-      return (
-        <View style={styles.iconBox}>
-          {frame(false)}
-          <View style={[styles.iconSun, { backgroundColor: color }]} />
-          <View style={[styles.iconHill, { backgroundColor: color }]} />
-        </View>
-      );
+      return <FrameGlyph width={20} height={20} borderWidth={2} color={color} />;
     case 'story-card':
-      return (
-        <View style={styles.iconBox}>
-          {frame(true)}
-          <View style={[styles.iconSunTall, { backgroundColor: color }]} />
-          <View style={[styles.iconHillTall, { backgroundColor: color }]} />
-        </View>
-      );
+      return <FrameGlyph width={13.5} height={20} borderWidth={2} color={color} />;
     case 'square-video':
-      return (
-        <View style={styles.iconBox}>
-          {frame(false)}
-          {play(false)}
-        </View>
-      );
+      return <FrameGlyph width={20} height={20} borderWidth={2} color={color} play={{ top: 3.8, left: 6.4 }} />;
     case 'story-video':
-      return (
-        <View style={styles.iconBox}>
-          {frame(true)}
-          {play(true)}
-        </View>
-      );
+      return <FrameGlyph width={13.5} height={20} borderWidth={2} color={color} play={{ top: 3.2, left: 5.4 }} />;
+    case 'audio':
+      return <NoteGlyph color={color} />;
   }
 }
 
@@ -98,6 +141,9 @@ export const DevotionalShareGroup = memo(function DevotionalShareGroup(props: {
   primary: string;
   accent: string;
   stopSeat: string;
+  panel: string;
+  track: string;
+  ink: string;
   inkSoft: string;
 }) {
   const { devotional } = props;
@@ -109,16 +155,20 @@ export const DevotionalShareGroup = memo(function DevotionalShareGroup(props: {
   useDevotionalDownloadState(devotional);
   const audioAvailable = devotionalShareAudioAvailable(devotional);
 
+  // The picked kind — screen-local, opening on Card (the
+  // drawing's selected segment), never persisted. Audio never
+  // sits here: it is an action, not a selection.
+  const [kind, setKind] = useState<DevotionalShareVariantKind>(DEVOTIONAL_SHARE_DEFAULT_KIND);
   const [working, setWorking] = useState<DevotionalShareKind | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const onShare = useCallback(
-    async (kind: DevotionalShareKind) => {
+    async (shareKind: DevotionalShareKind) => {
       if (working) return;
-      setWorking(kind);
+      setWorking(shareKind);
       setError(null);
       try {
-        await generateAndShareDevotionalArtifact(kind, devotional);
+        await generateAndShareDevotionalArtifact(shareKind, devotional);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'That share could not be made.');
       } finally {
@@ -128,32 +178,90 @@ export const DevotionalShareGroup = memo(function DevotionalShareGroup(props: {
     [working, devotional],
   );
 
+  const variants = shareGroupVariants(kind);
+
   return (
     <View style={styles.group}>
       <Text style={[styles.heading, { color: props.primary }]}>SHARE</Text>
-      <View style={styles.row}>
-        {DEVOTIONAL_SHARE_BUTTONS.map((button) => {
-          const disabled =
-            working !== null || (button.kind === 'audio' && !audioAvailable);
-          const isWorking = working === button.kind;
+      <View style={[styles.segTrack, { backgroundColor: props.stopSeat }]}>
+        {DEVOTIONAL_SHARE_GROUP_SEGMENTS.map((segment) => {
+          if (segment.kind === 'audio') {
+            // The Audio segment: a tap shares the file itself,
+            // at once — no variants, no selection. It dims
+            // while the file is not on this phone.
+            const disabled = !audioAvailable;
+            const isWorking = working === 'audio';
+            return (
+              <Pressable
+                key={segment.kind}
+                onPress={() => void onShare('audio')}
+                disabled={disabled}
+                style={[styles.seg, { opacity: disabled ? 0.45 : 1 }]}
+                accessibilityLabel="Share Audio"
+                accessibilityState={{ disabled, busy: isWorking }}
+              >
+                {isWorking ? (
+                  <ActivityIndicator size="small" color={props.accent} />
+                ) : (
+                  <SegmentIcon segment="audio" color={props.accent} />
+                )}
+                <Text style={[styles.segText, { color: props.accent }]}>{segment.label}</Text>
+              </Pressable>
+            );
+          }
+          const selected = kind === segment.kind;
+          const content = selected ? '#FFFFFF' : props.accent;
           return (
             <Pressable
-              key={button.kind}
-              onPress={() => void onShare(button.kind)}
+              key={segment.kind}
+              onPress={() => setKind(segment.kind as DevotionalShareVariantKind)}
+              style={[
+                styles.seg,
+                selected && { backgroundColor: props.primary, shadowColor: props.primary },
+                selected && styles.segSelected,
+              ]}
+              accessibilityLabel={segment.label}
+              accessibilityState={{ selected }}
+            >
+              <SegmentIcon segment={segment.kind} color={content} />
+              <Text style={[styles.segText, { color: content }]}>{segment.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <View style={styles.variants}>
+        {variants.map((variantKind) => {
+          const isWorking = working === variantKind;
+          const disabled = working !== null;
+          return (
+            <Pressable
+              key={variantKind}
+              onPress={() => void onShare(variantKind)}
               disabled={disabled}
               style={[
-                styles.btn,
-                { backgroundColor: props.stopSeat, opacity: disabled && !isWorking ? 0.45 : 1 },
+                styles.variant,
+                {
+                  backgroundColor: props.panel,
+                  borderColor: props.track,
+                  opacity: disabled && !isWorking ? 0.45 : 1,
+                },
               ]}
-              accessibilityLabel={`Share ${button.label}`}
+              accessibilityLabel={`Share ${shareLabel(variantKind)}`}
               accessibilityState={{ disabled, busy: isWorking }}
             >
-              {isWorking ? (
-                <ActivityIndicator size="small" color={props.accent} />
-              ) : (
-                <ShareKindIcon kind={button.kind} color={props.accent} />
-              )}
-              <Text style={[styles.btnText, { color: props.accent }]}>{button.label}</Text>
+              <View style={styles.variantIconSeat}>
+                {isWorking ? (
+                  <ActivityIndicator size="small" color={props.accent} />
+                ) : (
+                  <VariantIcon kind={variantKind} color={props.primary} />
+                )}
+              </View>
+              <Text style={[styles.variantName, { color: props.ink }]}>
+                {shareVariantName(variantKind)}
+              </Text>
+              <Text style={[styles.variantSub, { color: props.inkSoft }]}>
+                {shareVariantSubLabel(variantKind)}
+              </Text>
             </Pressable>
           );
         })}
@@ -168,86 +276,70 @@ export const DevotionalShareGroup = memo(function DevotionalShareGroup(props: {
 const styles = StyleSheet.create({
   // The panel family's seat (the guideposts' marginTop) and its
   // heading dress, without the panel ground — the group is a
-  // quiet row of doors, not another card.
+  // quiet set of doors, not another card.
   group: { marginTop: 18 },
   heading: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, marginBottom: 4 },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
-  btn: {
+  // The segmented bar (the drawing's): a tonal track, pill
+  // round, its three segments sharing it evenly.
+  segTrack: {
+    flexDirection: 'row',
+    borderRadius: 22,
+    padding: 4,
+    marginTop: 6,
+  },
+  seg: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    borderRadius: 999,
-    paddingVertical: 11,
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 18,
+    paddingVertical: 9,
   },
-  btnText: { fontSize: 14, fontWeight: '700' },
+  // The selected segment's soft lift, as drawn (its fill is
+  // the family primary, set inline).
+  segSelected: {
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  segText: { fontSize: 13.5, fontWeight: '600' },
+  // The variant boxes (the drawing's): two across, outlined,
+  // the icon over the name over the sub-line.
+  variants: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  variant: {
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingTop: 13,
+    paddingBottom: 11,
+  },
+  variantIconSeat: {
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  variantName: { fontSize: 13, fontWeight: '600' },
+  variantSub: { fontSize: 11, marginTop: 1 },
   error: { fontSize: 12.5, marginTop: 10 },
-  // The glyph box every icon composes inside (15px, matching
-  // the chips' type scale).
+  // The glyph box the note composes inside (15px, matching
+  // the segments' type scale).
   iconBox: {
     width: 15,
     height: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconFrame: {
-    position: 'absolute',
-    borderWidth: 1.6,
-    borderRadius: 3,
-  },
-  iconFrameSquare: { width: 13, height: 13 },
-  iconFrameTall: { width: 9.5, height: 14 },
-  // The picture glyphs' sun (a filled dot, upper left inside
-  // the frame) and ground line (a short bar along the bottom).
-  iconSun: {
-    position: 'absolute',
-    left: 3.4,
-    top: 3.4,
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-  },
-  iconHill: {
-    position: 'absolute',
-    left: 3.4,
-    bottom: 3.2,
-    width: 6.5,
-    height: 1.8,
-    borderRadius: 1,
-  },
-  iconSunTall: {
-    position: 'absolute',
-    left: 4.1,
-    top: 3,
-    width: 2.6,
-    height: 2.6,
-    borderRadius: 1.3,
-  },
-  iconHillTall: {
-    position: 'absolute',
-    left: 4.1,
-    bottom: 2.8,
-    width: 4.6,
-    height: 1.6,
-    borderRadius: 1,
-  },
   // The play triangle, drawn with borders.
-  iconPlay: {
+  playTri: {
     width: 0,
     height: 0,
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
     marginLeft: 1,
-  },
-  iconPlayBig: {
-    borderTopWidth: 3.4,
-    borderBottomWidth: 3.4,
-    borderLeftWidth: 5.8,
-  },
-  iconPlaySmall: {
-    borderTopWidth: 2.8,
-    borderBottomWidth: 2.8,
-    borderLeftWidth: 4.8,
   },
   // The music note: two stems, a slanted beam across their
   // tops, and a rounded head at each stem's foot.

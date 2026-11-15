@@ -17,6 +17,17 @@
  *     here) and opens the sheet; while a generation runs the
  *     group is busy; a failure lands as the group's error line
  *     and nothing is shared.
+ *
+ * v541 RE-BASE (2026-11-15): the seat changed — the five chips
+ * became Concept 2 "Kind first" (a segmented Audio | Card |
+ * Video bar over the picked kind's two variant boxes; pinned
+ * in devotional-share-v541.test.tsx). The behaviour claims
+ * below are UNCHANGED — the Audio door's disk rule, a tap
+ * generating into the cache and opening the sheet, the busy
+ * group, the error line, the chapter-only mount — only the
+ * layout assertions moved to the new seat: the group opens on
+ * Card (Audio segment + Card/Video segments + the two still
+ * boxes), and the video kinds stand behind the Video segment.
  */
 import React from 'react';
 import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
@@ -99,6 +110,9 @@ function render() {
         primary="#4A148C"
         accent="#4A148C"
         stopSeat="#DEC3F0"
+        panel="#EDDEF5"
+        track="#C9A6E0"
+        ink="#2E0A4A"
         inkSoft="#854B47"
       />,
     );
@@ -113,6 +127,12 @@ function buttons(root: ReactTestRenderer) {
 function buttonByLabel(root: ReactTestRenderer, label: string) {
   const found = buttons(root).find((b) => b.props.accessibilityLabel === `Share ${label}`);
   if (!found) throw new Error(`no Share button labelled ${label}`);
+  return found;
+}
+
+function segmentByLabel(root: ReactTestRenderer, label: string) {
+  const found = buttons(root).find((b) => b.props.accessibilityLabel === label);
+  if (!found) throw new Error(`no segment labelled ${label}`);
   return found;
 }
 
@@ -143,18 +163,31 @@ afterEach(() => {
 });
 
 describe('the seat', () => {
-  it('stands five buttons in the standing order under a SHARE heading', () => {
+  it('stands the segmented bar and the opening kind’s two boxes under a SHARE heading (v541 seat)', () => {
     const root = render();
     const labels = buttons(root).map((b) => b.props.accessibilityLabel);
+    // The group opens on Card: the Audio segment, the two kind
+    // segments, then Card's two variant boxes. The video kinds
+    // stand behind the Video segment.
     expect(labels).toEqual([
       'Share Audio',
+      'Card',
+      'Video',
       'Share Square card',
       'Share Story card',
+    ]);
+    expect(allText(root)).toContain('SHARE');
+    expect(allText(root)).toContain('Square');
+    act(() => {
+      segmentByLabel(root, 'Video').props.onPress();
+    });
+    expect(buttons(root).map((b) => b.props.accessibilityLabel)).toEqual([
+      'Share Audio',
+      'Card',
+      'Video',
       'Share Square video',
       'Share Story video',
     ]);
-    expect(allText(root)).toContain('SHARE');
-    expect(allText(root)).toContain('Square card');
   });
 
   it('the Audio button is disabled while the file is not on the phone', () => {
@@ -196,6 +229,9 @@ describe('the seat', () => {
     makerFails = true;
     installDeps();
     const root = render();
+    act(() => {
+      segmentByLabel(root, 'Video').props.onPress();
+    });
     await act(async () => {
       buttonByLabel(root, 'Story video').props.onPress();
     });

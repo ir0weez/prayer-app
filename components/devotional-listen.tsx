@@ -2026,13 +2026,19 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               video, Story video; components/devotional-share.tsx).
               Chapter sessions only: a tour's narration is not
               this group's to share, so the group never mounts
-              for one. */}
+              for one. v541: the group's seat is Concept 2 "Kind
+              first" — a segmented Audio | Card | Video bar with
+              the picked kind's two shapes beneath it; the five
+              shares themselves are unchanged. */}
           {!devotional.bookLevel ? (
             <DevotionalShareGroup
               devotional={devotional}
               primary={theme.primary}
               accent={theme.accent}
               stopSeat={theme.stopSeat}
+              panel={theme.panel}
+              track={theme.track}
+              ink={theme.ink}
               inkSoft={theme.inkSoft}
             />
           ) : null}

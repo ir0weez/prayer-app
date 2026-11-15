@@ -50,6 +50,84 @@ export const DEVOTIONAL_SHARE_BUTTONS: readonly DevotionalShareButton[] = [
   { kind: 'story-video', label: 'Story video' },
 ];
 
+// ─── The group's kinds (v541) ───────────────────────────────────────────────
+// The Share group's seat, rebuilt as Concept 2 "Kind first"
+// (mockup player-share-cleanup-v1; Jonathan's pick, Nov 15:
+// "Just use concept 2 from here"). The group leads with three
+// kinds in one segmented bar — Audio | Card | Video — and the
+// picked kind shows its two shapes beneath the bar. Audio is
+// an ACTION, not a selection: it shares the chapter's file at
+// a tap and shows no variants. Card and Video are selections:
+// Card shows the two stills, Video the two videos, each in the
+// standing square-then-story order. The five shares themselves
+// — their generation, their dress, their cache rule — are
+// exactly the v536 set above; only the seat changed.
+
+export type DevotionalShareGroupKind = 'audio' | 'card' | 'video';
+
+/** The kinds that carry variants — the selectable segments. */
+export type DevotionalShareVariantKind = Exclude<DevotionalShareGroupKind, 'audio'>;
+
+export interface DevotionalShareGroupSegment {
+  kind: DevotionalShareGroupKind;
+  label: string;
+}
+
+/** The segmented bar's three segments, in the drawing's order. */
+export const DEVOTIONAL_SHARE_GROUP_SEGMENTS: readonly DevotionalShareGroupSegment[] = [
+  { kind: 'audio', label: 'Audio' },
+  { kind: 'card', label: 'Card' },
+  { kind: 'video', label: 'Video' },
+];
+
+/** The kind the group opens on — the drawing's selected
+ * segment. Screen-local, never persisted. */
+export const DEVOTIONAL_SHARE_DEFAULT_KIND: DevotionalShareVariantKind = 'card';
+
+/** The variants a kind shows beneath the bar: Audio shows
+ * none (it is the share itself); Card the two still kinds,
+ * Video the two video kinds. */
+export function shareGroupVariants(
+  kind: DevotionalShareGroupKind,
+): readonly DevotionalShareKind[] {
+  switch (kind) {
+    case 'audio':
+      return [];
+    case 'card':
+      return ['square-card', 'story-card'];
+    case 'video':
+      return ['square-video', 'story-video'];
+  }
+}
+
+/** A variant box's name — the shape alone, since the bar above
+ * it already says card or video. Null for the audio share,
+ * which has no variant box. */
+export function shareVariantName(kind: DevotionalShareKind): string | null {
+  switch (shareKindFormat(kind)) {
+    case 'square':
+      return 'Square';
+    case 'story':
+      return 'Story';
+    default:
+      return null;
+  }
+}
+
+/** A variant box's sub-line, the drawing's own: where the
+ * shape is headed — the square to the feed, the story full
+ * screen. Null for the audio share. */
+export function shareVariantSubLabel(kind: DevotionalShareKind): string | null {
+  switch (shareKindFormat(kind)) {
+    case 'square':
+      return 'Feed post';
+    case 'story':
+      return 'Full screen';
+    default:
+      return null;
+  }
+}
+
 export function shareKindFormat(kind: DevotionalShareKind): DevotionalShareCardFormat | null {
   switch (kind) {
     case 'square-card':

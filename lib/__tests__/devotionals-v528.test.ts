@@ -7,7 +7,7 @@
 // hosted files byte for byte) and uploaded to the public
 // devotional-library release; the registry carries only metadata:
 // the hosted name, its exact byte size, his title, his duration.
-// The full registry↔hosting table (all 380) is pinned in
+// The full registry↔hosting table (all 409) is pinned in
 // devotionals-v527.test.ts; this file pins the three new books.
 //
 // The audio is a narration of his words, not a recording of him
@@ -139,18 +139,23 @@ describe('v528 registry — Isaiah, Obadiah and Jonah, PROGRESS titles', () => {
   // across 16 books when Mark (16) and Acts (28) registered,
   // downloadable from the start (v527 model); the three books'
   // per-book pins below stand.
-  it('the whole registry is now 380 across 16 books', () => {
-    expect(devotionalRegistry().length).toBe(380);
+  // v530 RE-BASE (2026-11-15): the whole registry moved 380 → 409
+  // across 18 books when 1 Corinthians (16) and 2 Corinthians (13)
+  // registered, downloadable from the start (v527 model); the
+  // three books' per-book pins below stand.
+  it('the whole registry is now 409 across 18 books', () => {
+    expect(devotionalRegistry().length).toBe(409);
     expect(devotionalBooks()).toEqual([
       'Genesis', 'Deuteronomy', 'Joshua', 'Ruth', '1 Samuel', '2 Samuel',
       '1 Kings', '2 Kings', 'Proverbs', 'Ecclesiastes', 'Song of Solomon',
-      'Isaiah', 'Obadiah', 'Jonah', 'Mark', 'Acts',
+      'Isaiah', 'Obadiah', 'Jonah', 'Mark', 'Acts', '1 Corinthians',
+      '2 Corinthians',
     ]);
     const counts: Record<string, number> = {
       Genesis: 50, Deuteronomy: 34, Joshua: 24, Ruth: 4, '1 Samuel': 31,
       '2 Samuel': 24, '1 Kings': 22, '2 Kings': 25, Proverbs: 31,
       Ecclesiastes: 12, 'Song of Solomon': 8, Isaiah: 66, Obadiah: 1, Jonah: 4,
-      Mark: 16, Acts: 28,
+      Mark: 16, Acts: 28, '1 Corinthians': 16, '2 Corinthians': 13,
     };
     for (const [book, count] of Object.entries(counts)) {
       expect(devotionalRegistry().filter((d) => d.book === book).length, book).toBe(count);

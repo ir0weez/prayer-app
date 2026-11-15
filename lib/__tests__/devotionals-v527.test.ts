@@ -90,6 +90,22 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
  * squeezed from the NotebookLM masters to the same speech spec
  * (mono 44.1 kHz AAC, 40 kbps) and uploaded to the same release. */
 const HOSTED_SIZES: Record<string, number> = {
+  "devotional-1corinthians-1.m4a": 521240,
+  "devotional-1corinthians-10.m4a": 430921,
+  "devotional-1corinthians-11.m4a": 566009,
+  "devotional-1corinthians-12.m4a": 505769,
+  "devotional-1corinthians-13.m4a": 561915,
+  "devotional-1corinthians-14.m4a": 569142,
+  "devotional-1corinthians-15.m4a": 537694,
+  "devotional-1corinthians-16.m4a": 462806,
+  "devotional-1corinthians-2.m4a": 433369,
+  "devotional-1corinthians-3.m4a": 506127,
+  "devotional-1corinthians-4.m4a": 493679,
+  "devotional-1corinthians-5.m4a": 532046,
+  "devotional-1corinthians-6.m4a": 558032,
+  "devotional-1corinthians-7.m4a": 466325,
+  "devotional-1corinthians-8.m4a": 533062,
+  "devotional-1corinthians-9.m4a": 492482,
   "devotional-1kings-1.m4a": 511212,
   "devotional-1kings-10.m4a": 502291,
   "devotional-1kings-11.m4a": 452810,
@@ -143,6 +159,19 @@ const HOSTED_SIZES: Record<string, number> = {
   "devotional-1samuel-7.m4a": 522150,
   "devotional-1samuel-8.m4a": 479263,
   "devotional-1samuel-9.m4a": 485721,
+  "devotional-2corinthians-1.m4a": 479996,
+  "devotional-2corinthians-10.m4a": 607179,
+  "devotional-2corinthians-11.m4a": 578027,
+  "devotional-2corinthians-12.m4a": 592354,
+  "devotional-2corinthians-13.m4a": 484999,
+  "devotional-2corinthians-2.m4a": 481226,
+  "devotional-2corinthians-3.m4a": 561804,
+  "devotional-2corinthians-4.m4a": 483601,
+  "devotional-2corinthians-5.m4a": 509401,
+  "devotional-2corinthians-6.m4a": 496762,
+  "devotional-2corinthians-7.m4a": 508713,
+  "devotional-2corinthians-8.m4a": 472851,
+  "devotional-2corinthians-9.m4a": 470836,
   "devotional-2kings-1.m4a": 496517,
   "devotional-2kings-10.m4a": 584477,
   "devotional-2kings-11.m4a": 495720,
@@ -489,6 +518,8 @@ const BOOK_COUNTS: Record<string, number> = {
   Jonah: 4,
   Mark: 16,
   Acts: 28,
+  '1 Corinthians': 16,
+  '2 Corinthians': 13,
 };
 
 const BOOK_SLUGS: Record<string, string> = {
@@ -508,6 +539,8 @@ const BOOK_SLUGS: Record<string, string> = {
   Jonah: 'jonah',
   Mark: 'mark',
   Acts: 'acts',
+  '1 Corinthians': '1corinthians',
+  '2 Corinthians': '2corinthians',
 };
 
 // ─── The fake file system (the v501 harness, carried over) ──────────────────
@@ -608,9 +641,13 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // v529 RE-BASE (2026-11-14): the library grew 336 → 380 chapters,
   // 14 → 16 books — Mark (16) and Acts (28) registered metadata-only,
   // their audio hosted in this same release.
-  it('the library now stands at 380 chapters across 16 books', () => {
+  // v530 RE-BASE (2026-11-15): the library grew 380 → 409 chapters,
+  // 16 → 18 books — 1 Corinthians (16) and 2 Corinthians (13)
+  // registered metadata-only, their audio hosted in this same
+  // release.
+  it('the library now stands at 409 chapters across 18 books', () => {
     const all = devotionalRegistry();
-    expect(all.length).toBe(380);
+    expect(all.length).toBe(409);
     expect(devotionalBooks()).toEqual(Object.keys(BOOK_COUNTS));
     for (const [book, count] of Object.entries(BOOK_COUNTS)) {
       expect(devotionalsForBook(book).length, book).toBe(count);
@@ -625,7 +662,7 @@ describe('v527 registry — every chapter carries its hosted name and exact size
       expect(seen.has(d.audioFile)).toBe(false);
       seen.add(d.audioFile);
     }
-    expect(seen.size).toBe(380);
+    expect(seen.size).toBe(409);
   });
 
   it('every sizeBytes is the hosted file’s exact size', () => {
@@ -635,7 +672,7 @@ describe('v527 registry — every chapter carries its hosted name and exact size
     }
     // The hosted table itself is complete: nothing hosted that is
     // not registered, nothing registered that is not hosted.
-    expect(Object.keys(HOSTED_SIZES).length).toBe(380);
+    expect(Object.keys(HOSTED_SIZES).length).toBe(409);
   });
 
   // v528 RE-BASE (2026-11-14): the hosted total grew by the three
@@ -643,15 +680,18 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // 526,374 + Jonah 2,007,789).
   // v529 RE-BASE (2026-11-14): the hosted total grew by the two
   // new books' 22,337,036 bytes (Mark 8,133,865 + Acts 14,203,171).
-  it('the whole library is 191,748,726 hosted bytes', () => {
+  // v530 RE-BASE (2026-11-15): the hosted total grew by the two
+  // new books' 14,898,367 bytes (1 Corinthians 8,170,618 +
+  // 2 Corinthians 6,727,749).
+  it('the whole library is 206,647,093 hosted bytes', () => {
     const total = devotionalRegistry().reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
-    expect(total).toBe(191_748_726);
+    expect(total).toBe(206_647_093);
     for (const book of devotionalBooks()) {
       const bookTotal = devotionalsForBook(book).reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
       expect(devotionalBookTotalBytes(book), book).toBe(bookTotal);
       expect(bookTotal).toBeGreaterThan(0);
     }
-    expect(devotionalBookTotalBytes('Romans')).toBe(0);
+    expect(devotionalBookTotalBytes('Galatians')).toBe(0);
   });
 
   it('the download URL is the devotional-library release asset', () => {
@@ -672,18 +712,23 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // registered metadata-only, downloadable from the start; the
   // full per-book pins live in devotionals-v529.test.ts. The
   // not-yet seat moves on to Romans.
-  it('Mark and Acts are registered now (v529) — Romans is the not-yet book', () => {
-    expect(getDevotional('Mark', 1)).not.toBeNull();
-    expect(getDevotional('Mark', 16)).not.toBeNull();
-    expect(devotionalsForBook('Mark').length).toBe(16);
-    expect(devotionalBooks()).toContain('Mark');
-    expect(getDevotional('Acts', 1)).not.toBeNull();
-    expect(getDevotional('Acts', 28)).not.toBeNull();
-    expect(devotionalsForBook('Acts').length).toBe(28);
-    expect(devotionalBooks()).toContain('Acts');
-    expect(getDevotional('Romans', 1)).toBeNull();
-    expect(devotionalsForBook('Romans')).toEqual([]);
-    expect(devotionalBooks()).not.toContain('Romans');
+  // v530 RE-BASE (2026-11-15): 1 Corinthians and 2 Corinthians
+  // HAVE arrived — registered metadata-only, downloadable from
+  // the start; the full per-book pins live in
+  // devotionals-v530.test.ts. The not-yet seat moves on to
+  // Galatians.
+  it('1 Corinthians and 2 Corinthians are registered now (v530) — Galatians is the not-yet book', () => {
+    expect(getDevotional('1 Corinthians', 1)).not.toBeNull();
+    expect(getDevotional('1 Corinthians', 16)).not.toBeNull();
+    expect(devotionalsForBook('1 Corinthians').length).toBe(16);
+    expect(devotionalBooks()).toContain('1 Corinthians');
+    expect(getDevotional('2 Corinthians', 1)).not.toBeNull();
+    expect(getDevotional('2 Corinthians', 13)).not.toBeNull();
+    expect(devotionalsForBook('2 Corinthians').length).toBe(13);
+    expect(devotionalBooks()).toContain('2 Corinthians');
+    expect(getDevotional('Galatians', 1)).toBeNull();
+    expect(devotionalsForBook('Galatians')).toEqual([]);
+    expect(devotionalBooks()).not.toContain('Galatians');
   });
 });
 

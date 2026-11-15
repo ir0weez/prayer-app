@@ -353,7 +353,9 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
         {/* v527: the "Download all" bar — directly beneath the Ten
             Stops card (in that seat for a book with no tour), for
             the books that carry chapter devotionals; the bar
-            itself renders nothing for any other book. */}
+            itself renders nothing for any other book.
+            v533: the bar now carries its naming header ("Devotionals"
+            + the on-this-phone count) in the same seat. */}
         <DevotionalDownloadAllBar book={book} palette={bookPal} />
         {/* v313: the grid at the drawing's measure — rows of five,
             10px gaps both ways, each cell flexing to the row (the

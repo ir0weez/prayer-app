@@ -171,6 +171,14 @@ vi.mock('@/components/bit-motion', async () => {
 
 // The download stores are stubbed: this file pins the PAGE (seat,
 // label, taps) — the machinery is pinned in devotionals-v527.test.ts.
+//
+// RE-BASE (v533, 2026-11-15): the stub gains devotionalOnPhoneLabel
+// (the real wording formula). v533's naming header over the bar
+// reads it, so a stub without it breaks the bar's render — and
+// with it the whole page's. The header's own pins live in
+// devotionals-v533.test.ts / devotionals-v533-bar.test.tsx; the
+// seat and label pins below are unchanged and still hold (the
+// header is not a pressable and stands in the same seat).
 const barRig = vi.hoisted(() => ({
   startBook: vi.fn(async (_book: string) => {}),
   refreshBook: vi.fn(async (_book: string) => {}),
@@ -180,6 +188,7 @@ vi.mock('@/lib/devotional-download', () => ({
   startBookDevotionalDownload: barRig.startBook,
   cancelBookDevotionalDownload: async () => {},
   deleteBookDevotionalDownloads: async () => {},
+  devotionalOnPhoneLabel: (p: any) => `${p.downloadedCount} of ${p.chapterCount} on this phone`,
   useBookDevotionalDownloadState: () => ({ status: 'idle' }),
   useBookDevotionalProgress: () => ({
     downloadedCount: 0,

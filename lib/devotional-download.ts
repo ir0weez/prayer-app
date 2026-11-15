@@ -350,6 +350,16 @@ export function bookDevotionalProgress(book: string): BookDevotionalProgress {
   };
 }
 
+/** v533: the section header's count over the "Download all" bar
+ * — the book's chapters on this phone against its whole
+ * registered set, in words ("0 of 50 on this phone"). It reads
+ * the same progress the bar reads (the per-chapter states, which
+ * are disk truth at the exact byte size) — never a second count
+ * kept anywhere else. */
+export function devotionalOnPhoneLabel(progress: BookDevotionalProgress): string {
+  return `${progress.downloadedCount} of ${progress.chapterCount} on this phone`;
+}
+
 // The progress object allocates, so the React view caches it per
 // book against the store's version — getSnapshot must return a
 // stable reference between changes or the external store loops.

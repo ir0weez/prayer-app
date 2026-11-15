@@ -21,8 +21,18 @@
 // (lib/devotional-download's refresh — a file counts only at the
 // registry's exact byte size). A book with no registered
 // devotionals renders nothing at all: no dead door.
+//
+// ─── v533 — the naming header (Concept 3, his pick Nov 15) ────
+// The bar alone never said WHAT "all" was. Directly above it now
+// stands a quiet section header in the same seat: "Devotionals"
+// in small letterspaced caps in the book's own colour family,
+// and at the right the book's disk truth in words — "N of M on
+// this phone", read off the same progress the bar reads, so the
+// count follows chapters as they land and stands in every state
+// the bar stands in. The bar itself keeps its v527 wording and
+// dress in every state, untouched.
 
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { BiblePalette } from './bible-v205/palette';
@@ -31,6 +41,7 @@ import { formatTenStopsSize } from '@/lib/ten-stops';
 import {
   cancelBookDevotionalDownload,
   deleteBookDevotionalDownloads,
+  devotionalOnPhoneLabel,
   refreshBookDevotionalDownloads,
   startBookDevotionalDownload,
   useBookDevotionalDownloadState,
@@ -52,8 +63,22 @@ export function DevotionalDownloadAllBar(props: { book: string; palette: BiblePa
 
   const totalSize = formatTenStopsSize(progress.totalBytes);
 
+  // v533: the naming header stands over the bar in every state —
+  // the label in the book's own family (raspDeep, the same deep
+  // role the bar's words wear), the count in the quiet grey.
+  const header = (
+    <View style={styles.header}>
+      <Text style={[styles.headerLabel, { color: pal.raspDeep }]}>Devotionals</Text>
+      <Text style={[styles.headerCount, { color: pal.inkSoft }]}>
+        {devotionalOnPhoneLabel(progress)}
+      </Text>
+    </View>
+  );
+
+  let bar: ReactNode;
+
   if (run.status === 'downloading') {
-    return (
+    bar = (
       <View style={[styles.bar, { backgroundColor: pal.primCont }]}>
         <MaterialIcons name="file-download" size={20} color={pal.raspDeep} />
         <View style={{ flex: 1 }}>
@@ -78,10 +103,8 @@ export function DevotionalDownloadAllBar(props: { book: string; palette: BiblePa
         </Pressable>
       </View>
     );
-  }
-
-  if (run.status === 'error') {
-    return (
+  } else if (run.status === 'error') {
+    bar = (
       <View style={[styles.bar, { backgroundColor: pal.primCont }]}>
         <Text style={[styles.errorText, { color: pal.raspDeep }]}>{run.message}</Text>
         <Pressable
@@ -93,10 +116,8 @@ export function DevotionalDownloadAllBar(props: { book: string; palette: BiblePa
         </Pressable>
       </View>
     );
-  }
-
-  if (progress.allDownloaded) {
-    return (
+  } else if (progress.allDownloaded) {
+    bar = (
       <View style={[styles.bar, { backgroundColor: pal.primCont }]}>
         <MaterialIcons name="check-circle" size={20} color={pal.raspDeep} />
         <Text style={[styles.label, { color: pal.raspDeep }]}>Downloaded</Text>
@@ -110,22 +131,41 @@ export function DevotionalDownloadAllBar(props: { book: string; palette: BiblePa
         </Pressable>
       </View>
     );
+  } else {
+    bar = (
+      <Pressable
+        style={[styles.bar, { backgroundColor: pal.primCont }]}
+        onPress={() => void startBookDevotionalDownload(book)}
+        accessibilityLabel={`Download all ${book} devotionals`}
+      >
+        <MaterialIcons name="file-download" size={20} color={pal.raspDeep} />
+        <Text style={[styles.label, { color: pal.raspDeep }]}>Download all</Text>
+        <Text style={[styles.size, { color: pal.raspDeep }]}>{totalSize}</Text>
+      </Pressable>
+    );
   }
 
   return (
-    <Pressable
-      style={[styles.bar, { backgroundColor: pal.primCont }]}
-      onPress={() => void startBookDevotionalDownload(book)}
-      accessibilityLabel={`Download all ${book} devotionals`}
-    >
-      <MaterialIcons name="file-download" size={20} color={pal.raspDeep} />
-      <Text style={[styles.label, { color: pal.raspDeep }]}>Download all</Text>
-      <Text style={[styles.size, { color: pal.raspDeep }]}>{totalSize}</Text>
-    </Pressable>
+    <>
+      {header}
+      {bar}
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  // v533: the header carries the seat's top margin (the bar's
+  // old marginTop) and the 7px breath the drawing puts between
+  // the header and the bar; the bar itself no longer sets one.
+  header: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    paddingHorizontal: 4,
+    marginTop: 12,
+    marginBottom: 7,
+  },
+  headerLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.8, textTransform: 'uppercase' },
+  headerCount: { marginLeft: 'auto', fontSize: 12 },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -133,7 +173,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    marginTop: 12,
   },
   label: { flex: 1, fontSize: 14.5, fontWeight: '700' },
   size: { fontSize: 13, fontWeight: '600' },

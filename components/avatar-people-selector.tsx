@@ -13,8 +13,17 @@ interface AvatarPeopleSelectorProps {
 /**
  * Avatar-based people selector for schedule forms
  * Shows people as clickable avatar circles instead of a long list
+ *
+ * v537: wrapped in React.memo. This grid renders every person
+ * (~117 Pressables + avatars on Jonathan's phone) and sits inside
+ * the ministry creator, whose form state lives in the giant
+ * ScheduleTab — without the memo, every keystroke and pill tap in
+ * that form re-rendered the whole grid. The memo only pays off
+ * because the one call site now hands it a useCallback-stable
+ * onToggle (handleToggleFormLinkedPerson in schedule-tab) and the
+ * people array keeps its identity across ScheduleTab re-renders.
  */
-export function AvatarPeopleSelector({
+export const AvatarPeopleSelector = React.memo(function AvatarPeopleSelector({
   people,
   selectedIds,
   onToggle,
@@ -104,7 +113,7 @@ export function AvatarPeopleSelector({
       )}
     </ScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

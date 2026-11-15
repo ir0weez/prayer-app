@@ -12706,12 +12706,26 @@ export function ScheduleTab({
   );
 
   // Form handlers
-  const handleFormStartTimeChange = (startTime: string) => {
+  // v537: useCallback so the memoized DateTimePicker's onChange
+  // prop keeps its identity across renders (it re-derives only
+  // when the end time it reads actually changes).
+  const handleFormStartTimeChange = useCallback((startTime: string) => {
     setFormStartTime(startTime);
     if (!formEndTime && startTime) {
       setFormEndTime(minutesToTime(Math.min(timeToMinutes(startTime) + 60, 23 * 60 + 59)));
     }
-  };
+  }, [formEndTime]);
+
+  // v537: useCallback so the memoized AvatarPeopleSelector in the
+  // ministry creator receives a stable onToggle — the grid renders
+  // every person and must not re-render on each form keystroke.
+  const handleToggleFormLinkedPerson = useCallback((personId: string) => {
+    setFormLinkedPeopleIds((prev) =>
+      prev.includes(personId)
+        ? prev.filter((id) => id !== personId)
+        : [...prev, personId]
+    );
+  }, []);
 
   const resetForm = () => {
     setEditingTodoId(null);
@@ -15974,10 +15988,7 @@ export function ScheduleTab({
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
               </Pressable>
             </View>
-            <FlatList
-              data={[{ key: "form" }]}
-              keyExtractor={(item) => item.key}
-              renderItem={() => (
+            <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={scheduleStyles.formContent}>
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>TITLE</Text>
                   <TextInput
@@ -16098,9 +16109,7 @@ export function ScheduleTab({
                     </>);
                   })()}
                 </View>
-              )}
-              showsVerticalScrollIndicator={false}
-            />
+            </ScrollView>
           </BitSettle>
 </PaperSettle>
         </View>
@@ -16380,10 +16389,7 @@ export function ScheduleTab({
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
               </Pressable>
             </View>
-            <FlatList
-              data={[{ key: "form" }]}
-              keyExtractor={(item) => item.key}
-              renderItem={() => (
+            <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={scheduleStyles.formContent}>
                   <CreatorSection title="Ministry">
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>MINISTRY NAME</Text>
@@ -16526,19 +16532,11 @@ export function ScheduleTab({
                   <AvatarPeopleSelector
                     people={people}
                     selectedIds={formLinkedPeopleIds}
-                    onToggle={(personId) => {
-                      setFormLinkedPeopleIds((prev) =>
-                        prev.includes(personId)
-                          ? prev.filter((id) => id !== personId)
-                          : [...prev, personId]
-                      );
-                    }}
+                    onToggle={handleToggleFormLinkedPerson}
                   />
                   </CreatorSection>
                 </View>
-              )}
-              showsVerticalScrollIndicator={false}
-            />
+            </ScrollView>
           </BitSettle>
 </PaperSettle>
         
@@ -16557,10 +16555,7 @@ export function ScheduleTab({
                 <Text style={[scheduleStyles.formSave, { color: colors.primary }]}>Save</Text>
               </Pressable>
             </View>
-            <FlatList
-              data={[{ key: "form" }]}
-              keyExtractor={(item) => item.key}
-              renderItem={() => (
+            <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={scheduleStyles.formContent}>
                   <Text style={[scheduleStyles.formLabel, { color: colors.muted }]}>BOOK OF THE BIBLE</Text>
                   <View style={scheduleStyles.bibleBookPicker}>
@@ -16622,9 +16617,7 @@ export function ScheduleTab({
                     returnKeyType="done"
                   />
                 </View>
-              )}
-              showsVerticalScrollIndicator={false}
-            />
+            </ScrollView>
           </BitSettle>
 </PaperSettle>
         

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Modal,
   View,
@@ -175,10 +175,12 @@ export function EventEditForm({
     }, []),
   );
 
-  const handleStartTimeChange = (value: string) => {
+  // v537: useCallback so the memoized DateTimePicker's onChange
+  // prop keeps its identity across renders.
+  const handleStartTimeChange = useCallback((value: string) => {
     setFormStartTime(value);
     if (!formEndTime && value) setFormEndTime(addHourToTime(value));
-  };
+  }, [formEndTime]);
 
   const handleSave = () => {
     const updatedEvent: ScheduleEvent = {

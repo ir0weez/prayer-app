@@ -109,7 +109,20 @@ interface DateTimePickerProps {
 const WEEKDAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 const DIAL_HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
-export function DateTimePicker({
+/**
+ * v537: wrapped in React.memo. Every creator form keeps its field
+ * state in the giant ScheduleTab, so any keystroke anywhere in a
+ * form re-rendered every picker in it — each one re-deriving its
+ * Material tones from scratch. The props are primitives plus the
+ * caller's onChange; every call site passes either a raw setState
+ * (identity-stable) or a useCallback, so the memo holds. The
+ * panel's internals — the v377 plain-View mount, the seat-keeping,
+ * the stage/commit contract — are untouched: the memo only skips
+ * re-renders whose props did not change, and this component's own
+ * hooks (colors, skin, window size) still re-render it when THEY
+ * change.
+ */
+export const DateTimePicker = React.memo(function DateTimePicker({
   value,
   onChange,
   mode,
@@ -910,7 +923,7 @@ export function DateTimePicker({
       )}
     </View>
   );
-}
+});
 
 const pickerStyles = StyleSheet.create({
   input: {

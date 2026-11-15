@@ -33,6 +33,11 @@ import { describe, expect, it } from 'vitest';
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 const page = read('components/bible-v205/chapter-page.tsx');
+// v535 RE-BASE (2026-11-15): the Devotional door is its own
+// component now (components/devotional-door.tsx) — the pill's
+// own JSX (label, dress, icon) lives there; the page's doorway
+// carries the door's seat and its wiring.
+const door = read('components/devotional-door.tsx');
 
 const barAt = page.indexOf('styles.topbar, { paddingTop: topInset + 8 }');
 const segAt = page.indexOf('styles.segRow');
@@ -145,7 +150,11 @@ describe('v477 — (4) Restudy renders once', () => {
 describe('v477 — (5) one even action row: Stories / Devotional / Contents', () => {
   it('the three doors stand in order, in one unwrapped row', () => {
     const stories = doorway.indexOf('>Stories</Text>');
-    const devotional = doorway.indexOf('>Devotional</Text>');
+    // v535 RE-BASE (2026-11-15): the middle door stands in the
+    // row as the DevotionalDoor component; its label stands in
+    // the door's own source.
+    const devotional = doorway.indexOf('<DevotionalDoor');
+    expect(door).toContain('>Devotional</Text>');
     const contents = doorway.indexOf('>Contents</Text>');
     expect(stories).toBeGreaterThan(-1);
     expect(devotional).toBeGreaterThan(stories);
@@ -158,19 +167,27 @@ describe('v477 — (5) one even action row: Stories / Devotional / Contents', ()
   it('the handlers are the ones that stood before', () => {
     expect(doorway).toContain('setStories(true)');
     expect(doorway).toContain("yByKey.current.get('contents')");
-    expect(doorway).toContain('onPress={props.onListen}');
+    // v535 RE-BASE (2026-11-15): the same listen handler,
+    // passed through to the door, whose pill presses it
+    // unchanged.
+    expect(doorway).toContain('onListen={props.onListen}');
+    expect(door).toContain('onPress={onListen}');
   });
 
   it('Devotional stays registry-conditional and turns tonal', () => {
     expect(doorway).toContain('props.onListen && devotional ? (');
-    expect(doorway).toContain('backgroundColor: palette.primCont');
+    // v535 RE-BASE (2026-11-15): the tonal dress stands in the
+    // door's own source now — the same primCont role, off the
+    // page's palette passed through as the door's.
+    expect(door).toContain('backgroundColor: pal.primCont');
     expect(doorway).not.toContain('backgroundColor: palette.rasp }');
     // v527 RE-BASE (2026-11-14): the door's icon is state-driven
     // now — the chapter's audio is a download, so the door wears
     // the download glyph until the chapter is on this phone and
     // the play glyph once it is. The play glyph still stands,
-    // as the ready branch of the one icon.
-    expect(doorway).toContain("devotionalDownload.status === 'ready' ? 'play-arrow' : 'file-download'");
+    // as the ready branch of the one icon. (v535: the state is
+    // the door's own read of the download store.)
+    expect(door).toContain("ready ? 'play-arrow' : 'file-download'");
   });
 });
 

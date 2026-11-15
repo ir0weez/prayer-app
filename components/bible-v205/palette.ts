@@ -115,6 +115,11 @@ export interface BiblePalette {
   progBg: string;
   progInk: string;
   primCont: string;
+  /** v535: the theme's own error role (theme.config's error
+   * token, resolved per scheme) — the Bible surfaces' one
+   * destructive red, e.g. the Devotional door's Remove segment.
+   * A MEANING colour: it never derives from the book's hue. */
+  error: string;
   /** v311: the on-paper meaning family (handwriting tones — a
    * meaning, not an accent, so constant like the keeper yellow). */
   paperBg: string;
@@ -266,6 +271,9 @@ export function buildBiblePalette(colors: ThemeColorPalette, bookName?: string):
     progBg: material.progBg,
     progInk: material.progInk,
     primCont: material.primCont,
+    // v535: the theme's error token, straight from the scheme
+    // palette (never book-derived).
+    error: colors.error,
     paperBg: '#F5ECD2',
     paperInk: '#7A5C14',
     xpGold: material.xpGold,

@@ -156,11 +156,9 @@ import {
   type BiblePalette,
   type BibleSectionTone,
 } from './palette';
-import { getDevotional, type Devotional } from '@/lib/devotionals';
-import {
-  refreshDevotionalDownload,
-  useDevotionalDownloadState,
-} from '@/lib/devotional-download';
+import { getDevotional } from '@/lib/devotionals';
+import { refreshDevotionalDownload } from '@/lib/devotional-download';
+import { DevotionalDoor } from '@/components/devotional-door';
 import { getTenStops } from '@/lib/ten-stops';
 import {
   stopMarkRoles,
@@ -200,18 +198,6 @@ export interface ChapterPageProps {
 
 /** App-level read-mode preference ("With notes" is the default). */
 export const READ_MODE_KEY = 'prayercircle.bible.v205.readmode.v1';
-
-/** v527: the download-state hook's seat for a chapter with no
- * devotional — never rendered, never read; it only keeps the
- * hook unconditional. */
-const NO_DEVOTIONAL: Devotional = {
-  book: '',
-  chapter: 0,
-  title: '',
-  audioFile: '',
-  durationSec: 0,
-  paragraphs: [],
-};
 
 /**
  * v251 — the header clearance is MEASURED, never guessed (the v246
@@ -401,18 +387,28 @@ export function ChapterPageView(props: ChapterPageProps) {
   const seedPalette = useBiblePalette();
   // v230: this chapter's devotional, if the registry carries one.
   const devotional = useMemo(() => getDevotional(book, chapter), [book, chapter]);
-  // v527: the devotional's download state, for the door's icon —
-  // the file is a download now, and the door says so quietly:
-  // a download glyph until the chapter is on this phone, the
-  // play glyph once it is. Disk truth is asked on mount, the
-  // TenStopsCard's pattern. (The stand-in entry is only the
-  // hook's seat for chapters with no devotional — its door never
-  // renders, and its state is never read.)
-  const devotionalDownload = useDevotionalDownloadState(devotional ?? NO_DEVOTIONAL);
+  // v527: the devotional is a download now — disk truth is asked
+  // on mount, the TenStopsCard's pattern, so the Devotional door
+  // (components/devotional-door.tsx — it reads its own download
+  // state for its glyph, v535) knows whether the chapter is on
+  // this phone.
   useEffect(() => {
     if (devotional) void refreshDevotionalDownload(devotional);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [book, chapter]);
+  // v535: the Devotional door's pill morph — the page's half of
+  // the fold-back contract. The door reports its morph standing
+  // through onMorphChange (into the ref; no re-render for a
+  // touch), stamps every touch that begins on it into the stamp
+  // ref, and the page root (below) raises the fold signal for
+  // any touch that did NOT begin on the door — a tap anywhere
+  // else folds the question back, unchanged.
+  const devotionalMorphedRef = useRef(false);
+  const devotionalTouchStampRef = useRef(0);
+  const [devotionalFoldSignal, setDevotionalFoldSignal] = useState(0);
+  const handleDevotionalMorphChange = useCallback((morphed: boolean) => {
+    devotionalMorphedRef.current = morphed;
+  }, []);
   // v507: this book's Ten Stops tour, if the registry carries one
   // (lib/ten-stops) — where one exists, the chapter wears the
   // picked blend's indicator: the route strip under the cover and
@@ -1312,7 +1308,22 @@ export function ChapterPageView(props: ChapterPageProps) {
       onToggleRead={studyState ? handleToggleRead : null}
     />
   ) : (
-    <View style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}>
+    <View
+      style={[{ flex: 1, backgroundColor: palette.paper }, palette.screenDress]}
+      onTouchStart={(e) => {
+        // v535: a touch beginning anywhere else on the page
+        // folds the Devotional door's morph back. The door
+        // stamps its own touches (the same event's timestamp),
+        // so its segments never trip this; the ref keeps a
+        // resting page from re-rendering on every touch.
+        if (
+          devotionalMorphedRef.current &&
+          e.nativeEvent.timestamp !== devotionalTouchStampRef.current
+        ) {
+          setDevotionalFoldSignal((n) => n + 1);
+        }
+      }}
+    >
       {/* ── topwrap ── v251: a measured overlay (styles.topwrap is
           absolute); it reports its true height here, and the
           ScrollView below opens its content with a spacer of
@@ -1615,24 +1626,21 @@ export function ChapterPageView(props: ChapterPageProps) {
             </Pressable>
             {/* v293: the Devotional door — right beside Stories at the
                 chapter's top, and ONLY when the devotional registry
-                carries this chapter (purely registry-driven). */}
+                carries this chapter (purely registry-driven).
+                v535: the door is its own part now
+                (components/devotional-door.tsx) — same pill, same
+                dress, same tap; it also carries the pill morph:
+                hold it while the chapter is on this phone and it
+                stretches into the Remove / Keep question. */}
             {props.onListen && devotional ? (
-              <Pressable
-                style={[styles.doorBtn, { backgroundColor: palette.primCont }, palette.btnDress]}
-                onPress={props.onListen}
-                accessibilityLabel={`Devotional — ${devotional.title}`}
-              >
-                {/* v527: the door's icon carries the download
-                    state — play once the chapter is on this
-                    phone, the download glyph until then (the tap
-                    itself fetches first, then plays). */}
-                <MaterialIcons
-                  name={devotionalDownload.status === 'ready' ? 'play-arrow' : 'file-download'}
-                  size={18}
-                  color={palette.raspDeep}
-                />
-                <Text style={[styles.doorBtnText, { color: palette.raspDeep }]}>Devotional</Text>
-              </Pressable>
+              <DevotionalDoor
+                devotional={devotional}
+                palette={palette}
+                onListen={props.onListen}
+                foldSignal={devotionalFoldSignal}
+                onMorphChange={handleDevotionalMorphChange}
+                touchStampRef={devotionalTouchStampRef}
+              />
             ) : null}
             <Pressable
               style={[styles.doorBtn, { backgroundColor: palette.band }]}

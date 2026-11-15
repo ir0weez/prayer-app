@@ -157,7 +157,11 @@ describe('v293 doors and player wiring', () => {
   it('chapter-top door sits beside Stories; Stories cover carries the second door', () => {
     const page = read('components/bible-v205/chapter-page.tsx');
     const storiesAt = page.indexOf('Read as Stories');
-    const doorAt = page.indexOf('>Devotional</Text>');
+    // v535 RE-BASE (2026-11-15): the door stands in the page as
+    // the DevotionalDoor component — still beside Stories,
+    // still after it; its label lives in the door's own source.
+    const doorAt = page.indexOf('<DevotionalDoor');
+    expect(read('components/devotional-door.tsx')).toContain('>Devotional</Text>');
     expect(storiesAt).toBeGreaterThan(-1);
     expect(doorAt).toBeGreaterThan(storiesAt);
     expect(page).toContain('devotional={devotional}');

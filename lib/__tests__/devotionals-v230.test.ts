@@ -69,7 +69,12 @@ describe('v230 wiring (as moved by v293)', () => {
     const page = read('components/bible-v205/chapter-page.tsx');
     expect(page).toContain('getDevotional(book, chapter)');
     expect(page).toMatch(/props\.onListen && devotional/);
-    expect(page).toContain('>Devotional</Text>');
+    // v535 RE-BASE (2026-11-15): the door's pill is rendered by
+    // components/devotional-door.tsx now — the page seats it
+    // under the same registry + handler gate, and the label
+    // stands in the door's own source.
+    expect(page).toContain('<DevotionalDoor');
+    expect(read('components/devotional-door.tsx')).toContain('>Devotional</Text>');
   });
 
   it('the route exists and the player uses the shared controller + keep-awake', () => {

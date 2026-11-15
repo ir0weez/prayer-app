@@ -77,6 +77,77 @@ class ShareCardPainter(private val spec: ShareSpec) {
     layout.dbl("listenSize"), kickerColor, bold = true, letterSpacingPx = layout.dbl("listenLetterSpacing"),
   )
 
+  // ── The model's constants, read once (v539) ─────────────────
+  // A video asks this painter for ~2,700 frames of one chapter,
+  // and everything the spec holds is fixed for the painter's
+  // life — so it is read, measured and built ONCE here instead
+  // of on every frame: the entrance delays (a fresh list was
+  // parsed off the JSON per frame), the strings and their
+  // measures, the layout's per-frame metrics, the wave's
+  // numbers, and the paints themselves (seven constructions a
+  // frame become seven fields whose alphas are set at use).
+  // Nothing here changes a drawn value; it only stops paying
+  // for the same answer thousands of times.
+  private val entranceDelays = spec.dblList("entranceDelaysSec")
+  private val entranceRisePx = spec.dbl("entranceRisePx")
+  private val entranceDurationSec = spec.dbl("entranceDurationSec", 0.76)
+  private val breathPeriodSec = spec.dbl("breathPeriodSec", 3.2)
+  private val sweepPeriodSec = spec.dbl("sweepPeriodSec", 9.0)
+  private val sweepAlpha = spec.dbl("sweepAlpha", 0.06)
+  private val discFillAlpha = spec.dbl("discFillAlpha", 0.14)
+  private val trackAlpha = spec.dbl("trackAlpha", 0.22)
+  private val waveTravelMs = spec.dbl("waveTravelMs", 1200.0)
+  private val stillProgress = spec.dbl("stillProgress")
+
+  private val kickerText = spec.reqStr("kicker")
+  private val ghostText = spec.reqStr("ghostText")
+  private val durationLabelText = spec.reqStr("durationLabel")
+  private val brandText = spec.reqStr("brand")
+  private val listenLineText = spec.reqStr("listenLine")
+  private val ghostTextWidth = ghostPaint.measureText(ghostText)
+  private val brandTextWidth = brandPaint.measureText(brandText)
+
+  private val titleMarginTop = layout.dbl("titleMarginTop").toFloat()
+  private val discDiameter = layout.dbl("discDiameter")
+  private val discMarginTop = layout.dbl("discMarginTop").toFloat()
+  private val discGlyphSize = layout.dbl("discGlyphSize")
+  private val ghostRight = layout.dbl("ghostRight").toFloat()
+  private val ghostBottom = layout.dblOrNull("ghostBottom")
+  private val footerPlayGlyphSize = layout.dbl("footerPlayGlyphSize")
+  private val listenSize = layout.dbl("listenSize")
+  private val listenMarginBottom = layout.dbl("listenMarginBottom").toFloat()
+  private val barMarginBottom = layout.dbl("barMarginBottom").toFloat()
+  private val barCanvasHeight = layout.dbl("barCanvasHeight")
+
+  private val isStory = spec.str("format") == "story"
+
+  private val waveWavelength = wave?.dbl("wavelength") ?: 0.0
+  private val waveAmplitude = wave?.dbl("amplitude") ?: 0.0
+  private val waveStrokeWidth = wave?.dbl("strokeWidth") ?: 0.0
+  private val waveTrackThickness = wave?.dbl("trackThickness") ?: 0.0
+  private val waveStopDotRadius = wave?.dbl("stopDotRadius") ?: 0.0
+
+  private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.STROKE
+    color = whiteColor
+    strokeWidth = (discDiameter * 0.0345).toFloat()
+  }
+  private val discPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = whiteColor }
+  private val glyphPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = whiteColor }
+  private val footerGlyphPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = paleColor }
+  private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    color = whiteColor
+    alpha = (trackAlpha * 255).toInt()
+  }
+  private val wavePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.STROKE
+    color = paleColor
+    strokeCap = Paint.Cap.ROUND
+    strokeWidth = waveStrokeWidth.toFloat()
+  }
+  private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = paleColor }
+  private val sweepPaint = Paint()
+
   private val titleLayout: StaticLayout by lazy {
     val title = spec.reqStr("title")
     StaticLayout.Builder.obtain(title, 0, title.length, titlePaint, contentWidth.toInt())
@@ -95,7 +166,7 @@ class ShareCardPainter(private val spec: ShareSpec) {
 
   private fun entrance(tSec: Double, delaySec: Double, risePx: Double, still: Boolean): Pair<Float, Float> {
     if (still) return Pair(1f, 0f)
-    val p = clamp01((tSec - delaySec) / spec.dbl("entranceDurationSec", 0.76))
+    val p = clamp01((tSec - delaySec) / entranceDurationSec)
     val e = standardEasing.getInterpolation(p.toFloat()).toDouble()
     return Pair(e.toFloat(), (risePx * (1 - e)).toFloat())
   }
@@ -118,14 +189,14 @@ class ShareCardPainter(private val spec: ShareSpec) {
     canvas.drawColor(deepColor)
 
     val progress = if (still) {
-      spec.dbl("stillProgress")
+      stillProgress
     } else if (durationSec > 0) {
       clamp01(tSec / durationSec)
     } else {
       0.0
     }
-    val delays = spec.dblList("entranceDelaysSec")
-    val risePx = spec.dbl("entranceRisePx")
+    val delays = entranceDelays
+    val risePx = entranceRisePx
 
     drawSweep(canvas, tSec, still)
     drawGhost(canvas, tSec, durationSec, still)
@@ -137,13 +208,13 @@ class ShareCardPainter(private val spec: ShareSpec) {
     drawTextElement(canvas, kickerEntrance) {
       val prevAlpha = kickerPaint.alpha
       kickerPaint.alpha = (kickerEntrance.first * 255).toInt()
-      canvas.drawText(spec.reqStr("kicker"), padSide, kickerBaseline, kickerPaint)
+      canvas.drawText(kickerText, padSide, kickerBaseline, kickerPaint)
       kickerPaint.alpha = prevAlpha
     }
     val kickerBlock = kickerFm.descent - kickerFm.ascent
 
     val titleEntrance = entrance(tSec, delays.getOrElse(1) { 0.22 }, risePx, still)
-    val titleTop = padTop + kickerBlock + layout.dbl("titleMarginTop").toFloat()
+    val titleTop = padTop + kickerBlock + titleMarginTop
     if (titleEntrance.first > 0f) {
       canvas.save()
       canvas.translate(padSide, titleTop + titleEntrance.second)
@@ -155,18 +226,17 @@ class ShareCardPainter(private val spec: ShareSpec) {
     }
     val titleBottom = titleTop + titleLayout.height
 
-    val discDiameter = layout.dbl("discDiameter")
     var discCenterY = 0f
     if (discDiameter > 0) {
       val discEntrance = entrance(tSec, delays.getOrElse(2) { 0.34 }, risePx, still)
       val r = (discDiameter / 2).toFloat()
       val cx = padSide + r
-      discCenterY = titleBottom + layout.dbl("discMarginTop").toFloat() + r + discEntrance.second
+      discCenterY = titleBottom + discMarginTop + r + discEntrance.second
       if (discEntrance.first > 0f) {
         // (c) The breathing ring — video only; a still's disc
         // stands plain, as the still drawing has it.
         if (!still) {
-          val period = spec.dbl("breathPeriodSec", 3.2)
+          val period = breathPeriodSec
           val p = ((tSec % period) + period) % period / period
           val scale: Double
           val ringOpacity: Double
@@ -180,25 +250,14 @@ class ShareCardPainter(private val spec: ShareSpec) {
             ringOpacity = 0.7 * q
           }
           if (ringOpacity > 0.005) {
-            val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-              style = Paint.Style.STROKE
-              color = whiteColor
-              strokeWidth = (discDiameter * 0.0345).toFloat()
-              alpha = (ringOpacity * discEntrance.first * 255).toInt()
-            }
+            ringPaint.alpha = (ringOpacity * discEntrance.first * 255).toInt()
             canvas.drawCircle(cx, discCenterY, (r * scale).toFloat(), ringPaint)
           }
         }
-        val discPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-          color = whiteColor
-          alpha = (spec.dbl("discFillAlpha", 0.14) * discEntrance.first * 255).toInt()
-        }
+        discPaint.alpha = (discFillAlpha * discEntrance.first * 255).toInt()
         canvas.drawCircle(cx, discCenterY, r, discPaint)
-        val glyphPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-          color = whiteColor
-          alpha = (discEntrance.first * 255).toInt()
-        }
-        canvas.drawPath(playGlyphPath(cx, discCenterY, layout.dbl("discGlyphSize")), glyphPaint)
+        glyphPaint.alpha = (discEntrance.first * 255).toInt()
+        canvas.drawPath(playGlyphPath(cx, discCenterY, discGlyphSize), glyphPaint)
       }
     }
 
@@ -225,7 +284,7 @@ class ShareCardPainter(private val spec: ShareSpec) {
     var dy = 0.0
     if (!still && durationSec > 0) {
       val p = clamp01(tSec / durationSec)
-      if (spec.str("format") == "story") {
+      if (isStory) {
         dx = -50 * p
         dy = 72 * p
       } else {
@@ -233,11 +292,8 @@ class ShareCardPainter(private val spec: ShareSpec) {
         dy = 50 * p
       }
     }
-    val text = spec.reqStr("ghostText")
-    val textWidth = ghostPaint.measureText(text)
     val fm = ghostPaint.fontMetrics
-    val x = width + layout.dbl("ghostRight").toFloat() - textWidth + dx.toFloat()
-    val ghostBottom = layout.dblOrNull("ghostBottom")
+    val x = width + ghostRight - ghostTextWidth + dx.toFloat()
     val baseline = if (ghostBottom != null) {
       // Square: the glyph box's bottom sits ghostBottom past the
       // canvas's bottom edge.
@@ -248,7 +304,7 @@ class ShareCardPainter(private val spec: ShareSpec) {
     }
     canvas.save()
     canvas.translate(0f, dy.toFloat())
-    canvas.drawText(text, x, baseline, ghostPaint)
+    canvas.drawText(ghostText, x, baseline, ghostPaint)
     canvas.restore()
   }
 
@@ -256,7 +312,7 @@ class ShareCardPainter(private val spec: ShareSpec) {
     // (e) The light sweep: parked off the left edge until 55% of
     // its cycle, across by 85%, parked after (the drawing's
     // keyframes, in canvas fractions from the spec's model).
-    val period = spec.dbl("sweepPeriodSec", 9.0)
+    val period = sweepPeriodSec
     val from = -0.7333 * width
     val to = 1.4 * width
     val x: Double = if (still) {
@@ -274,18 +330,21 @@ class ShareCardPainter(private val spec: ShareSpec) {
     }
     if (x >= width || x + 0.4333 * width <= 0) return
     val bandWidth = (0.4333 * width).toFloat()
+    // The gradient itself is rebuilt while the band crosses —
+    // its stops ride the animated x, so it cannot be cached —
+    // but the paint that carries it is the shared field.
     val gradient = LinearGradient(
       x.toFloat(), 0f, x.toFloat() + bandWidth, 0f,
       intArrayOf(
         Color.argb(0, 255, 255, 255),
-        Color.argb((spec.dbl("sweepAlpha", 0.06) * 255).toInt(), 255, 255, 255),
+        Color.argb((sweepAlpha * 255).toInt(), 255, 255, 255),
         Color.argb(0, 255, 255, 255),
       ),
       floatArrayOf(0f, 0.5f, 1f),
       Shader.TileMode.CLAMP,
     )
-    val paint = Paint().apply { shader = gradient }
-    canvas.drawRect(x.toFloat(), 0f, x.toFloat() + bandWidth, height.toFloat(), paint)
+    sweepPaint.shader = gradient
+    canvas.drawRect(x.toFloat(), 0f, x.toFloat() + bandWidth, height.toFloat(), sweepPaint)
   }
 
   private fun drawBottomGroup(canvas: Canvas, progress: Double, tSec: Double, still: Boolean) {
@@ -296,43 +355,37 @@ class ShareCardPainter(private val spec: ShareSpec) {
 
     // The footer row: duration at the left (the square still
     // first gives it the small play glyph), brand at the right.
-    val footerPlayGlyph = layout.dbl("footerPlayGlyphSize")
     var durationX = padSide
-    if (footerPlayGlyph > 0) {
-      val glyphPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = paleColor }
+    if (footerPlayGlyphSize > 0) {
       val glyphCenterY = footerBaseline + (durationFm.ascent + durationFm.descent) / 2
-      canvas.drawPath(playGlyphPath(padSide + (footerPlayGlyph / 2).toFloat(), glyphCenterY, footerPlayGlyph), glyphPaint)
-      durationX = padSide + footerPlayGlyph.toFloat() + 22f
+      canvas.drawPath(
+        playGlyphPath(padSide + (footerPlayGlyphSize / 2).toFloat(), glyphCenterY, footerPlayGlyphSize),
+        footerGlyphPaint,
+      )
+      durationX = padSide + footerPlayGlyphSize.toFloat() + 22f
     }
-    canvas.drawText(spec.reqStr("durationLabel"), durationX, footerBaseline, durationPaint)
-    val brand = spec.reqStr("brand")
-    val brandX = width - padSide - brandPaint.measureText(brand)
-    canvas.drawText(brand, brandX, footerBaseline, brandPaint)
+    canvas.drawText(durationLabelText, durationX, footerBaseline, durationPaint)
+    val brandX = width - padSide - brandTextWidth
+    canvas.drawText(brandText, brandX, footerBaseline, brandPaint)
 
     // The LISTEN line and the bar stand above the footer where
     // the format carries them (the story, and both videos).
-    val listenSize = layout.dbl("listenSize")
     if (listenSize <= 0) return
     val listenFm = listenPaint.fontMetrics
     val listenBlock = listenFm.descent - listenFm.ascent
-    val listenBottom = footerBottom - footerBlock - layout.dbl("listenMarginBottom").toFloat()
-    canvas.drawText(spec.reqStr("listenLine"), padSide, listenBottom - listenFm.descent, listenPaint)
+    val listenBottom = footerBottom - footerBlock - listenMarginBottom
+    canvas.drawText(listenLineText, padSide, listenBottom - listenFm.descent, listenPaint)
 
-    val waveSpec = wave ?: return
-    val barHeight = layout.dbl("barCanvasHeight")
-    if (barHeight <= 0) return
-    val barBottom = listenBottom - listenBlock - layout.dbl("barMarginBottom").toFloat()
-    val barTop = barBottom - barHeight.toFloat()
+    if (wave == null) return
+    if (barCanvasHeight <= 0) return
+    val barBottom = listenBottom - listenBlock - barMarginBottom
+    val barTop = barBottom - barCanvasHeight.toFloat()
     val barLeft = padSide
     val barRight = width - padSide
-    val cy = barTop + (barHeight / 2).toFloat()
+    val cy = barTop + (barCanvasHeight / 2).toFloat()
 
     // The straight track at 22% white, with the end dot.
-    val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-      color = whiteColor
-      alpha = (spec.dbl("trackAlpha", 0.22) * 255).toInt()
-    }
-    val trackThickness = waveSpec.dbl("trackThickness").toFloat()
+    val trackThickness = waveTrackThickness.toFloat()
     canvas.drawRoundRect(
       RectF(barLeft, cy - trackThickness / 2, barRight, cy + trackThickness / 2),
       trackThickness / 2, trackThickness / 2, trackPaint,
@@ -343,22 +396,16 @@ class ShareCardPainter(private val spec: ShareSpec) {
     // a still sits at phase 0), clipped to the played width.
     val fillWidth = (progress * (barRight - barLeft)).toFloat()
     if (fillWidth > 0) {
-      val wavelength = waveSpec.dbl("wavelength")
-      val amplitude = waveSpec.dbl("amplitude")
+      val wavelength = waveWavelength
+      val amplitude = waveAmplitude
       val phase = if (still) {
         0.0
       } else {
-        val cycles = (tSec * 1000) / spec.dbl("waveTravelMs", 1200.0)
+        val cycles = (tSec * 1000) / waveTravelMs
         (cycles - floor(cycles)) * wavelength
       }
-      val wavePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        color = paleColor
-        strokeWidth = waveSpec.dbl("strokeWidth").toFloat()
-        strokeCap = Paint.Cap.ROUND
-      }
       canvas.save()
-      canvas.clipRect(barLeft, barTop, barLeft + fillWidth, barTop + barHeight.toFloat())
+      canvas.clipRect(barLeft, barTop, barLeft + fillWidth, barTop + barCanvasHeight.toFloat())
       val path = Path()
       var first = true
       var x = -wavelength
@@ -376,8 +423,7 @@ class ShareCardPainter(private val spec: ShareSpec) {
       canvas.restore()
     }
 
-    val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = paleColor }
-    val dotR = waveSpec.dbl("stopDotRadius").toFloat()
+    val dotR = waveStopDotRadius.toFloat()
     canvas.drawCircle(barRight - dotR, cy, dotR, dotPaint)
   }
 }

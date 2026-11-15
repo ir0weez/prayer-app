@@ -22,6 +22,14 @@
 // it shares at a tap and shows no variants. The five shares
 // themselves — generation, dress, cache rule — are v536's,
 // untouched; only the seat changed.
+//
+// v542 (briefed as v539, landed after v541) — a video render
+// reports its frames as it goes (the native maker's
+// onRenderProgress), and the working variant's box wears the
+// percentage in its sub-line seat while it renders — the
+// number only, in the group's standing quiet dress; the icon
+// seat's spinner stands as v541 left it. Cards and the audio
+// share report nothing and wear no number.
 
 import { memo, useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -161,18 +169,30 @@ export const DevotionalShareGroup = memo(function DevotionalShareGroup(props: {
   const [kind, setKind] = useState<DevotionalShareVariantKind>(DEVOTIONAL_SHARE_DEFAULT_KIND);
   const [working, setWorking] = useState<DevotionalShareKind | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A video render's progress, as a whole percentage — null
+  // whenever nothing is rendering or the share in flight
+  // reports none (cards, audio). Only the working variant's
+  // box reads it, so a kind switch mid-flight cannot put the
+  // number on the wrong box.
+  const [progressPct, setProgressPct] = useState<number | null>(null);
 
   const onShare = useCallback(
     async (shareKind: DevotionalShareKind) => {
       if (working) return;
       setWorking(shareKind);
       setError(null);
+      setProgressPct(null);
       try {
-        await generateAndShareDevotionalArtifact(shareKind, devotional);
+        await generateAndShareDevotionalArtifact(shareKind, devotional, (done, total) => {
+          if (total > 0) {
+            setProgressPct(Math.min(100, Math.floor((done * 100) / total)));
+          }
+        });
       } catch (e) {
         setError(e instanceof Error ? e.message : 'That share could not be made.');
       } finally {
         setWorking(null);
+        setProgressPct(null);
       }
     },
     [working, devotional],
@@ -260,7 +280,7 @@ export const DevotionalShareGroup = memo(function DevotionalShareGroup(props: {
                 {shareVariantName(variantKind)}
               </Text>
               <Text style={[styles.variantSub, { color: props.inkSoft }]}>
-                {shareVariantSubLabel(variantKind)}
+                {isWorking && progressPct !== null ? `${progressPct}%` : shareVariantSubLabel(variantKind)}
               </Text>
             </Pressable>
           );

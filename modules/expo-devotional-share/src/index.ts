@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import { requireNativeModule } from "expo-modules-core";
+import { EventEmitter, requireNativeModule } from "expo-modules-core";
 
 // ─── Devotional share maker (v536; boundary fixed v538) ─────────────
 // The native half of the devotional Share group: it draws the
@@ -23,10 +23,20 @@ import { requireNativeModule } from "expo-modules-core";
 // A string is a string in every converter ever shipped: the JS
 // side stringifies the model's spec, the Kotlin side parses it
 // with org.json, and no object graph crosses at all.
+//
+// PROGRESS AND PROOF (v539): a video render reports its frames
+// as it goes (the onRenderProgress event: done of total, a flat
+// pair of numbers) so the working chip can show a percentage
+// instead of sitting mute for a minute or more; and
+// probeShareVideoAudio asks the maker whether a finished MP4
+// actually carries its audio — the v538 device run saved a
+// complete-looking video with no audio in it, so a cached video
+// is probed before the Share flow trusts it again.
 
 type DevotionalShareNativeModule = {
   renderCardPng(specJson: string): Promise<void>;
   renderVideo(specJson: string): Promise<void>;
+  probeVideoAudio(path: string): Promise<boolean>;
 };
 
 let cached: DevotionalShareNativeModule | null | undefined;
@@ -43,6 +53,30 @@ function getNative(): DevotionalShareNativeModule | null {
   return cached;
 }
 
+// The progress emitter, in the prayer timer's shape: the native
+// module wrapped once in an EventEmitter. Built lazily and only
+// when a caller actually wants progress — a build or a test rig
+// without the emitter leaves renders working, just unreported.
+let emitter: {
+  addListener(
+    eventName: string,
+    listener: (event: { done?: unknown; total?: unknown }) => void,
+  ): { remove(): void };
+} | null = null;
+
+function getEmitter(): typeof emitter {
+  const native = getNative();
+  if (!native) return null;
+  if (!emitter) {
+    try {
+      emitter = new (EventEmitter as any)(native);
+    } catch {
+      emitter = null;
+    }
+  }
+  return emitter;
+}
+
 /** True when the native share maker is linked in this build. */
 export function isDevotionalShareAvailable(): boolean {
   return getNative() !== null;
@@ -57,9 +91,48 @@ export async function renderShareCardPng(spec: Record<string, unknown>): Promise
 
 /** Renders the living card and muxes it with the devotional's
  * audio (spec.audioPath) into an MP4 at spec.outPath. Takes as
- * long as the encode takes — the caller wears a working state. */
-export async function renderShareVideo(spec: Record<string, unknown>): Promise<void> {
+ * long as the encode takes — the caller wears a working state.
+ * onProgress, when given, hears frames done of the total as the
+ * render commits them; it is best-effort (a render never fails
+ * because its reporting did) and stops when the render settles. */
+export async function renderShareVideo(
+  spec: Record<string, unknown>,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
   const native = getNative();
   if (!native) throw new Error("This build cannot make share pictures or videos.");
-  await native.renderVideo(JSON.stringify(spec));
+  let subscription: { remove(): void } | null = null;
+  if (onProgress) {
+    try {
+      subscription =
+        getEmitter()?.addListener("onRenderProgress", (event) => {
+          const done = event?.done;
+          const total = event?.total;
+          if (typeof done === "number" && typeof total === "number") {
+            onProgress(done, total);
+          }
+        }) ?? null;
+    } catch {
+      subscription = null;
+    }
+  }
+  try {
+    await native.renderVideo(JSON.stringify(spec));
+  } finally {
+    subscription?.remove();
+  }
+}
+
+/** Asks the maker whether the MP4 at path actually carries an
+ * audio track with samples in it. Any doubt — no maker, no such
+ * function, a file that cannot be read — answers false, so the
+ * caller re-makes the video rather than sharing a silent one. */
+export async function probeShareVideoAudio(path: string): Promise<boolean> {
+  const native = getNative();
+  if (!native || typeof native.probeVideoAudio !== "function") return false;
+  try {
+    return await native.probeVideoAudio(path);
+  } catch {
+    return false;
+  }
 }

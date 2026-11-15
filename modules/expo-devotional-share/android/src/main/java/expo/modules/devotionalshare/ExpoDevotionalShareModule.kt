@@ -20,17 +20,57 @@ import expo.modules.kotlin.modules.ModuleDefinition
  * the conversion of the whole argument. A String crosses with
  * no conversion at all — the class of failure is gone, not
  * patched around.
+ *
+ * v539 adds two things. The render reports its progress as it
+ * goes (onRenderProgress: frames done of the whole — a flat
+ * pair of numbers, the shape events in this app already cross
+ * with) so the working chip can show a percentage instead of
+ * sitting mute. And probeVideoAudio answers whether a made
+ * MP4 actually carries its audio: the v538 device run finished
+ * and saved a video with NO audio in it, so neither a fresh
+ * render nor a cached file is trusted on its looks anymore —
+ * the renderer probes its own output before calling it done,
+ * and the Share flow probes a cached video before reusing it.
  */
 class ExpoDevotionalShareModule : Module() {
+  companion object {
+    private var moduleInstance: ExpoDevotionalShareModule? = null
+
+    /** Tell JS (if alive) how far a video render has got:
+     * frames committed of the frame total. */
+    fun sendRenderProgress(done: Int, total: Int) {
+      moduleInstance?.sendEvent(
+        "onRenderProgress",
+        mapOf("done" to done, "total" to total),
+      )
+    }
+  }
+
   override fun definition() = ModuleDefinition {
     Name("ExpoDevotionalShare")
+
+    Events("onRenderProgress")
+
+    OnCreate {
+      moduleInstance = this@ExpoDevotionalShareModule
+    }
+
+    OnDestroy {
+      if (moduleInstance === this@ExpoDevotionalShareModule) moduleInstance = null
+    }
 
     AsyncFunction("renderCardPng") { specJson: String ->
       ShareCardRenderer.renderStill(ShareSpec.parse(specJson))
     }
 
     AsyncFunction("renderVideo") { specJson: String ->
-      ShareVideoRenderer.render(ShareSpec.parse(specJson))
+      ShareVideoRenderer.render(ShareSpec.parse(specJson)) { done, total ->
+        sendRenderProgress(done, total)
+      }
+    }
+
+    AsyncFunction("probeVideoAudio") { path: String ->
+      ShareAudioProbe.hasAudibleTrack(path, 0L)
     }
   }
 }

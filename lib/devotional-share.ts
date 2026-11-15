@@ -704,7 +704,16 @@ export interface DevotionalShareDeps {
   /** The native maker, or null where this build carries none. */
   nativeMaker: {
     renderCardPng: (spec: DevotionalShareNativeSpec) => Promise<void>;
-    renderVideo: (spec: DevotionalShareNativeSpec) => Promise<void>;
+    renderVideo: (
+      spec: DevotionalShareNativeSpec,
+      onProgress?: (done: number, total: number) => void,
+    ) => Promise<void>;
+    /** v539: whether a made MP4 actually carries its audio.
+     * Optional on purpose: a maker without the probe leaves a
+     * cached video trusted as it was before v539 — but the real
+     * maker always carries it, and a video that fails the probe
+     * is re-made rather than shared silent. */
+    probeVideoAudio?: (path: string) => Promise<boolean>;
   } | null;
   /** Opens the system share sheet for one file. */
   shareFile: (uri: string, mimeType: string) => Promise<void>;
@@ -756,7 +765,14 @@ function realShareDeps(): DevotionalShareDeps {
         if (mod && typeof mod.renderShareCardPng === 'function' && typeof mod.renderShareVideo === 'function') {
           return {
             renderCardPng: (spec: DevotionalShareNativeSpec) => mod.renderShareCardPng(spec),
-            renderVideo: (spec: DevotionalShareNativeSpec) => mod.renderShareVideo(spec),
+            renderVideo: (
+              spec: DevotionalShareNativeSpec,
+              onProgress?: (done: number, total: number) => void,
+            ) => mod.renderShareVideo(spec, onProgress),
+            probeVideoAudio:
+              typeof mod.probeShareVideoAudio === 'function'
+                ? (path: string) => mod.probeShareVideoAudio(path)
+                : undefined,
           };
         }
       } catch {
@@ -793,10 +809,21 @@ export function devotionalShareAudioAvailable(d: Devotional): boolean {
  * plainly what could not be done — the Share group shows it as
  * its error state; nothing here ever reports a success that did
  * not happen.
+ *
+ * onProgress (v539) hears a video render's frames done of its
+ * total while it generates — the only generation long enough to
+ * want a number. And a cached video is no longer trusted on its
+ * existence alone: the maker's own audio probe must vouch for
+ * it first, because a build before the probe could leave a
+ * finished-looking silent MP4 in this cache (v538's device
+ * run did exactly that). A video that fails the probe is
+ * re-made on the spot; the fresh render proves its own audio
+ * before it is allowed to exist.
  */
 export async function generateAndShareDevotionalArtifact(
   kind: DevotionalShareKind,
   d: Devotional,
+  onProgress?: (done: number, total: number) => void,
 ): Promise<{ uri: string }> {
   const deps = shareDeps();
 
@@ -828,11 +855,15 @@ export async function generateAndShareDevotionalArtifact(
     throw new Error('This devotional is not on this phone yet.');
   }
 
-  if (!(await deps.fileExists(outUri))) {
+  let ready = await deps.fileExists(outUri);
+  if (ready && shareKindIsVideo(kind) && maker.probeVideoAudio) {
+    ready = await maker.probeVideoAudio(stripFileScheme(outUri)).catch(() => false);
+  }
+  if (!ready) {
     const dirUri = outUri.slice(0, outUri.lastIndexOf('/') + 1);
     await deps.ensureDirectory(dirUri);
     if (shareKindIsVideo(kind)) {
-      await maker.renderVideo(spec);
+      await maker.renderVideo(spec, onProgress);
     } else {
       await maker.renderCardPng(spec);
     }

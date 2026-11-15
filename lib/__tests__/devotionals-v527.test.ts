@@ -351,6 +351,19 @@ const HOSTED_SIZES: Record<string, number> = {
   "devotional-genesis-7.m4a": 553029,
   "devotional-genesis-8.m4a": 549181,
   "devotional-genesis-9.m4a": 496470,
+  "devotional-hebrews-1.m4a": 439600,
+  "devotional-hebrews-10.m4a": 500159,
+  "devotional-hebrews-11.m4a": 500987,
+  "devotional-hebrews-12.m4a": 492114,
+  "devotional-hebrews-13.m4a": 490889,
+  "devotional-hebrews-2.m4a": 484035,
+  "devotional-hebrews-3.m4a": 507087,
+  "devotional-hebrews-4.m4a": 466170,
+  "devotional-hebrews-5.m4a": 514726,
+  "devotional-hebrews-6.m4a": 521046,
+  "devotional-hebrews-7.m4a": 475718,
+  "devotional-hebrews-8.m4a": 505936,
+  "devotional-hebrews-9.m4a": 500793,
   "devotional-isaiah-1.m4a": 548391,
   "devotional-isaiah-10.m4a": 537517,
   "devotional-isaiah-11.m4a": 477878,
@@ -532,6 +545,7 @@ const BOOK_COUNTS: Record<string, number> = {
   '2 Corinthians': 13,
   Ephesians: 6,
   Philippians: 4,
+  Hebrews: 13,
 };
 
 const BOOK_SLUGS: Record<string, string> = {
@@ -555,6 +569,7 @@ const BOOK_SLUGS: Record<string, string> = {
   '2 Corinthians': '2corinthians',
   Ephesians: 'ephesians',
   Philippians: 'philippians',
+  Hebrews: 'hebrews',
 };
 
 // ─── The fake file system (the v501 harness, carried over) ──────────────────
@@ -662,9 +677,12 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // v531 RE-BASE (2026-11-15): the library grew 409 → 419 chapters,
   // 18 → 20 books — Ephesians (6) and Philippians (4) registered
   // metadata-only, their audio hosted in this same release.
-  it('the library now stands at 419 chapters across 20 books', () => {
+  // v532 RE-BASE (2026-11-15): the library grew 419 → 432 chapters,
+  // 20 → 21 books — Hebrews (13) registered metadata-only, its
+  // audio hosted in this same release.
+  it('the library now stands at 432 chapters across 21 books', () => {
     const all = devotionalRegistry();
-    expect(all.length).toBe(419);
+    expect(all.length).toBe(432);
     expect(devotionalBooks()).toEqual(Object.keys(BOOK_COUNTS));
     for (const [book, count] of Object.entries(BOOK_COUNTS)) {
       expect(devotionalsForBook(book).length, book).toBe(count);
@@ -679,7 +697,7 @@ describe('v527 registry — every chapter carries its hosted name and exact size
       expect(seen.has(d.audioFile)).toBe(false);
       seen.add(d.audioFile);
     }
-    expect(seen.size).toBe(419);
+    expect(seen.size).toBe(432);
   });
 
   it('every sizeBytes is the hosted file’s exact size', () => {
@@ -689,7 +707,7 @@ describe('v527 registry — every chapter carries its hosted name and exact size
     }
     // The hosted table itself is complete: nothing hosted that is
     // not registered, nothing registered that is not hosted.
-    expect(Object.keys(HOSTED_SIZES).length).toBe(419);
+    expect(Object.keys(HOSTED_SIZES).length).toBe(432);
   });
 
   // v528 RE-BASE (2026-11-14): the hosted total grew by the three
@@ -703,15 +721,17 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // v531 RE-BASE (2026-11-15): the hosted total grew by the two
   // new books' 4,933,073 bytes (Ephesians 3,039,061 +
   // Philippians 1,894,012).
-  it('the whole library is 211,580,166 hosted bytes', () => {
+  // v532 RE-BASE (2026-11-15): the hosted total grew by the new
+  // book's 6,399,260 bytes (Hebrews).
+  it('the whole library is 217,979,426 hosted bytes', () => {
     const total = devotionalRegistry().reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
-    expect(total).toBe(211_580_166);
+    expect(total).toBe(217_979_426);
     for (const book of devotionalBooks()) {
       const bookTotal = devotionalsForBook(book).reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
       expect(devotionalBookTotalBytes(book), book).toBe(bookTotal);
       expect(bookTotal).toBeGreaterThan(0);
     }
-    expect(devotionalBookTotalBytes('Colossians')).toBe(0);
+    expect(devotionalBookTotalBytes('James')).toBe(0);
   });
 
   it('the download URL is the devotional-library release asset', () => {
@@ -745,7 +765,12 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // in registry order — the registry walks the Pauline line as
   // produced: Ephesians, Philippians), and the not-yet seat
   // moves on to Colossians.
-  it('Ephesians and Philippians are registered now (v531) — Colossians is the not-yet book', () => {
+  // v532 RE-BASE (2026-11-15): Hebrews HAS arrived — registered
+  // metadata-only, downloadable from the start; the full
+  // per-book pins live in devotionals-v532.test.ts. Galatians
+  // and Colossians stay unregistered, and the not-yet seat
+  // moves on to James.
+  it('Hebrews is registered now (v532) — James is the not-yet book', () => {
     expect(getDevotional('1 Corinthians', 1)).not.toBeNull();
     expect(getDevotional('1 Corinthians', 16)).not.toBeNull();
     expect(devotionalsForBook('1 Corinthians').length).toBe(16);
@@ -768,6 +793,13 @@ describe('v527 registry — every chapter carries its hosted name and exact size
     expect(getDevotional('Colossians', 1)).toBeNull();
     expect(devotionalsForBook('Colossians')).toEqual([]);
     expect(devotionalBooks()).not.toContain('Colossians');
+    expect(getDevotional('Hebrews', 1)).not.toBeNull();
+    expect(getDevotional('Hebrews', 13)).not.toBeNull();
+    expect(devotionalsForBook('Hebrews').length).toBe(13);
+    expect(devotionalBooks()).toContain('Hebrews');
+    expect(getDevotional('James', 1)).toBeNull();
+    expect(devotionalsForBook('James')).toEqual([]);
+    expect(devotionalBooks()).not.toContain('James');
   });
 });
 

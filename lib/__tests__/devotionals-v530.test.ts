@@ -94,20 +94,24 @@ describe('v530 registry — 1 Corinthians and 2 Corinthians, PROGRESS titles', (
   // across 20 books when Ephesians (6) and Philippians (4)
   // registered, downloadable from the start (v527 model); the two
   // books' per-book pins below stand.
-  it('the whole registry is now 419 across 20 books', () => {
-    expect(devotionalRegistry().length).toBe(419);
+  // v532 RE-BASE (2026-11-15): the whole registry moved 419 → 432
+  // across 21 books when Hebrews (13) registered, downloadable
+  // from the start (v527 model); the two books' per-book pins
+  // below stand.
+  it('the whole registry is now 432 across 21 books', () => {
+    expect(devotionalRegistry().length).toBe(432);
     expect(devotionalBooks()).toEqual([
       'Genesis', 'Deuteronomy', 'Joshua', 'Ruth', '1 Samuel', '2 Samuel',
       '1 Kings', '2 Kings', 'Proverbs', 'Ecclesiastes', 'Song of Solomon',
       'Isaiah', 'Obadiah', 'Jonah', 'Mark', 'Acts', '1 Corinthians',
-      '2 Corinthians', 'Ephesians', 'Philippians',
+      '2 Corinthians', 'Ephesians', 'Philippians', 'Hebrews',
     ]);
     const counts: Record<string, number> = {
       Genesis: 50, Deuteronomy: 34, Joshua: 24, Ruth: 4, '1 Samuel': 31,
       '2 Samuel': 24, '1 Kings': 22, '2 Kings': 25, Proverbs: 31,
       Ecclesiastes: 12, 'Song of Solomon': 8, Isaiah: 66, Obadiah: 1, Jonah: 4,
       Mark: 16, Acts: 28, '1 Corinthians': 16, '2 Corinthians': 13,
-      Ephesians: 6, Philippians: 4,
+      Ephesians: 6, Philippians: 4, Hebrews: 13,
     };
     for (const [book, count] of Object.entries(counts)) {
       expect(devotionalRegistry().filter((d) => d.book === book).length, book).toBe(count);
@@ -147,9 +151,11 @@ describe('v530 registry — 1 Corinthians and 2 Corinthians, PROGRESS titles', (
     expect(getDevotional('2 Corinthians', 14)).toBeNull();
     // The next unregistered books stay doorless — Galatians, and
     // Colossians, the not-yet seat after Ephesians and Philippians
-    // registered (v531 RE-BASE, 2026-11-15).
+    // registered (v531 RE-BASE, 2026-11-15). Hebrews registered
+    // at v532 (2026-11-15) and the seat moves on to James.
     expect(getDevotional('Galatians', 1)).toBeNull();
     expect(getDevotional('Colossians', 1)).toBeNull();
+    expect(getDevotional('James', 1)).toBeNull();
   });
 });
 

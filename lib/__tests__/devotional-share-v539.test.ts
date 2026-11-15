@@ -342,18 +342,27 @@ describe('the module’s v539 shape', () => {
   });
 });
 
+// v543 RE-BASE (2026-11-15): two pins in this describe moved to
+// the v543 shape, claims unchanged. The counter the first test
+// names now lives in the render's AudioMarryDiag record (read /
+// wrote / firstPts / lastPts) instead of a bare local, and the
+// guard's message leads with the same sentence and then carries
+// those counts — so the literal is pinned with its trailing
+// space, the counts themselves pinned in the v543 test file.
+// The second test's render-side call is now probe() (the walk
+// returns its full answer for the message); hasAudibleTrack
+// still stands as the boolean door the module exposes.
 describe('the renderer’s no-silent-video contract', () => {
   it('counts the audio samples it hands the muxer and throws at zero', () => {
-    expect(rendererKt).toContain('audioSamplesWritten');
-    expect(rendererKt).toContain('audioSamplesWritten++');
-    expect(rendererKt).toContain('if (audioSamplesWritten == 0)');
-    expect(rendererKt).toContain('"The share video\'s audio could not be added."');
+    expect(rendererKt).toContain('diag.samplesWritten++');
+    expect(rendererKt).toContain('if (diag.samplesWritten == 0)');
+    expect(rendererKt).toContain('"The share video\'s audio could not be added. "');
   });
 
   it('re-walks the finished file before calling it done', () => {
     expect(rendererKt).toContain('object ShareAudioProbe');
     expect(rendererKt).toContain('fun hasAudibleTrack(path: String, expectedDurationUs: Long): Boolean');
-    expect(rendererKt).toContain('ShareAudioProbe.hasAudibleTrack(outFile.absolutePath, durationUs)');
+    expect(rendererKt).toContain('ShareAudioProbe.probe(outFile.absolutePath, outcome.durationUs)');
     // The walk: an audio track, its samples counted to the end.
     const probe = rendererKt.slice(rendererKt.indexOf('object ShareAudioProbe'));
     expect(probe).toContain('extractor.sampleTime');

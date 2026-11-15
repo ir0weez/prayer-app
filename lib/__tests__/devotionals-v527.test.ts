@@ -531,6 +531,28 @@ const HOSTED_SIZES: Record<string, number> = {
   "devotional-proverbs-7.m4a": 492926,
   "devotional-proverbs-8.m4a": 485569,
   "devotional-proverbs-9.m4a": 516707,
+  "devotional-revelation-1.m4a": 470358,
+  "devotional-revelation-10.m4a": 479233,
+  "devotional-revelation-11.m4a": 565053,
+  "devotional-revelation-12.m4a": 542467,
+  "devotional-revelation-13.m4a": 554641,
+  "devotional-revelation-14.m4a": 560794,
+  "devotional-revelation-15.m4a": 614124,
+  "devotional-revelation-16.m4a": 544004,
+  "devotional-revelation-17.m4a": 487422,
+  "devotional-revelation-18.m4a": 536198,
+  "devotional-revelation-19.m4a": 537247,
+  "devotional-revelation-2.m4a": 587656,
+  "devotional-revelation-20.m4a": 506230,
+  "devotional-revelation-21.m4a": 566437,
+  "devotional-revelation-22.m4a": 477151,
+  "devotional-revelation-3.m4a": 539778,
+  "devotional-revelation-4.m4a": 571778,
+  "devotional-revelation-5.m4a": 578780,
+  "devotional-revelation-6.m4a": 549626,
+  "devotional-revelation-7.m4a": 502618,
+  "devotional-revelation-8.m4a": 553262,
+  "devotional-revelation-9.m4a": 537627,
   "devotional-ruth-1.m4a": 632525,
   "devotional-ruth-2.m4a": 568361,
   "devotional-ruth-3.m4a": 514342,
@@ -574,6 +596,7 @@ const BOOK_COUNTS: Record<string, number> = {
   '2 John': 1,
   '3 John': 1,
   Jude: 1,
+  Revelation: 22,
 };
 
 const BOOK_SLUGS: Record<string, string> = {
@@ -605,6 +628,7 @@ const BOOK_SLUGS: Record<string, string> = {
   '2 John': '2john',
   '3 John': '3john',
   Jude: 'jude',
+  Revelation: 'revelation',
 };
 
 // ─── The fake file system (the v501 harness, carried over) ──────────────────
@@ -719,9 +743,12 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // 21 → 28 books — James (5), 1 Peter (5), 2 Peter (3), 1 John
   // (5), 2 John (1), 3 John (1) and Jude (1) registered
   // metadata-only, their audio hosted in this same release.
-  it('the library now stands at 453 chapters across 28 books', () => {
+  // v540 RE-BASE (2026-11-15): the library grew 453 → 475 chapters,
+  // 28 → 29 books — Revelation (22) registered metadata-only, its
+  // audio hosted in this same release. The final registration.
+  it('the library now stands at 475 chapters across 29 books', () => {
     const all = devotionalRegistry();
-    expect(all.length).toBe(453);
+    expect(all.length).toBe(475);
     expect(devotionalBooks()).toEqual(Object.keys(BOOK_COUNTS));
     for (const [book, count] of Object.entries(BOOK_COUNTS)) {
       expect(devotionalsForBook(book).length, book).toBe(count);
@@ -736,7 +763,7 @@ describe('v527 registry — every chapter carries its hosted name and exact size
       expect(seen.has(d.audioFile)).toBe(false);
       seen.add(d.audioFile);
     }
-    expect(seen.size).toBe(453);
+    expect(seen.size).toBe(475);
   });
 
   it('every sizeBytes is the hosted file’s exact size', () => {
@@ -746,7 +773,7 @@ describe('v527 registry — every chapter carries its hosted name and exact size
     }
     // The hosted table itself is complete: nothing hosted that is
     // not registered, nothing registered that is not hosted.
-    expect(Object.keys(HOSTED_SIZES).length).toBe(453);
+    expect(Object.keys(HOSTED_SIZES).length).toBe(475);
   });
 
   // v528 RE-BASE (2026-11-14): the hosted total grew by the three
@@ -766,15 +793,20 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // new books' 10,546,239 bytes (James 2,490,824 + 1 Peter
   // 2,508,650 + 2 Peter 1,536,570 + 1 John 2,494,517 + 2 John
   // 534,981 + 3 John 537,455 + Jude 443,242).
-  it('the whole library is 228,525,665 hosted bytes', () => {
+  // v540 RE-BASE (2026-11-15): the hosted total grew by the final
+  // book's 11,862,484 bytes (Revelation). The zero-total pin moves
+  // from Revelation to Galatians — a book that stays unregistered
+  // (Colossians likewise); there is no longer a not-yet book after
+  // the newest registration, Revelation being the canon's last.
+  it('the whole library is 240,388,149 hosted bytes', () => {
     const total = devotionalRegistry().reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
-    expect(total).toBe(228_525_665);
+    expect(total).toBe(240_388_149);
     for (const book of devotionalBooks()) {
       const bookTotal = devotionalsForBook(book).reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
       expect(devotionalBookTotalBytes(book), book).toBe(bookTotal);
       expect(bookTotal).toBeGreaterThan(0);
     }
-    expect(devotionalBookTotalBytes('Revelation')).toBe(0);
+    expect(devotionalBookTotalBytes('Galatians')).toBe(0);
   });
 
   it('the download URL is the devotional-library release asset', () => {
@@ -819,7 +851,12 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // per-book pins live in devotionals-v534.test.ts. Galatians
   // and Colossians stay unregistered, and the not-yet seat
   // moves on to Revelation.
-  it('James through Jude are registered now (v534) — Revelation is the not-yet book', () => {
+  // v540 RE-BASE (2026-11-15): Revelation HAS arrived — the
+  // final registration; the full per-book pins live in
+  // devotionals-v540.test.ts. Galatians and Colossians stay
+  // unregistered mid-canon, and the not-yet seat is gone: no
+  // canonical book stands after Revelation.
+  it('James through Revelation are registered now (v540) — the library is complete', () => {
     expect(getDevotional('1 Corinthians', 1)).not.toBeNull();
     expect(getDevotional('1 Corinthians', 16)).not.toBeNull();
     expect(devotionalsForBook('1 Corinthians').length).toBe(16);
@@ -871,9 +908,10 @@ describe('v527 registry — every chapter carries its hosted name and exact size
     expect(getDevotional('Jude', 1)).not.toBeNull();
     expect(devotionalsForBook('Jude').length).toBe(1);
     expect(devotionalBooks()).toContain('Jude');
-    expect(getDevotional('Revelation', 1)).toBeNull();
-    expect(devotionalsForBook('Revelation')).toEqual([]);
-    expect(devotionalBooks()).not.toContain('Revelation');
+    expect(getDevotional('Revelation', 1)).not.toBeNull();
+    expect(getDevotional('Revelation', 22)).not.toBeNull();
+    expect(devotionalsForBook('Revelation').length).toBe(22);
+    expect(devotionalBooks()).toContain('Revelation');
   });
 });
 

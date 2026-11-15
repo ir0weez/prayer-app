@@ -156,14 +156,19 @@ describe('v528 registry — Isaiah, Obadiah and Jonah, PROGRESS titles', () => {
   // 1 John (5), 2 John (1), 3 John (1) and Jude (1) registered,
   // downloadable from the start (v527 model); the three books' per-book pins
   // below stand.
-  it('the whole registry is now 453 across 28 books', () => {
-    expect(devotionalRegistry().length).toBe(453);
+  // v540 RE-BASE (2026-11-15): the whole registry moved 453 → 475
+  // across 29 books when Revelation (22) registered, downloadable
+  // from the start (v527 model); the three books' per-book pins
+  // below stand.
+  it('the whole registry is now 475 across 29 books', () => {
+    expect(devotionalRegistry().length).toBe(475);
     expect(devotionalBooks()).toEqual([
       'Genesis', 'Deuteronomy', 'Joshua', 'Ruth', '1 Samuel', '2 Samuel',
       '1 Kings', '2 Kings', 'Proverbs', 'Ecclesiastes', 'Song of Solomon',
       'Isaiah', 'Obadiah', 'Jonah', 'Mark', 'Acts', '1 Corinthians',
       '2 Corinthians', 'Ephesians', 'Philippians', 'Hebrews', 'James',
       '1 Peter', '2 Peter', '1 John', '2 John', '3 John', 'Jude',
+      'Revelation',
     ]);
     const counts: Record<string, number> = {
       Genesis: 50, Deuteronomy: 34, Joshua: 24, Ruth: 4, '1 Samuel': 31,
@@ -172,6 +177,7 @@ describe('v528 registry — Isaiah, Obadiah and Jonah, PROGRESS titles', () => {
       Mark: 16, Acts: 28, '1 Corinthians': 16, '2 Corinthians': 13,
       Ephesians: 6, Philippians: 4, Hebrews: 13, James: 5, '1 Peter': 5,
       '2 Peter': 3, '1 John': 5, '2 John': 1, '3 John': 1, Jude: 1,
+      Revelation: 22,
     };
     for (const [book, count] of Object.entries(counts)) {
       expect(devotionalRegistry().filter((d) => d.book === book).length, book).toBe(count);

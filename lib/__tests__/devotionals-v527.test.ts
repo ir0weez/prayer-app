@@ -295,6 +295,12 @@ const HOSTED_SIZES: Record<string, number> = {
   "devotional-ecclesiastes-7.m4a": 538785,
   "devotional-ecclesiastes-8.m4a": 400604,
   "devotional-ecclesiastes-9.m4a": 435031,
+  "devotional-ephesians-1.m4a": 523882,
+  "devotional-ephesians-2.m4a": 495121,
+  "devotional-ephesians-3.m4a": 563681,
+  "devotional-ephesians-4.m4a": 521983,
+  "devotional-ephesians-5.m4a": 440126,
+  "devotional-ephesians-6.m4a": 494268,
   "devotional-genesis-1.m4a": 485922,
   "devotional-genesis-10.m4a": 558391,
   "devotional-genesis-11.m4a": 433683,
@@ -456,6 +462,10 @@ const HOSTED_SIZES: Record<string, number> = {
   "devotional-mark-8.m4a": 560425,
   "devotional-mark-9.m4a": 493794,
   "devotional-obadiah-1.m4a": 526374,
+  "devotional-philippians-1.m4a": 437953,
+  "devotional-philippians-2.m4a": 479264,
+  "devotional-philippians-3.m4a": 469635,
+  "devotional-philippians-4.m4a": 507160,
   "devotional-proverbs-1.m4a": 452226,
   "devotional-proverbs-10.m4a": 506279,
   "devotional-proverbs-11.m4a": 503555,
@@ -520,6 +530,8 @@ const BOOK_COUNTS: Record<string, number> = {
   Acts: 28,
   '1 Corinthians': 16,
   '2 Corinthians': 13,
+  Ephesians: 6,
+  Philippians: 4,
 };
 
 const BOOK_SLUGS: Record<string, string> = {
@@ -541,6 +553,8 @@ const BOOK_SLUGS: Record<string, string> = {
   Acts: 'acts',
   '1 Corinthians': '1corinthians',
   '2 Corinthians': '2corinthians',
+  Ephesians: 'ephesians',
+  Philippians: 'philippians',
 };
 
 // ─── The fake file system (the v501 harness, carried over) ──────────────────
@@ -645,9 +659,12 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // 16 → 18 books — 1 Corinthians (16) and 2 Corinthians (13)
   // registered metadata-only, their audio hosted in this same
   // release.
-  it('the library now stands at 409 chapters across 18 books', () => {
+  // v531 RE-BASE (2026-11-15): the library grew 409 → 419 chapters,
+  // 18 → 20 books — Ephesians (6) and Philippians (4) registered
+  // metadata-only, their audio hosted in this same release.
+  it('the library now stands at 419 chapters across 20 books', () => {
     const all = devotionalRegistry();
-    expect(all.length).toBe(409);
+    expect(all.length).toBe(419);
     expect(devotionalBooks()).toEqual(Object.keys(BOOK_COUNTS));
     for (const [book, count] of Object.entries(BOOK_COUNTS)) {
       expect(devotionalsForBook(book).length, book).toBe(count);
@@ -662,7 +679,7 @@ describe('v527 registry — every chapter carries its hosted name and exact size
       expect(seen.has(d.audioFile)).toBe(false);
       seen.add(d.audioFile);
     }
-    expect(seen.size).toBe(409);
+    expect(seen.size).toBe(419);
   });
 
   it('every sizeBytes is the hosted file’s exact size', () => {
@@ -672,7 +689,7 @@ describe('v527 registry — every chapter carries its hosted name and exact size
     }
     // The hosted table itself is complete: nothing hosted that is
     // not registered, nothing registered that is not hosted.
-    expect(Object.keys(HOSTED_SIZES).length).toBe(409);
+    expect(Object.keys(HOSTED_SIZES).length).toBe(419);
   });
 
   // v528 RE-BASE (2026-11-14): the hosted total grew by the three
@@ -683,15 +700,18 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // v530 RE-BASE (2026-11-15): the hosted total grew by the two
   // new books' 14,898,367 bytes (1 Corinthians 8,170,618 +
   // 2 Corinthians 6,727,749).
-  it('the whole library is 206,647,093 hosted bytes', () => {
+  // v531 RE-BASE (2026-11-15): the hosted total grew by the two
+  // new books' 4,933,073 bytes (Ephesians 3,039,061 +
+  // Philippians 1,894,012).
+  it('the whole library is 211,580,166 hosted bytes', () => {
     const total = devotionalRegistry().reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
-    expect(total).toBe(206_647_093);
+    expect(total).toBe(211_580_166);
     for (const book of devotionalBooks()) {
       const bookTotal = devotionalsForBook(book).reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
       expect(devotionalBookTotalBytes(book), book).toBe(bookTotal);
       expect(bookTotal).toBeGreaterThan(0);
     }
-    expect(devotionalBookTotalBytes('Galatians')).toBe(0);
+    expect(devotionalBookTotalBytes('Colossians')).toBe(0);
   });
 
   it('the download URL is the devotional-library release asset', () => {
@@ -717,7 +737,15 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // the start; the full per-book pins live in
   // devotionals-v530.test.ts. The not-yet seat moves on to
   // Galatians.
-  it('1 Corinthians and 2 Corinthians are registered now (v530) — Galatians is the not-yet book', () => {
+  // v531 RE-BASE (2026-11-15): Ephesians and Philippians HAVE
+  // arrived — registered metadata-only, downloadable from the
+  // start; the full per-book pins live in
+  // devotionals-v531.test.ts. Galatians stays unregistered (it
+  // was never the canonical next after 2 Corinthians' successors
+  // in registry order — the registry walks the Pauline line as
+  // produced: Ephesians, Philippians), and the not-yet seat
+  // moves on to Colossians.
+  it('Ephesians and Philippians are registered now (v531) — Colossians is the not-yet book', () => {
     expect(getDevotional('1 Corinthians', 1)).not.toBeNull();
     expect(getDevotional('1 Corinthians', 16)).not.toBeNull();
     expect(devotionalsForBook('1 Corinthians').length).toBe(16);
@@ -729,6 +757,17 @@ describe('v527 registry — every chapter carries its hosted name and exact size
     expect(getDevotional('Galatians', 1)).toBeNull();
     expect(devotionalsForBook('Galatians')).toEqual([]);
     expect(devotionalBooks()).not.toContain('Galatians');
+    expect(getDevotional('Ephesians', 1)).not.toBeNull();
+    expect(getDevotional('Ephesians', 6)).not.toBeNull();
+    expect(devotionalsForBook('Ephesians').length).toBe(6);
+    expect(devotionalBooks()).toContain('Ephesians');
+    expect(getDevotional('Philippians', 1)).not.toBeNull();
+    expect(getDevotional('Philippians', 4)).not.toBeNull();
+    expect(devotionalsForBook('Philippians').length).toBe(4);
+    expect(devotionalBooks()).toContain('Philippians');
+    expect(getDevotional('Colossians', 1)).toBeNull();
+    expect(devotionalsForBook('Colossians')).toEqual([]);
+    expect(devotionalBooks()).not.toContain('Colossians');
   });
 });
 

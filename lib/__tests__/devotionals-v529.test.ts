@@ -108,19 +108,24 @@ describe('v529 registry — Mark and Acts, PROGRESS titles', () => {
   // across 18 books when 1 Corinthians (16) and 2 Corinthians (13)
   // registered, downloadable from the start (v527 model); the two
   // books' per-book pins below stand.
-  it('the whole registry is now 409 across 18 books', () => {
-    expect(devotionalRegistry().length).toBe(409);
+  // v531 RE-BASE (2026-11-15): the whole registry moved 409 → 419
+  // across 20 books when Ephesians (6) and Philippians (4)
+  // registered, downloadable from the start (v527 model); the two
+  // books' per-book pins below stand.
+  it('the whole registry is now 419 across 20 books', () => {
+    expect(devotionalRegistry().length).toBe(419);
     expect(devotionalBooks()).toEqual([
       'Genesis', 'Deuteronomy', 'Joshua', 'Ruth', '1 Samuel', '2 Samuel',
       '1 Kings', '2 Kings', 'Proverbs', 'Ecclesiastes', 'Song of Solomon',
       'Isaiah', 'Obadiah', 'Jonah', 'Mark', 'Acts', '1 Corinthians',
-      '2 Corinthians',
+      '2 Corinthians', 'Ephesians', 'Philippians',
     ]);
     const counts: Record<string, number> = {
       Genesis: 50, Deuteronomy: 34, Joshua: 24, Ruth: 4, '1 Samuel': 31,
       '2 Samuel': 24, '1 Kings': 22, '2 Kings': 25, Proverbs: 31,
       Ecclesiastes: 12, 'Song of Solomon': 8, Isaiah: 66, Obadiah: 1, Jonah: 4,
       Mark: 16, Acts: 28, '1 Corinthians': 16, '2 Corinthians': 13,
+      Ephesians: 6, Philippians: 4,
     };
     for (const [book, count] of Object.entries(counts)) {
       expect(devotionalRegistry().filter((d) => d.book === book).length, book).toBe(count);
@@ -158,11 +163,13 @@ describe('v529 registry — Mark and Acts, PROGRESS titles', () => {
     expect(getDevotional('Acts', 1)).not.toBeNull();
     expect(getDevotional('Acts', 28)).not.toBeNull();
     expect(getDevotional('Acts', 29)).toBeNull();
-    // Romans stays doorless, and the next unregistered book after
-    // the newest registrations — Galatians — is the not-yet seat
-    // now (v530 RE-BASE, 2026-11-15).
+    // Romans and Galatians stay doorless, and the next
+    // unregistered book after the newest registrations —
+    // Colossians — is the not-yet seat now (v531 RE-BASE,
+    // 2026-11-15; the seat was Galatians at v530).
     expect(getDevotional('Romans', 1)).toBeNull();
     expect(getDevotional('Galatians', 1)).toBeNull();
+    expect(getDevotional('Colossians', 1)).toBeNull();
   });
 });
 

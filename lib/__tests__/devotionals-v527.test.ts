@@ -192,6 +192,34 @@ const HOSTED_SIZES: Record<string, number> = {
   "devotional-2samuel-7.m4a": 548452,
   "devotional-2samuel-8.m4a": 477820,
   "devotional-2samuel-9.m4a": 482976,
+  "devotional-acts-1.m4a": 549683,
+  "devotional-acts-10.m4a": 494706,
+  "devotional-acts-11.m4a": 463381,
+  "devotional-acts-12.m4a": 459958,
+  "devotional-acts-13.m4a": 445164,
+  "devotional-acts-14.m4a": 450670,
+  "devotional-acts-15.m4a": 490153,
+  "devotional-acts-16.m4a": 547547,
+  "devotional-acts-17.m4a": 513946,
+  "devotional-acts-18.m4a": 523281,
+  "devotional-acts-19.m4a": 471365,
+  "devotional-acts-2.m4a": 526482,
+  "devotional-acts-20.m4a": 554910,
+  "devotional-acts-21.m4a": 498275,
+  "devotional-acts-22.m4a": 484633,
+  "devotional-acts-23.m4a": 522614,
+  "devotional-acts-24.m4a": 503859,
+  "devotional-acts-25.m4a": 503219,
+  "devotional-acts-26.m4a": 517225,
+  "devotional-acts-27.m4a": 526240,
+  "devotional-acts-28.m4a": 524126,
+  "devotional-acts-3.m4a": 565018,
+  "devotional-acts-4.m4a": 498418,
+  "devotional-acts-5.m4a": 524486,
+  "devotional-acts-6.m4a": 542866,
+  "devotional-acts-7.m4a": 480225,
+  "devotional-acts-8.m4a": 478600,
+  "devotional-acts-9.m4a": 542121,
   "devotional-deuteronomy-1.m4a": 515334,
   "devotional-deuteronomy-10.m4a": 504854,
   "devotional-deuteronomy-11.m4a": 505284,
@@ -382,6 +410,22 @@ const HOSTED_SIZES: Record<string, number> = {
   "devotional-joshua-7.m4a": 553939,
   "devotional-joshua-8.m4a": 509862,
   "devotional-joshua-9.m4a": 541400,
+  "devotional-mark-1.m4a": 467723,
+  "devotional-mark-10.m4a": 497205,
+  "devotional-mark-11.m4a": 556927,
+  "devotional-mark-12.m4a": 497195,
+  "devotional-mark-13.m4a": 465270,
+  "devotional-mark-14.m4a": 470526,
+  "devotional-mark-15.m4a": 531946,
+  "devotional-mark-16.m4a": 497948,
+  "devotional-mark-2.m4a": 513773,
+  "devotional-mark-3.m4a": 571494,
+  "devotional-mark-4.m4a": 433638,
+  "devotional-mark-5.m4a": 589409,
+  "devotional-mark-6.m4a": 490086,
+  "devotional-mark-7.m4a": 496506,
+  "devotional-mark-8.m4a": 560425,
+  "devotional-mark-9.m4a": 493794,
   "devotional-obadiah-1.m4a": 526374,
   "devotional-proverbs-1.m4a": 452226,
   "devotional-proverbs-10.m4a": 506279,
@@ -443,6 +487,8 @@ const BOOK_COUNTS: Record<string, number> = {
   Isaiah: 66,
   Obadiah: 1,
   Jonah: 4,
+  Mark: 16,
+  Acts: 28,
 };
 
 const BOOK_SLUGS: Record<string, string> = {
@@ -460,6 +506,8 @@ const BOOK_SLUGS: Record<string, string> = {
   Isaiah: 'isaiah',
   Obadiah: 'obadiah',
   Jonah: 'jonah',
+  Mark: 'mark',
+  Acts: 'acts',
 };
 
 // ─── The fake file system (the v501 harness, carried over) ──────────────────
@@ -557,9 +605,12 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // v528 RE-BASE (2026-11-14): the library grew 265 → 336 chapters,
   // 11 → 14 books — Isaiah (66), Obadiah (1) and Jonah (4) registered
   // metadata-only, their audio hosted in this same release.
-  it('the library now stands at 336 chapters across 14 books', () => {
+  // v529 RE-BASE (2026-11-14): the library grew 336 → 380 chapters,
+  // 14 → 16 books — Mark (16) and Acts (28) registered metadata-only,
+  // their audio hosted in this same release.
+  it('the library now stands at 380 chapters across 16 books', () => {
     const all = devotionalRegistry();
-    expect(all.length).toBe(336);
+    expect(all.length).toBe(380);
     expect(devotionalBooks()).toEqual(Object.keys(BOOK_COUNTS));
     for (const [book, count] of Object.entries(BOOK_COUNTS)) {
       expect(devotionalsForBook(book).length, book).toBe(count);
@@ -574,7 +625,7 @@ describe('v527 registry — every chapter carries its hosted name and exact size
       expect(seen.has(d.audioFile)).toBe(false);
       seen.add(d.audioFile);
     }
-    expect(seen.size).toBe(336);
+    expect(seen.size).toBe(380);
   });
 
   it('every sizeBytes is the hosted file’s exact size', () => {
@@ -584,21 +635,23 @@ describe('v527 registry — every chapter carries its hosted name and exact size
     }
     // The hosted table itself is complete: nothing hosted that is
     // not registered, nothing registered that is not hosted.
-    expect(Object.keys(HOSTED_SIZES).length).toBe(336);
+    expect(Object.keys(HOSTED_SIZES).length).toBe(380);
   });
 
   // v528 RE-BASE (2026-11-14): the hosted total grew by the three
   // new books' 35,610,432 bytes (Isaiah 33,076,269 + Obadiah
   // 526,374 + Jonah 2,007,789).
-  it('the whole library is 169,411,690 hosted bytes', () => {
+  // v529 RE-BASE (2026-11-14): the hosted total grew by the two
+  // new books' 22,337,036 bytes (Mark 8,133,865 + Acts 14,203,171).
+  it('the whole library is 191,748,726 hosted bytes', () => {
     const total = devotionalRegistry().reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
-    expect(total).toBe(169_411_690);
+    expect(total).toBe(191_748_726);
     for (const book of devotionalBooks()) {
       const bookTotal = devotionalsForBook(book).reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
       expect(devotionalBookTotalBytes(book), book).toBe(bookTotal);
       expect(bookTotal).toBeGreaterThan(0);
     }
-    expect(devotionalBookTotalBytes('Jeremiah')).toBe(0);
+    expect(devotionalBookTotalBytes('Romans')).toBe(0);
   });
 
   it('the download URL is the devotional-library release asset', () => {
@@ -615,14 +668,22 @@ describe('v527 registry — every chapter carries its hosted name and exact size
   // metadata-only with Obadiah and Jonah, downloadable from the
   // start; the full per-book pins live in devotionals-v528.test.ts.
   // The not-yet seat moves on to Jeremiah.
-  it('Isaiah is registered now (v528) — Jeremiah is the not-yet book', () => {
-    expect(getDevotional('Isaiah', 1)).not.toBeNull();
-    expect(getDevotional('Isaiah', 66)).not.toBeNull();
-    expect(devotionalsForBook('Isaiah').length).toBe(66);
-    expect(devotionalBooks()).toContain('Isaiah');
-    expect(getDevotional('Jeremiah', 1)).toBeNull();
-    expect(devotionalsForBook('Jeremiah')).toEqual([]);
-    expect(devotionalBooks()).not.toContain('Jeremiah');
+  // v529 RE-BASE (2026-11-14): Mark and Acts HAVE arrived —
+  // registered metadata-only, downloadable from the start; the
+  // full per-book pins live in devotionals-v529.test.ts. The
+  // not-yet seat moves on to Romans.
+  it('Mark and Acts are registered now (v529) — Romans is the not-yet book', () => {
+    expect(getDevotional('Mark', 1)).not.toBeNull();
+    expect(getDevotional('Mark', 16)).not.toBeNull();
+    expect(devotionalsForBook('Mark').length).toBe(16);
+    expect(devotionalBooks()).toContain('Mark');
+    expect(getDevotional('Acts', 1)).not.toBeNull();
+    expect(getDevotional('Acts', 28)).not.toBeNull();
+    expect(devotionalsForBook('Acts').length).toBe(28);
+    expect(devotionalBooks()).toContain('Acts');
+    expect(getDevotional('Romans', 1)).toBeNull();
+    expect(devotionalsForBook('Romans')).toEqual([]);
+    expect(devotionalBooks()).not.toContain('Romans');
   });
 });
 

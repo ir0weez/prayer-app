@@ -7,7 +7,7 @@
 // hosted files byte for byte) and uploaded to the public
 // devotional-library release; the registry carries only metadata:
 // the hosted name, its exact byte size, his title, his duration.
-// The full registry↔hosting table (all 336) is pinned in
+// The full registry↔hosting table (all 380) is pinned in
 // devotionals-v527.test.ts; this file pins the three new books.
 //
 // The audio is a narration of his words, not a recording of him
@@ -135,17 +135,22 @@ describe('v528 registry — Isaiah, Obadiah and Jonah, PROGRESS titles', () => {
     });
   }
 
-  it('the whole registry is now 336 across 14 books', () => {
-    expect(devotionalRegistry().length).toBe(336);
+  // v529 RE-BASE (2026-11-14): the whole registry moved 336 → 380
+  // across 16 books when Mark (16) and Acts (28) registered,
+  // downloadable from the start (v527 model); the three books'
+  // per-book pins below stand.
+  it('the whole registry is now 380 across 16 books', () => {
+    expect(devotionalRegistry().length).toBe(380);
     expect(devotionalBooks()).toEqual([
       'Genesis', 'Deuteronomy', 'Joshua', 'Ruth', '1 Samuel', '2 Samuel',
       '1 Kings', '2 Kings', 'Proverbs', 'Ecclesiastes', 'Song of Solomon',
-      'Isaiah', 'Obadiah', 'Jonah',
+      'Isaiah', 'Obadiah', 'Jonah', 'Mark', 'Acts',
     ]);
     const counts: Record<string, number> = {
       Genesis: 50, Deuteronomy: 34, Joshua: 24, Ruth: 4, '1 Samuel': 31,
       '2 Samuel': 24, '1 Kings': 22, '2 Kings': 25, Proverbs: 31,
       Ecclesiastes: 12, 'Song of Solomon': 8, Isaiah: 66, Obadiah: 1, Jonah: 4,
+      Mark: 16, Acts: 28,
     };
     for (const [book, count] of Object.entries(counts)) {
       expect(devotionalRegistry().filter((d) => d.book === book).length, book).toBe(count);

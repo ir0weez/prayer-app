@@ -31,8 +31,9 @@
  *     after TEN STOPS TOURS and before YOUR COMMENTARY · YOUR
  *     VOICE, canonical book order, chapter ascending.
  *
- * Isaiah is NOT here: still in production, it registers later,
- * metadata-only — getDevotional('Isaiah', …) stays null.
+ * Isaiah was NOT here at v527: still in production, it registered
+ * later, metadata-only — v528 (below) is that registration, with
+ * Obadiah and Jonah beside it.
  */
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -84,7 +85,10 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 // ─── The hosted table (the uploaded bytes, name → exact size) ───────────────
 
 /** The devotional-library release's assets, exactly as uploaded
- * from the pre-v527 bundled set on 2026-11-14. */
+ * from the pre-v527 bundled set on 2026-11-14 — plus the v528
+ * addition (2026-11-14): Isaiah (66), Obadiah (1) and Jonah (4),
+ * squeezed from the NotebookLM masters to the same speech spec
+ * (mono 44.1 kHz AAC, 40 kbps) and uploaded to the same release. */
 const HOSTED_SIZES: Record<string, number> = {
   "devotional-1kings-1.m4a": 511212,
   "devotional-1kings-10.m4a": 502291,
@@ -284,6 +288,76 @@ const HOSTED_SIZES: Record<string, number> = {
   "devotional-genesis-7.m4a": 553029,
   "devotional-genesis-8.m4a": 549181,
   "devotional-genesis-9.m4a": 496470,
+  "devotional-isaiah-1.m4a": 548391,
+  "devotional-isaiah-10.m4a": 537517,
+  "devotional-isaiah-11.m4a": 477878,
+  "devotional-isaiah-12.m4a": 408248,
+  "devotional-isaiah-13.m4a": 550480,
+  "devotional-isaiah-14.m4a": 434479,
+  "devotional-isaiah-15.m4a": 488873,
+  "devotional-isaiah-16.m4a": 499290,
+  "devotional-isaiah-17.m4a": 455072,
+  "devotional-isaiah-18.m4a": 440508,
+  "devotional-isaiah-19.m4a": 434649,
+  "devotional-isaiah-2.m4a": 444669,
+  "devotional-isaiah-20.m4a": 489004,
+  "devotional-isaiah-21.m4a": 513518,
+  "devotional-isaiah-22.m4a": 550214,
+  "devotional-isaiah-23.m4a": 466359,
+  "devotional-isaiah-24.m4a": 529077,
+  "devotional-isaiah-25.m4a": 450685,
+  "devotional-isaiah-26.m4a": 504279,
+  "devotional-isaiah-27.m4a": 522764,
+  "devotional-isaiah-28.m4a": 435144,
+  "devotional-isaiah-29.m4a": 557815,
+  "devotional-isaiah-3.m4a": 499744,
+  "devotional-isaiah-30.m4a": 453106,
+  "devotional-isaiah-31.m4a": 500693,
+  "devotional-isaiah-32.m4a": 529384,
+  "devotional-isaiah-33.m4a": 475140,
+  "devotional-isaiah-34.m4a": 574282,
+  "devotional-isaiah-35.m4a": 480228,
+  "devotional-isaiah-36.m4a": 596228,
+  "devotional-isaiah-37.m4a": 481720,
+  "devotional-isaiah-38.m4a": 484493,
+  "devotional-isaiah-39.m4a": 453143,
+  "devotional-isaiah-4.m4a": 490751,
+  "devotional-isaiah-40.m4a": 486555,
+  "devotional-isaiah-41.m4a": 471763,
+  "devotional-isaiah-42.m4a": 464782,
+  "devotional-isaiah-43.m4a": 497476,
+  "devotional-isaiah-44.m4a": 515008,
+  "devotional-isaiah-45.m4a": 437988,
+  "devotional-isaiah-46.m4a": 516609,
+  "devotional-isaiah-47.m4a": 521529,
+  "devotional-isaiah-48.m4a": 559154,
+  "devotional-isaiah-49.m4a": 464529,
+  "devotional-isaiah-5.m4a": 545464,
+  "devotional-isaiah-50.m4a": 485628,
+  "devotional-isaiah-51.m4a": 569090,
+  "devotional-isaiah-52.m4a": 465642,
+  "devotional-isaiah-53.m4a": 480953,
+  "devotional-isaiah-54.m4a": 465942,
+  "devotional-isaiah-55.m4a": 453122,
+  "devotional-isaiah-56.m4a": 538439,
+  "devotional-isaiah-57.m4a": 518554,
+  "devotional-isaiah-58.m4a": 490990,
+  "devotional-isaiah-59.m4a": 530759,
+  "devotional-isaiah-6.m4a": 530788,
+  "devotional-isaiah-60.m4a": 466994,
+  "devotional-isaiah-61.m4a": 498049,
+  "devotional-isaiah-62.m4a": 552857,
+  "devotional-isaiah-63.m4a": 598260,
+  "devotional-isaiah-64.m4a": 504884,
+  "devotional-isaiah-65.m4a": 520904,
+  "devotional-isaiah-66.m4a": 545891,
+  "devotional-isaiah-7.m4a": 551106,
+  "devotional-isaiah-8.m4a": 516790,
+  "devotional-isaiah-9.m4a": 551945,
+  "devotional-jonah-1.m4a": 528847,
+  "devotional-jonah-2.m4a": 526294,
+  "devotional-jonah-3.m4a": 484734,
+  "devotional-jonah-4.m4a": 467914,
   "devotional-joshua-1.m4a": 490329,
   "devotional-joshua-10.m4a": 480364,
   "devotional-joshua-11.m4a": 565346,
@@ -308,6 +382,7 @@ const HOSTED_SIZES: Record<string, number> = {
   "devotional-joshua-7.m4a": 553939,
   "devotional-joshua-8.m4a": 509862,
   "devotional-joshua-9.m4a": 541400,
+  "devotional-obadiah-1.m4a": 526374,
   "devotional-proverbs-1.m4a": 452226,
   "devotional-proverbs-10.m4a": 506279,
   "devotional-proverbs-11.m4a": 503555,
@@ -365,6 +440,9 @@ const BOOK_COUNTS: Record<string, number> = {
   Proverbs: 31,
   Ecclesiastes: 12,
   'Song of Solomon': 8,
+  Isaiah: 66,
+  Obadiah: 1,
+  Jonah: 4,
 };
 
 const BOOK_SLUGS: Record<string, string> = {
@@ -379,6 +457,9 @@ const BOOK_SLUGS: Record<string, string> = {
   Proverbs: 'proverbs',
   Ecclesiastes: 'ecclesiastes',
   'Song of Solomon': 'songofsolomon',
+  Isaiah: 'isaiah',
+  Obadiah: 'obadiah',
+  Jonah: 'jonah',
 };
 
 // ─── The fake file system (the v501 harness, carried over) ──────────────────
@@ -473,9 +554,12 @@ async function land(transfer: PendingDownload, d: Devotional) {
 // ─── The registry ↔ hosting integrity ───────────────────────────────────────
 
 describe('v527 registry — every chapter carries its hosted name and exact size', () => {
-  it('the library still stands at 265 chapters across the same 11 books', () => {
+  // v528 RE-BASE (2026-11-14): the library grew 265 → 336 chapters,
+  // 11 → 14 books — Isaiah (66), Obadiah (1) and Jonah (4) registered
+  // metadata-only, their audio hosted in this same release.
+  it('the library now stands at 336 chapters across 14 books', () => {
     const all = devotionalRegistry();
-    expect(all.length).toBe(265);
+    expect(all.length).toBe(336);
     expect(devotionalBooks()).toEqual(Object.keys(BOOK_COUNTS));
     for (const [book, count] of Object.entries(BOOK_COUNTS)) {
       expect(devotionalsForBook(book).length, book).toBe(count);
@@ -490,7 +574,7 @@ describe('v527 registry — every chapter carries its hosted name and exact size
       expect(seen.has(d.audioFile)).toBe(false);
       seen.add(d.audioFile);
     }
-    expect(seen.size).toBe(265);
+    expect(seen.size).toBe(336);
   });
 
   it('every sizeBytes is the hosted file’s exact size', () => {
@@ -500,18 +584,21 @@ describe('v527 registry — every chapter carries its hosted name and exact size
     }
     // The hosted table itself is complete: nothing hosted that is
     // not registered, nothing registered that is not hosted.
-    expect(Object.keys(HOSTED_SIZES).length).toBe(265);
+    expect(Object.keys(HOSTED_SIZES).length).toBe(336);
   });
 
-  it('the whole library is 133,801,258 hosted bytes', () => {
+  // v528 RE-BASE (2026-11-14): the hosted total grew by the three
+  // new books' 35,610,432 bytes (Isaiah 33,076,269 + Obadiah
+  // 526,374 + Jonah 2,007,789).
+  it('the whole library is 169,411,690 hosted bytes', () => {
     const total = devotionalRegistry().reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
-    expect(total).toBe(133_801_258);
+    expect(total).toBe(169_411_690);
     for (const book of devotionalBooks()) {
       const bookTotal = devotionalsForBook(book).reduce((a, d) => a + (d.sizeBytes ?? 0), 0);
       expect(devotionalBookTotalBytes(book), book).toBe(bookTotal);
       expect(bookTotal).toBeGreaterThan(0);
     }
-    expect(devotionalBookTotalBytes('Isaiah')).toBe(0);
+    expect(devotionalBookTotalBytes('Jeremiah')).toBe(0);
   });
 
   it('the download URL is the devotional-library release asset', () => {
@@ -524,10 +611,18 @@ describe('v527 registry — every chapter carries its hosted name and exact size
     );
   });
 
-  it('Isaiah is not registered — it arrives later, metadata-only', () => {
-    expect(getDevotional('Isaiah', 1)).toBeNull();
-    expect(devotionalsForBook('Isaiah')).toEqual([]);
-    expect(devotionalBooks()).not.toContain('Isaiah');
+  // v528 RE-BASE (2026-11-14): Isaiah HAS arrived — registered
+  // metadata-only with Obadiah and Jonah, downloadable from the
+  // start; the full per-book pins live in devotionals-v528.test.ts.
+  // The not-yet seat moves on to Jeremiah.
+  it('Isaiah is registered now (v528) — Jeremiah is the not-yet book', () => {
+    expect(getDevotional('Isaiah', 1)).not.toBeNull();
+    expect(getDevotional('Isaiah', 66)).not.toBeNull();
+    expect(devotionalsForBook('Isaiah').length).toBe(66);
+    expect(devotionalBooks()).toContain('Isaiah');
+    expect(getDevotional('Jeremiah', 1)).toBeNull();
+    expect(devotionalsForBook('Jeremiah')).toEqual([]);
+    expect(devotionalBooks()).not.toContain('Jeremiah');
   });
 });
 

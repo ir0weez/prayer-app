@@ -47,8 +47,11 @@ describe('v526 registry — all of Song of Solomon, PROGRESS titles', () => {
     expect(reg.map((d) => d.chapter).sort((a, b) => a - b)).toEqual(EXPECTED.map(([n]) => n));
   });
 
-  it('the whole registry is now 265 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31 + 2 Samuel 24 + 1 Kings 22 + 2 Kings 25 + Proverbs 31 + Ecclesiastes 12 + Song of Solomon 8', () => {
-    expect(devotionalRegistry().length).toBe(265);
+  // v528 RE-BASE (2026-11-14): the whole-registry total moved 265 → 336 when
+  // Isaiah (66 chapters), Obadiah (1) and Jonah (4) registered, downloadable
+  // from the start (v527 model); the per-book pins below stand.
+  it('the whole registry is now 336 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31 + 2 Samuel 24 + 1 Kings 22 + 2 Kings 25 + Proverbs 31 + Ecclesiastes 12 + Song of Solomon 8 + Isaiah 66 + Obadiah 1 + Jonah 4', () => {
+    expect(devotionalRegistry().length).toBe(336);
     expect(devotionalRegistry().filter((d) => d.book === 'Genesis').length).toBe(50);
     expect(devotionalRegistry().filter((d) => d.book === 'Deuteronomy').length).toBe(34);
     expect(devotionalRegistry().filter((d) => d.book === 'Joshua').length).toBe(24);
@@ -60,6 +63,9 @@ describe('v526 registry — all of Song of Solomon, PROGRESS titles', () => {
     expect(devotionalRegistry().filter((d) => d.book === 'Proverbs').length).toBe(31);
     expect(devotionalRegistry().filter((d) => d.book === 'Ecclesiastes').length).toBe(12);
     expect(devotionalRegistry().filter((d) => d.book === 'Song of Solomon').length).toBe(8);
+    expect(devotionalRegistry().filter((d) => d.book === 'Isaiah').length).toBe(66);
+    expect(devotionalRegistry().filter((d) => d.book === 'Obadiah').length).toBe(1);
+    expect(devotionalRegistry().filter((d) => d.book === 'Jonah').length).toBe(4);
   });
 
   it('every entry carries its PROGRESS title, duration, and asset name', () => {

@@ -88,8 +88,12 @@ describe('v492 registry — all of 1 Samuel, PROGRESS titles', () => {
 // v530 RE-BASE (2026-11-15): the whole-registry total moved 380 → 409 when
 // 1 Corinthians (16 chapters) and 2 Corinthians (13) registered, downloadable
 // from the start (v527 model); the per-book pins below stand.
-it('the whole registry is now 432 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31 + 2 Samuel 24 + 1 Kings 22 + 2 Kings 25 + Proverbs 31 + Ecclesiastes 12 + Song of Solomon 8 + Isaiah 66 + Obadiah 1 + Jonah 4 + Mark 16 + Acts 28 + 1 Corinthians 16 + 2 Corinthians 13 + Ephesians 6 + Philippians 4 + Hebrews 13', () => {
-    expect(devotionalRegistry().length).toBe(432);
+// v534 RE-BASE (2026-11-15): the whole-registry total moved 432 → 453 when
+// James (5 chapters), 1 Peter (5), 2 Peter (3), 1 John (5), 2 John (1),
+// 3 John (1) and Jude (1) registered, downloadable from the start (v527
+// model); the per-book pins below stand.
+it('the whole registry is now 453 — Genesis 50 + Deuteronomy 34 + Joshua 24 + Ruth 4 + 1 Samuel 31 + 2 Samuel 24 + 1 Kings 22 + 2 Kings 25 + Proverbs 31 + Ecclesiastes 12 + Song of Solomon 8 + Isaiah 66 + Obadiah 1 + Jonah 4 + Mark 16 + Acts 28 + 1 Corinthians 16 + 2 Corinthians 13 + Ephesians 6 + Philippians 4 + Hebrews 13 + James 5 + 1 Peter 5 + 2 Peter 3 + 1 John 5 + 2 John 1 + 3 John 1 + Jude 1', () => {
+    expect(devotionalRegistry().length).toBe(453);
     expect(devotionalRegistry().filter((d) => d.book === 'Genesis').length).toBe(50);
     expect(devotionalRegistry().filter((d) => d.book === 'Deuteronomy').length).toBe(34);
     expect(devotionalRegistry().filter((d) => d.book === 'Joshua').length).toBe(24);

@@ -327,6 +327,7 @@ import {
 } from '@/lib/devotional-player-theme';
 import { useBiblePalette } from './bible-v205/palette';
 import { useTabBarOccupiedHeight } from './app-tab-bar';
+import { DevotionalShareGroup } from './devotional-share';
 import { WavyProgress } from './wavy-progress';
 
 const KEEP_AWAKE_TAG = 'devotional-listen';
@@ -2018,6 +2019,22 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
                 </Pressable>
               </View>
             </View>
+          ) : null}
+
+          {/* v536: the Share group — five quiet doors under the
+              controls (Audio, Square card, Story card, Square
+              video, Story video; components/devotional-share.tsx).
+              Chapter sessions only: a tour's narration is not
+              this group's to share, so the group never mounts
+              for one. */}
+          {!devotional.bookLevel ? (
+            <DevotionalShareGroup
+              devotional={devotional}
+              primary={theme.primary}
+              accent={theme.accent}
+              stopSeat={theme.stopSeat}
+              inkSoft={theme.inkSoft}
+            />
           ) : null}
 
           {/* The guideposts — only where real timed movements

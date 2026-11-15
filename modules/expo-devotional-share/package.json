@@ -1,0 +1,1 @@
+{"description":"Renders devotional share cards (PNG) and share videos (MP4: the animated card muxed with the devotional's own AAC audio) on Android via Canvas + MediaCodec/MediaMuxer","keywords":["expo","android","share","video"],"main":"src/index.ts","name":"expo-devotional-share","types":"src/index.ts","version":"1.0.0"}

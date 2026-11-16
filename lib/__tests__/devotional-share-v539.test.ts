@@ -387,6 +387,16 @@ describe('the renderer’s no-silent-video contract', () => {
   });
 });
 
+// v546 RE-BASE (2026-11-15): the measure pin below moves from
+// two standing texts to three, claim unchanged — each standing
+// text is still measured exactly once, at setup, never in the
+// draw. The kicker joins the list because v546 fits it to the
+// text column: measured once with its designed paint, and if
+// the line is wider than the column the paint's size comes
+// down by the exact ratio (the device evidence: v545's
+// 2 Corinthians 1 story kicker clipped mid-word at the
+// frame's right edge). The fit's own pins live in the v546
+// test file.
 describe('the painter’s read-once shape', () => {
   it('parses the entrance delays off the JSON exactly once', () => {
     expect(painterKt.match(/spec\.dblList\(/g)).toHaveLength(1);
@@ -394,9 +404,10 @@ describe('the painter’s read-once shape', () => {
   });
 
   it('measures its standing texts exactly once each', () => {
-    expect(painterKt.match(/\.measureText\(/g)).toHaveLength(2);
+    expect(painterKt.match(/\.measureText\(/g)).toHaveLength(3);
     expect(painterKt).toContain('private val ghostTextWidth = ghostPaint.measureText(ghostText)');
     expect(painterKt).toContain('private val brandTextWidth = brandPaint.measureText(brandText)');
+    expect(painterKt).toContain('private val kickerTextWidth = kickerPaint.measureText(kickerText)');
   });
 
   it('constructs no Paint inside the draw path — the paints are fields', () => {

@@ -107,6 +107,40 @@ class ShareCardPainter(private val spec: ShareSpec) {
   private val ghostTextWidth = ghostPaint.measureText(ghostText)
   private val brandTextWidth = brandPaint.measureText(brandText)
 
+  // ── The kicker's fit (v546) ─────────────────────────────
+  // The kicker is drawn at the layout's one designed size,
+  // and for a long book name the line is wider than the
+  // text column: on v545 the 2 Corinthians 1 story card
+  // clipped at "…CHAPTER 1 · DEVOT" — the line ran off the
+  // frame's right edge mid-word. So the line is measured
+  // ONCE here, with the designed paint (the same letter
+  // spacing the draw uses), and if it is wider than the
+  // column the paint's size comes down by exactly the
+  // ratio that makes it fit — never up, so a kicker that
+  // already fits renders byte-identically to before. The
+  // paint's letter spacing is expressed in ems, so it
+  // scales by the same ratio and the fitted line lands on
+  // the column width. The metrics the draw positions from
+  // (the kicker's baseline and its block, which seats the
+  // title) are captured from the DESIGNED paint above the
+  // fit, so fitting the kicker moves nothing else on the
+  // card. The longest kickers the registry can make are
+  // Song of Solomon's ("SONG OF SOLOMON · CHAPTER 1 ·
+  // DEVOTIONAL" and its siblings, 40 characters) — at the
+  // story's measures they fit at roughly four fifths of
+  // the designed size, nowhere near illegible.
+  private val kickerAscent = kickerPaint.fontMetrics.ascent
+  private val kickerDescent = kickerPaint.fontMetrics.descent
+  private val kickerTextWidth = kickerPaint.measureText(kickerText)
+  private val kickerFitRatio =
+    if (kickerTextWidth > contentWidth) contentWidth / kickerTextWidth else 1.0f
+
+  init {
+    if (kickerFitRatio < 1.0f) {
+      kickerPaint.textSize = (layout.dbl("kickerSize") * kickerFitRatio).toFloat()
+    }
+  }
+
   private val titleMarginTop = layout.dbl("titleMarginTop").toFloat()
   private val discDiameter = layout.dbl("discDiameter")
   private val discMarginTop = layout.dbl("discMarginTop").toFloat()
@@ -203,15 +237,17 @@ class ShareCardPainter(private val spec: ShareSpec) {
 
     // ── The top group: kicker, title, disc ──────────────────────
     val kickerEntrance = entrance(tSec, delays.getOrElse(0) { 0.1 }, risePx, still)
-    val kickerFm = kickerPaint.fontMetrics
-    val kickerBaseline = padTop - kickerFm.ascent
+    // The baseline and block come from the DESIGNED metrics
+    // (captured at setup, before the v546 fit) so a fitted
+    // kicker leaves the title's seat exactly where it was.
+    val kickerBaseline = padTop - kickerAscent
     drawTextElement(canvas, kickerEntrance) {
       val prevAlpha = kickerPaint.alpha
       kickerPaint.alpha = (kickerEntrance.first * 255).toInt()
       canvas.drawText(kickerText, padSide, kickerBaseline, kickerPaint)
       kickerPaint.alpha = prevAlpha
     }
-    val kickerBlock = kickerFm.descent - kickerFm.ascent
+    val kickerBlock = kickerDescent - kickerAscent
 
     val titleEntrance = entrance(tSec, delays.getOrElse(1) { 0.22 }, risePx, still)
     val titleTop = padTop + kickerBlock + titleMarginTop

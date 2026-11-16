@@ -282,6 +282,12 @@ export interface DevotionalShareCardLayout {
   padSide: number;
   padTop: number;
   padBottom: number;
+  /** The kicker's DESIGNED size. The native painter measures
+   * the kicker once at this size and, for a long book name
+   * whose line would run past the text column, scales its
+   * draw size down by the exact fit ratio — never up
+   * (v546). This side never computes a fitted size; the
+   * spec's number stays the design's. */
   kickerSize: number;
   kickerLetterSpacing: number;
   titleSize: number;

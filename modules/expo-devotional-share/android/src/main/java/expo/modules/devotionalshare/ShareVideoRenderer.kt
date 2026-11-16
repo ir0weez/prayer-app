@@ -86,7 +86,12 @@ object ShareAudioProbe {
       var lastPtsUs = -1L
       while (true) {
         val t = extractor.sampleTime
-        if (t < 0) break
+        // v544: -1 is the extractor's only end-of-stream value;
+        // any other negative is a timestamp, not an ending (the
+        // marry below learned that the hard way — see its note).
+        // A married file's audio starts at 0, so this walk's
+        // behaviour on every real output is unchanged.
+        if (t == -1L) break
         lastPtsUs = t
         samples++
         if (!extractor.advance()) break
@@ -151,6 +156,33 @@ object ShareAudioProbe {
  * timestamps written, the probe's verdict), which ride in the
  * guard's message when it fires — the next screenshot, if
  * there ever is one, will say where the audio stopped.
+ *
+ * v544: there was a next screenshot, and the counts convicted
+ * the pass's first line. The v543 device run rejected with
+ * "(read 0, wrote 0, firstPts -1, lastPts -1, probe: not run)":
+ * the pass returned before its first read, so the marry never
+ * had anything to marry — the failure was never in the muxer
+ * at all. The pass opened by reading the extractor's current
+ * sample time and treating any negative value as the end of
+ * the track. But these .m4a
+ * files legitimately START negative: the first AAC packet of
+ * the hosted devotional-2corinthians-1.m4a sits at −1024 ticks
+ * (−23,220µs of priming, ffprobe-verified; the setup code a
+ * screen above even peeks that same value to compute the
+ * priming offset that shifts it to 0). The two halves of the
+ * renderer disagreed about what a negative sample time means,
+ * and the pass believed the wrong one. The pass is now
+ * READ-DRIVEN — readSampleData's own return is the loop's only
+ * end-of-stream signal, and the timestamp is read off the
+ * sample just read — and a PREFLIGHT stands in front of the
+ * frame loop: a fresh extractor opens the source, selects the
+ * audio track and must produce a first sample, or the render
+ * fails in about a second with its own "could not be opened"
+ * message. Every audio-path message now also carries the
+ * source's open record (AudioSourceDiag: the path's tail, the
+ * file's length as the native side sees it, the track count,
+ * the track's mime, the preflight's first read), so a failure
+ * screenshot names the exact stage that broke.
  */
 object ShareVideoRenderer {
   private const val MIME_VIDEO = "video/avc"
@@ -177,7 +209,11 @@ object ShareVideoRenderer {
       "read $samplesRead, wrote $samplesWritten, firstPts $firstPtsUs, lastPts $lastPtsUs"
   }
 
-  private class RenderOutcome(val durationUs: Long, val diag: AudioMarryDiag)
+  private class RenderOutcome(
+    val durationUs: Long,
+    val diag: AudioMarryDiag,
+    val sourceDiag: AudioSourceDiag,
+  )
 
   private fun audioFailureMessage(
     diag: AudioMarryDiag,
@@ -186,6 +222,86 @@ object ShareVideoRenderer {
   ): String =
     "The share video's audio could not be added. " +
       "(${diag.describe()}, probe: ${probe?.describe(expectedDurationUs) ?: "not run"})"
+
+  /**
+   * What the native side saw when it opened the audio source
+   * (v544): the path's tail (enough to name the exact file),
+   * the file's length as the native side finds it, how many
+   * tracks the extractor counted, the audio track's mime, and
+   * what the preflight's first readSampleData returned. Every
+   * audio-path failure carries this record in its message, so
+   * a screenshot can convict the exact stage — wrong or short
+   * file, unreadable container, missing track, dead first
+   * read — instead of leaving the hunt to another audit.
+   */
+  private class AudioSourceDiag(
+    val pathTail: String,
+    val fileLength: Long,
+    val trackCount: Int,
+    val audioMime: String?,
+    val firstReadSize: Int,
+  ) {
+    fun describe(): String =
+      "src …$pathTail, len $fileLength, tracks $trackCount, " +
+        "mime ${audioMime ?: "none"}, firstRead $firstReadSize"
+  }
+
+  /** The preflight's own failure: the source could not be
+   * opened or read at all — a different sentence from the
+   * marry's "could not be added", because the render never
+   * got far enough to marry anything. */
+  private fun audioOpenFailure(diag: AudioSourceDiag, cause: Throwable? = null) =
+    IllegalStateException("The devotional's audio could not be opened. (${diag.describe()})", cause)
+
+  /**
+   * THE PREFLIGHT (v544): before the expensive frame loop
+   * starts — before the encoder even exists — a FRESH
+   * extractor opens the source, selects its audio track and
+   * must hand over a first sample (readSampleData > 0). Any
+   * failure here ends the render in about a second with the
+   * open failure above, the source's record attached. The
+   * extractor the render itself uses is a separate fresh
+   * instance, created after this one is released and never
+   * advanced before the marry's pass — the preflight proves
+   * the source, the render's own extractor does the work.
+   */
+  private fun preflightAudioSource(audioPath: String): AudioSourceDiag {
+    val file = File(audioPath)
+    val fileLength = if (file.exists()) file.length() else -1L
+    val pathTail = audioPath.takeLast(40)
+    var trackCount = -1
+    var audioMime: String? = null
+    var firstReadSize = Int.MIN_VALUE
+    val extractor = MediaExtractor()
+    try {
+      extractor.setDataSource(audioPath)
+      trackCount = extractor.trackCount
+      var audioTrack = -1
+      for (i in 0 until trackCount) {
+        val mime = extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME) ?: continue
+        if (mime.startsWith("audio/")) {
+          audioTrack = i
+          audioMime = mime
+          break
+        }
+      }
+      if (audioTrack >= 0) {
+        extractor.selectTrack(audioTrack)
+        firstReadSize = extractor.readSampleData(ByteBuffer.allocate(64 * 1024), 0)
+      }
+    } catch (t: Throwable) {
+      throw audioOpenFailure(
+        AudioSourceDiag(pathTail, fileLength, trackCount, audioMime, firstReadSize), t
+      )
+    } finally {
+      extractor.release()
+    }
+    val diag = AudioSourceDiag(pathTail, fileLength, trackCount, audioMime, firstReadSize)
+    if (audioMime == null || firstReadSize <= 0) {
+      throw audioOpenFailure(diag)
+    }
+    return diag
+  }
 
   fun render(spec: ShareSpec, onProgress: ((done: Int, total: Int) -> Unit)? = null) {
     val outFile = File(spec.reqStr("outPath"))
@@ -197,7 +313,8 @@ object ShareVideoRenderer {
       val probe = ShareAudioProbe.probe(outFile.absolutePath, outcome.durationUs)
       if (!probe.ok) {
         throw IllegalStateException(
-          audioFailureMessage(outcome.diag, probe, outcome.durationUs)
+          audioFailureMessage(outcome.diag, probe, outcome.durationUs) +
+            " (${outcome.sourceDiag.describe()})"
         )
       }
     } catch (t: Throwable) {
@@ -215,6 +332,11 @@ object ShareVideoRenderer {
     val height = spec.int("height")
     val fps = spec.int("fps", 30)
     val audioPath = spec.reqStr("audioPath")
+    // PREFLIGHT (v544): the source must prove it opens and
+    // reads before a single frame is drawn — a bad source
+    // fails here, in about a second, with the open failure,
+    // never after minutes of mute frame work.
+    val sourceDiag = preflightAudioSource(audioPath)
     outFile.parentFile?.mkdirs()
 
     val extractor = MediaExtractor()
@@ -232,7 +354,9 @@ object ShareVideoRenderer {
     }
     if (audioTrack < 0 || audioFormat == null) {
       extractor.release()
-      throw IllegalArgumentException("The devotional's audio could not be read.")
+      throw IllegalArgumentException(
+        "The devotional's audio could not be read. (${sourceDiag.describe()})"
+      )
     }
     val audioFmt: MediaFormat = audioFormat
     extractor.selectTrack(audioTrack)
@@ -269,7 +393,11 @@ object ShareVideoRenderer {
     // video's own start. Per-track times stay monotonic, which
     // is all the muxer asks. The extractor is only PEEKED here —
     // nothing advances it until the marry's own pass below, so
-    // the pass sees the track from its first sample.
+    // the pass sees the track from its first sample. And the
+    // peeked value is expected to be NEGATIVE for these files
+    // (the first packet of the hosted 2 Corinthians 1 sits at
+    // −23,220µs): that is a timestamp, not an ending — v544's
+    // whole lesson, spelled out at the pass itself.
     val firstSampleTime = extractor.sampleTime
     val audioOffsetUs = if (firstSampleTime < 0) -firstSampleTime else 0L
     val diag = AudioMarryDiag()
@@ -351,7 +479,9 @@ object ShareVideoRenderer {
       // the counts in its message.
       copyAudioTrack(extractor, muxer, audioTrackIndex, audioOffsetUs, diag)
       if (diag.samplesWritten == 0) {
-        throw IllegalStateException(audioFailureMessage(diag, null, durationUs))
+        throw IllegalStateException(
+          audioFailureMessage(diag, null, durationUs) + " (${sourceDiag.describe()})"
+        )
       }
       // Finalize HERE, in the open (v543): a muxer that cannot
       // stop has not made the video, and its failure is the
@@ -367,7 +497,8 @@ object ShareVideoRenderer {
         muxerStopped = true
       } catch (t: Throwable) {
         throw IllegalStateException(
-          "The share video could not be finished. (${diag.describe()})", t
+          "The share video could not be finished. (${diag.describe()})" +
+            " (${sourceDiag.describe()})", t
         )
       }
     } finally {
@@ -386,7 +517,7 @@ object ShareVideoRenderer {
       muxer.release()
       extractor.release()
     }
-    return RenderOutcome(durationUs, diag)
+    return RenderOutcome(durationUs, diag, sourceDiag)
   }
 
   /**
@@ -396,6 +527,21 @@ object ShareVideoRenderer {
    * each timestamp by the priming offset so the first lands at
    * 0. Every read and every write is counted into [diag] as it
    * happens, with the first and last timestamps written.
+   *
+   * READ-DRIVEN (v544): the loop's clock and its only
+   * end-of-stream signal is readSampleData's own return — the
+   * canonical extractor loop. Through v543 the loop opened by
+   * reading extractor.sampleTime and treating ANY negative
+   * value as the end of the track; but -1 is the extractor's
+   * only end-of-stream value, and these files' first sample
+   * legitimately carries a negative time (−23,220µs of AAC
+   * priming, before the offset shifts it to 0). So the pass
+   * returned before its first read on the very first sample —
+   * read 0, wrote 0 — while the setup above was busy computing
+   * the offset from that same negative peek. Now the sample is
+   * read first and its timestamp taken from the sample just
+   * read; a negative time is shifted and written like any
+   * other, and only a failed read ends the walk.
    */
   private fun copyAudioTrack(
     extractor: MediaExtractor,
@@ -407,10 +553,9 @@ object ShareVideoRenderer {
     val buffer = ByteBuffer.allocateDirect(512 * 1024)
     val info = MediaCodec.BufferInfo()
     while (true) {
-      val sampleTime = extractor.sampleTime
-      if (sampleTime < 0) return
       val size = extractor.readSampleData(buffer, 0)
       if (size < 0) return
+      val sampleTime = extractor.sampleTime
       diag.samplesRead++
       val pts = sampleTime + offsetUs
       info.set(0, size, pts, extractor.sampleFlags and MediaCodec.BUFFER_FLAG_KEY_FRAME)

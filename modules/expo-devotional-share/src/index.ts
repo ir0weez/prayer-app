@@ -124,9 +124,13 @@ export async function renderShareVideo(
 }
 
 /** Asks the maker whether the MP4 at path actually carries an
- * audio track with samples in it. Any doubt — no maker, no such
- * function, a file that cannot be read — answers false, so the
- * caller re-makes the video rather than sharing a silent one. */
+ * audio track with samples in it — and, since v545, whether
+ * its video runs the length that audio runs (a file whose
+ * frames carry encoder-clock timestamps can claim 37 hours
+ * for a 1:29 devotional while sounding perfect). Any doubt —
+ * no maker, no such function, a file that cannot be read —
+ * answers false, so the caller re-makes the video rather than
+ * sharing a silent or wrong-length one. */
 export async function probeShareVideoAudio(path: string): Promise<boolean> {
   const native = getNative();
   if (!native || typeof native.probeVideoAudio !== "function") return false;

@@ -31,6 +31,14 @@ import expo.modules.kotlin.modules.ModuleDefinition
  * render nor a cached file is trusted on its looks anymore —
  * the renderer probes its own output before calling it done,
  * and the Share flow probes a cached video before reusing it.
+ *
+ * v545: probeVideoAudio also asks the timeline question —
+ * whether the file's video starts at ~0 and runs the length
+ * its own audio runs. The v544 device run saved a video that
+ * sounded right and claimed 37:56:41 for a 1:29 devotional
+ * (its frames carried the phone-uptime timestamps the
+ * encoder had stamped them with), so a cached file is no
+ * more trusted on its length than on its sound.
  */
 class ExpoDevotionalShareModule : Module() {
   companion object {
@@ -70,7 +78,8 @@ class ExpoDevotionalShareModule : Module() {
     }
 
     AsyncFunction("probeVideoAudio") { path: String ->
-      ShareAudioProbe.hasAudibleTrack(path, 0L)
+      ShareAudioProbe.hasAudibleTrack(path, 0L) &&
+        ShareAudioProbe.hasSaneDuration(path, 0L)
     }
   }
 }

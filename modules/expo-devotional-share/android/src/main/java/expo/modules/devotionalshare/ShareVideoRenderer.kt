@@ -9,6 +9,7 @@ import android.view.Surface
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
+import kotlin.math.abs
 import kotlin.math.ceil
 
 /** Draws one still card to a PNG at the spec's outPath — the
@@ -52,13 +53,108 @@ object ShareCardRenderer {
  * last sample a correct copy writes, and a start offset moves
  * that sample by one frame at most); the numbers exist so a
  * guard failure can say what the walk found.
+ *
+ * v545: the walk also reads the VIDEO track's timeline, and
+ * the probe carries a second verdict (durationOk). The v544
+ * device file SOUNDED right — the marry was finally landing —
+ * but Google Photos reported 0:10 / 37:56:41 for a 1:29
+ * devotional and held one frame while the sound played: the
+ * drain had always handed the muxer the encoder's own
+ * BufferInfo, whose timestamps come from the input Surface's
+ * BufferQueue clock (the phone's uptime in µs — 37:56:41 is
+ * 136,601s ≈ 1.366e11µs), so every frame sat at uptime-scale
+ * timestamps and the container's length was the last frame's
+ * absolute stamp. The renderer now stamps video samples from
+ * its own frame counter (see the drain), and this walk proves
+ * the finished file's timeline before it is trusted: the
+ * video must START within tolerance of 0 and END within
+ * tolerance of the length it was made to run. (The span
+ * alone would not convict that file — its last-minus-first
+ * is the render's real time, which can coincidentally match
+ * the clip; the absolute start and end cannot.) The
+ * reference is the expected duration where the caller knows
+ * it (the renderer does), else the file's own audio length —
+ * the cached-video door receives no expected duration, and
+ * the audio is the length the video was married to.
  */
 object ShareAudioProbe {
+  /** How far the finished file's video timeline may drift
+   * from the length it was made to run, as a percent of that
+   * length. A few percent, not a hair: a healthy file's video
+   * ends one frame-step short of the audio's duration and its
+   * measured length overshoots by about a step — tens of
+   * milliseconds against ~4.5s of tolerance on these files. */
+  private const val DURATION_TOLERANCE_PERCENT = 5L
+
+  /** One track's walk: whether it was there, how many samples
+   * it carried, and the first and last timestamps they bear. */
+  private data class TrackWalk(
+    val found: Boolean,
+    val samples: Int,
+    val firstPtsUs: Long,
+    val lastPtsUs: Long,
+  ) {
+    /** The track's own length: first sample's start to last
+     * sample's end, the last sample showing for one average
+     * step like any other. -1 when unmeasured. */
+    val durationUs: Long
+      get() = if (!found || samples == 0 || lastPtsUs < 0 || firstPtsUs < 0) {
+        -1L
+      } else if (samples == 1) {
+        0L
+      } else {
+        (lastPtsUs - firstPtsUs) + (lastPtsUs - firstPtsUs) / (samples - 1)
+      }
+  }
+
+  private fun walkTrack(path: String, mimePrefix: String): TrackWalk {
+    val extractor = MediaExtractor()
+    return try {
+      extractor.setDataSource(path)
+      var track = -1
+      for (i in 0 until extractor.trackCount) {
+        val mime = extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME) ?: continue
+        if (mime.startsWith(mimePrefix)) {
+          track = i
+          break
+        }
+      }
+      if (track < 0) return TrackWalk(false, 0, -1L, -1L)
+      extractor.selectTrack(track)
+      var samples = 0
+      var firstPtsUs = -1L
+      var lastPtsUs = -1L
+      while (true) {
+        val t = extractor.sampleTime
+        // -1 is the extractor's only end-of-stream value (the
+        // v544 lesson); any other negative is a timestamp.
+        if (t == -1L) break
+        if (firstPtsUs < 0) firstPtsUs = t
+        lastPtsUs = t
+        samples++
+        if (!extractor.advance()) break
+      }
+      TrackWalk(true, samples, firstPtsUs, lastPtsUs)
+    } catch (t: Throwable) {
+      TrackWalk(false, 0, -1L, -1L)
+    } finally {
+      extractor.release()
+    }
+  }
+
   data class Result(
     val trackFound: Boolean,
     val samples: Int,
     val lastPtsUs: Long,
     val ok: Boolean,
+    // v545: the video track's timeline, walked the same way,
+    // and its verdict — see the object's note above.
+    val videoTrackFound: Boolean,
+    val videoSamples: Int,
+    val videoFirstPtsUs: Long,
+    val videoLastPtsUs: Long,
+    val videoDurationUs: Long,
+    val durationOk: Boolean,
   ) {
     /** The verdict in the words a failure message carries. */
     fun describe(expectedDurationUs: Long): String = when {
@@ -66,52 +162,56 @@ object ShareAudioProbe {
       samples == 0 -> "0 samples"
       else -> "lastPts $lastPtsUs of $expectedDurationUs"
     }
+
+    /** The timeline verdict in the words its failure message
+     * carries: where the video starts, where it ends, and
+     * the length it measures against the length expected. */
+    fun describeDuration(referenceUs: Long): String = when {
+      !videoTrackFound -> "no video track"
+      videoSamples == 0 -> "0 video samples"
+      else -> "video firstPts $videoFirstPtsUs, lastPts $videoLastPtsUs, " +
+        "duration $videoDurationUs of $referenceUs"
+    }
   }
 
   fun probe(path: String, expectedDurationUs: Long): Result {
-    val extractor = MediaExtractor()
-    return try {
-      extractor.setDataSource(path)
-      var audioTrack = -1
-      for (i in 0 until extractor.trackCount) {
-        val mime = extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME) ?: continue
-        if (mime.startsWith("audio/")) {
-          audioTrack = i
-          break
-        }
-      }
-      if (audioTrack < 0) return Result(false, 0, -1L, false)
-      extractor.selectTrack(audioTrack)
-      var samples = 0
-      var lastPtsUs = -1L
-      while (true) {
-        val t = extractor.sampleTime
-        // v544: -1 is the extractor's only end-of-stream value;
-        // any other negative is a timestamp, not an ending (the
-        // marry below learned that the hard way — see its note).
-        // A married file's audio starts at 0, so this walk's
-        // behaviour on every real output is unchanged.
-        if (t == -1L) break
-        lastPtsUs = t
-        samples++
-        if (!extractor.advance()) break
-      }
-      Result(
-        trackFound = true,
-        samples = samples,
-        lastPtsUs = lastPtsUs,
-        ok = samples > 0 &&
-          (expectedDurationUs <= 0 || lastPtsUs >= expectedDurationUs * 9 / 10),
-      )
-    } catch (t: Throwable) {
-      Result(false, 0, -1L, false)
-    } finally {
-      extractor.release()
-    }
+    val audio = walkTrack(path, "audio/")
+    val video = walkTrack(path, "video/")
+    val audioOk = audio.found && audio.samples > 0 &&
+      (expectedDurationUs <= 0 || audio.lastPtsUs >= expectedDurationUs * 9 / 10)
+    // The length the video was made to run: the caller's
+    // expectation where there is one, else the file's own
+    // audio — the cached door knows no expectation, and the
+    // audio is what the video was married to.
+    val referenceUs = if (expectedDurationUs > 0) expectedDurationUs else audio.durationUs
+    val toleranceUs = if (referenceUs > 0) referenceUs * DURATION_TOLERANCE_PERCENT / 100 else -1L
+    val durationOk = video.found && video.samples > 0 && referenceUs > 0 &&
+      video.firstPtsUs >= 0 && video.firstPtsUs <= toleranceUs &&
+      abs(video.durationUs - referenceUs) <= toleranceUs &&
+      video.lastPtsUs <= referenceUs + toleranceUs
+    return Result(
+      trackFound = audio.found,
+      samples = audio.samples,
+      lastPtsUs = audio.lastPtsUs,
+      ok = audioOk,
+      videoTrackFound = video.found,
+      videoSamples = video.samples,
+      videoFirstPtsUs = video.firstPtsUs,
+      videoLastPtsUs = video.lastPtsUs,
+      videoDurationUs = video.durationUs,
+      durationOk = durationOk,
+    )
   }
 
   fun hasAudibleTrack(path: String, expectedDurationUs: Long): Boolean =
     probe(path, expectedDurationUs).ok
+
+  /** The timeline door, beside the audio one: whether the
+   * file's video starts at ~0 and runs the length it should.
+   * The module's cached-video check asks both questions — a
+   * 37-hour file is as untrustworthy as a silent one. */
+  fun hasSaneDuration(path: String, expectedDurationUs: Long): Boolean =
+    probe(path, expectedDurationUs).durationOk
 }
 
 /**
@@ -183,6 +283,28 @@ object ShareAudioProbe {
  * file's length as the native side sees it, the track count,
  * the track's mime, the preflight's first read), so a failure
  * screenshot names the exact stage that broke.
+ *
+ * v545: the v544 device run finally SOUNDED right — and ran
+ * 37:56:41 for a 1:29 devotional, holding one frame while the
+ * sound played. The marry was never the timeline's problem;
+ * the VIDEO stamps were. The drain handed the muxer the
+ * encoder's own BufferInfo untouched, and an encoder fed from
+ * a Canvas-locked Surface stamps its output from the
+ * BufferQueue clock — the phone's uptime in microseconds,
+ * because the draw-to-surface route offers no timestamp of
+ * ours for it to carry. So the frames sat at uptime-scale
+ * timestamps (~1.366e11µs), the container's length became the
+ * last frame's absolute stamp, and every player held the
+ * first frame at every position the (correctly 0-based)
+ * audio occupies. The drain now stamps each sample from the
+ * renderer's own frame counter — first sample 0, one frame
+ * step each, drain order (the encoder emits no B-frames, so
+ * drain order is frame order) — and takes only size, flags
+ * and EOS from the encoder's BufferInfo. And the probe's new
+ * duration verdict (ShareAudioProbe) must also pass before
+ * the file is called done: a wrong-length video fails, is
+ * deleted, and surfaces the same honest error state, its
+ * measured timeline in the message.
  */
 object ShareVideoRenderer {
   private const val MIME_VIDEO = "video/avc"
@@ -222,6 +344,20 @@ object ShareVideoRenderer {
   ): String =
     "The share video's audio could not be added. " +
       "(${diag.describe()}, probe: ${probe?.describe(expectedDurationUs) ?: "not run"})"
+
+  /** The timeline failure (v545): the sound landed, but the
+   * finished file does not run the length it was made to —
+   * its own sentence, carrying the probe's measured timeline
+   * (where the video starts, where it ends, the length it
+   * measures against the length expected), the marry's
+   * counts, and the source's open record. */
+  private fun durationFailureMessage(
+    outcome: RenderOutcome,
+    probe: ShareAudioProbe.Result,
+  ): String =
+    "The share video came out the wrong length. " +
+      "(${probe.describeDuration(outcome.durationUs)}, ${outcome.diag.describe()})" +
+      " (${outcome.sourceDiag.describe()})"
 
   /**
    * What the native side saw when it opened the audio source
@@ -317,6 +453,14 @@ object ShareVideoRenderer {
             " (${outcome.sourceDiag.describe()})"
         )
       }
+      // v545: the timeline must prove itself too — a file
+      // whose video starts at the phone's uptime and runs
+      // 37 hours is deleted here like any other bad render,
+      // never delivered, and the message carries the
+      // measured timeline that convicted it.
+      if (!probe.durationOk) {
+        throw IllegalStateException(durationFailureMessage(outcome, probe))
+      }
     } catch (t: Throwable) {
       outFile.delete()
       throw t
@@ -387,6 +531,12 @@ object ShareVideoRenderer {
     var videoTrackIndex = -1
     var muxerStarted = false
     val bufferInfo = MediaCodec.BufferInfo()
+    // v545: the record the muxer is actually handed for a
+    // video sample, and how many samples have been stamped so
+    // far — the drain writes into this, never into the
+    // encoder's own BufferInfo (see the stamp there).
+    val videoWriteInfo = MediaCodec.BufferInfo()
+    var videoSamplesWritten = 0
 
     // The audio's clock may start off zero (an .m4a's priming
     // offset); samples are shifted so the first lands at 0, the
@@ -422,7 +572,30 @@ object ShareVideoRenderer {
             ) {
               encoded.position(bufferInfo.offset)
               encoded.limit(bufferInfo.offset + bufferInfo.size)
-              muxer.writeSampleData(videoTrackIndex, encoded, bufferInfo)
+              // v545: stamp the sample from the renderer's own
+              // frame counter — NEVER the encoder's reported
+              // time. The encoder stamps its output from the
+              // input Surface's BufferQueue clock (the phone's
+              // uptime, in µs), because the Canvas route offers
+              // no timestamp of ours for it to carry; handed to
+              // the muxer verbatim, that clock put every frame
+              // at uptime-scale timestamps — the v544 device
+              // file claimed 37:56:41 for a 1:29 devotional and
+              // held its first frame everywhere the audio
+              // played. The counter runs in drain order (the
+              // encoder emits no B-frames, so drain order is
+              // frame order): first sample 0, one frame step
+              // each — the same 0-based timeline the marry
+              // writes for the audio. The encoder's BufferInfo
+              // now contributes size, flags and EOS only.
+              videoWriteInfo.set(
+                bufferInfo.offset,
+                bufferInfo.size,
+                videoSamplesWritten * frameDurUs,
+                bufferInfo.flags,
+              )
+              muxer.writeSampleData(videoTrackIndex, encoded, videoWriteInfo)
+              videoSamplesWritten++
             }
             encoder.releaseOutputBuffer(outIndex, false)
             if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return

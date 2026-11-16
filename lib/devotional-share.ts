@@ -162,26 +162,90 @@ function bookSlug(book: string): string {
   return book.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
 
-/** The file name a share artifact carries. The audio share is the
- * chapter's own downloaded file under its own name — no copy is
- * ever made; the generated four are named for what they are. */
-export function shareArtifactFileName(kind: DevotionalShareKind, d: Devotional): string {
+// ─── The cache's painter revision (v547) ────────────────────────────────────
+// A cached artifact is trusted as the drawing it was made by:
+// the stills on existence, the videos on the maker's probes.
+// But the painter itself changes between builds — v546 taught
+// it to fit the kicker inside the frame — and a cache that
+// cannot tell one painter's work from another's goes on
+// serving the old drawing forever (Jonathan's phone kept
+// re-sharing the v545 story video, clipped kicker and all,
+// after v546 shipped). So every rendered artifact's file name
+// carries the revision of the painter that made it, and the
+// flow only ever looks at the CURRENT revision's name: an
+// artifact from an older painter is simply not found, the
+// flow renders fresh, and the old file is swept away (see the
+// flow below). Revision 1 is the name the first builds
+// (v536–v546) wrote — no mark at all; it is never written
+// again, only recognised so it can be swept as stale.
+// Bump this number whenever the painter's drawing changes.
+
+export const SHARE_RENDER_REVISION = 2;
+
+/** The file name a share artifact carries under one painter
+ * revision. The audio share is the chapter's own downloaded
+ * file under its own name at every revision — no copy is ever
+ * made, and it is not a rendered artifact. */
+export function shareArtifactFileNameForRevision(
+  kind: DevotionalShareKind,
+  d: Devotional,
+  revision: number,
+): string {
   if (kind === 'audio') return d.audioFile;
-  return `prayercircle-${bookSlug(d.book)}-${d.chapter}-${kind}.${shareKindIsVideo(kind) ? 'mp4' : 'png'}`;
+  const base = `prayercircle-${bookSlug(d.book)}-${d.chapter}-${kind}`;
+  const ext = shareKindIsVideo(kind) ? 'mp4' : 'png';
+  return revision <= 1 ? `${base}.${ext}` : `${base}-r${revision}.${ext}`;
 }
 
-/** Where a generated artifact lives: the cache directory's
- * devotional-share/ folder, or null for the audio share (which
- * is never in the cache) and without a cache directory. */
+/** The file name a share artifact carries — under the current
+ * painter revision (SHARE_RENDER_REVISION). */
+export function shareArtifactFileName(kind: DevotionalShareKind, d: Devotional): string {
+  return shareArtifactFileNameForRevision(kind, d, SHARE_RENDER_REVISION);
+}
+
+/** Where a generated artifact lives under one painter
+ * revision: the cache directory's devotional-share/ folder,
+ * or null for the audio share (which is never in the cache)
+ * and without a cache directory. */
+export function shareArtifactCachePathForRevision(
+  cacheDirectory: string | null,
+  kind: DevotionalShareKind,
+  d: Devotional,
+  revision: number,
+): string | null {
+  if (kind === 'audio') return null;
+  if (typeof cacheDirectory !== 'string' || cacheDirectory.length === 0) return null;
+  const base = cacheDirectory.endsWith('/') ? cacheDirectory : `${cacheDirectory}/`;
+  return `${base}devotional-share/${shareArtifactFileNameForRevision(kind, d, revision)}`;
+}
+
+/** Where a generated artifact lives — at the current painter
+ * revision. The flow looks nowhere else: an older revision's
+ * file at its own path is never served. */
 export function shareArtifactCachePath(
   cacheDirectory: string | null,
   kind: DevotionalShareKind,
   d: Devotional,
 ): string | null {
-  if (kind === 'audio') return null;
-  if (typeof cacheDirectory !== 'string' || cacheDirectory.length === 0) return null;
-  const base = cacheDirectory.endsWith('/') ? cacheDirectory : `${cacheDirectory}/`;
-  return `${base}devotional-share/${shareArtifactFileName(kind, d)}`;
+  return shareArtifactCachePathForRevision(cacheDirectory, kind, d, SHARE_RENDER_REVISION);
+}
+
+/** The cache paths this chapter-and-kind's artifact wore under
+ * every OLDER painter revision, oldest first — the files the
+ * flow sweeps once the current revision is in hand, so the
+ * cache does not accumulate one orphan per revision. Empty
+ * for the audio share and without a cache directory. */
+export function staleShareArtifactCachePaths(
+  cacheDirectory: string | null,
+  kind: DevotionalShareKind,
+  d: Devotional,
+): string[] {
+  const paths: string[] = [];
+  for (let revision = 1; revision < SHARE_RENDER_REVISION; revision++) {
+    const path = shareArtifactCachePathForRevision(cacheDirectory, kind, d, revision);
+    if (path) paths.push(path);
+  }
+  return paths;
 }
 
 // ─── The card's colours ─────────────────────────────────────────────────────
@@ -704,6 +768,12 @@ export interface DevotionalShareDeps {
   cacheDirectory: () => string | null;
   ensureDirectory: (uri: string) => Promise<void>;
   fileExists: (uri: string) => Promise<boolean>;
+  /** v547: removes one cache file — the stale-revision sweep.
+   * Optional on purpose, like the maker's probe: a deps
+   * surface without it simply leaves older painters' files
+   * where they lie. The sweep is housekeeping, never a
+   * condition of sharing, and its failures never surface. */
+  deleteFile?: (uri: string) => Promise<void>;
   /** The chapter's downloaded file as a URI, or null when the
    * file is not on this phone. */
   localAudioUri: (d: Devotional) => string | null;
@@ -761,6 +831,15 @@ function realShareDeps(): DevotionalShareDeps {
         return !!info?.exists;
       } catch {
         return false;
+      }
+    },
+    deleteFile: async (uri: string) => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const FileSystem = require('expo-file-system/legacy');
+        await FileSystem.deleteAsync(uri, { idempotent: true });
+      } catch {
+        // Housekeeping only — a file that will not go is left.
       }
     },
     localAudioUri: (d: Devotional) => devotionalLocalSource(d)?.uri ?? null,
@@ -825,6 +904,12 @@ export function devotionalShareAudioAvailable(d: Devotional): boolean {
  * run did exactly that). A video that fails the probe is
  * re-made on the spot; the fresh render proves its own audio
  * before it is allowed to exist.
+ *
+ * The cache also speaks painter revisions (v547): only the
+ * current revision's file name is ever looked for, so an
+ * artifact an older painter made is rendered fresh once after
+ * a painter change instead of being served forever — and the
+ * older file is swept once the current one is in hand.
  */
 export async function generateAndShareDevotionalArtifact(
   kind: DevotionalShareKind,
@@ -875,6 +960,19 @@ export async function generateAndShareDevotionalArtifact(
     }
     if (!(await deps.fileExists(outUri))) {
       throw new Error('The share file could not be made.');
+    }
+  }
+
+  // v547: the current painter revision is in hand — sweep this
+  // chapter-and-kind's older-revision files, so the cache does
+  // not keep one orphan per painter revision. Best-effort by
+  // construction: the door is optional and every failure here
+  // is swallowed — a stale file left behind never blocks a
+  // share, and it is never served (the flow looks only at the
+  // current revision's path above).
+  if (deps.deleteFile) {
+    for (const staleUri of staleShareArtifactCachePaths(cacheBase, kind, d)) {
+      await deps.deleteFile(staleUri).catch(() => {});
     }
   }
 

@@ -207,7 +207,9 @@ describe('the seat', () => {
     expect(calls.renderCardPng).toHaveLength(1);
     expect(calls.shareFile).toEqual([
       {
-        uri: 'file:///cache/devotional-share/prayercircle-james-1-square-card.png',
+        // RE-BASE (v547): the shared name carries the painter
+        // revision (-r2); the generate-then-share claim stands.
+        uri: 'file:///cache/devotional-share/prayercircle-james-1-square-card-r2.png',
         mimeType: 'image/png',
       },
     ]);

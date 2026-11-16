@@ -105,8 +105,14 @@ import {
 } from '../../modules/expo-devotional-share/src/index';
 
 const james1 = getDevotional('James', 1) as Devotional;
-const VIDEO_OUT = 'file:///cache/devotional-share/prayercircle-james-1-story-video.mp4';
-const VIDEO_PATH = '/cache/devotional-share/prayercircle-james-1-story-video.mp4';
+// RE-BASE (v547): the cached video these tests seed stands at
+// the CURRENT painter revision's path (-r2) — v547's flow looks
+// nowhere else, so a seed at the revision-1 name would test
+// "not cached" instead of the probe. The probe claims below
+// are unchanged; the revision rule itself is pinned in
+// devotional-share-v547.test.ts.
+const VIDEO_OUT = 'file:///cache/devotional-share/prayercircle-james-1-story-video-r2.mp4';
+const VIDEO_PATH = '/cache/devotional-share/prayercircle-james-1-story-video-r2.mp4';
 
 // ─── The flow, behind fake doors (the v536 fake, extended) ──────────────────
 
@@ -240,7 +246,10 @@ describe('the cached video is probed before it is trusted', () => {
 
   it('a cached card is never probed — a picture has no silent mode', async () => {
     const { deps, calls, files } = fakeDeps({}, { withProbe: true, probeResult: false });
-    files.add('file:///cache/devotional-share/prayercircle-james-1-square-card.png');
+    // RE-BASE (v547): seeded at the current revision's path
+    // (-r2) so the card genuinely stands in the cache the
+    // flow consults; the never-probed claim is unchanged.
+    files.add('file:///cache/devotional-share/prayercircle-james-1-square-card-r2.png');
     setDevotionalShareDepsForTests(deps);
     await generateAndShareDevotionalArtifact('square-card', james1);
     expect(calls.probeVideoAudio).toEqual([]);

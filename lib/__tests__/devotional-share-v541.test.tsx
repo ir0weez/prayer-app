@@ -241,7 +241,9 @@ describe('the shares themselves — the chips’ own doors', () => {
     expect(calls.renderVideo).toHaveLength(0);
     expect(calls.shareFile).toEqual([
       {
-        uri: 'file:///cache/devotional-share/prayercircle-james-1-square-card.png',
+        // RE-BASE (v547): the shared name carries the painter
+        // revision (-r2); the door claim stands.
+        uri: 'file:///cache/devotional-share/prayercircle-james-1-square-card-r2.png',
         mimeType: 'image/png',
       },
     ]);
@@ -259,7 +261,9 @@ describe('the shares themselves — the chips’ own doors', () => {
     expect(calls.renderCardPng).toHaveLength(0);
     expect(calls.shareFile).toEqual([
       {
-        uri: 'file:///cache/devotional-share/prayercircle-james-1-story-video.mp4',
+        // RE-BASE (v547): the shared name carries the painter
+        // revision (-r2); the door claim stands.
+        uri: 'file:///cache/devotional-share/prayercircle-james-1-story-video-r2.mp4',
         mimeType: 'video/mp4',
       },
     ]);
@@ -321,7 +325,9 @@ describe('a render in flight', () => {
     });
     expect(calls.shareFile).toEqual([
       {
-        uri: 'file:///cache/devotional-share/prayercircle-james-1-story-video.mp4',
+        // RE-BASE (v547): the shared name carries the painter
+        // revision (-r2); the mid-render claim stands.
+        uri: 'file:///cache/devotional-share/prayercircle-james-1-story-video-r2.mp4',
         mimeType: 'video/mp4',
       },
     ]);

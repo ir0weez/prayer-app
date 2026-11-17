@@ -64,6 +64,7 @@ import {
   mergeVerseOnlyEntries,
   parseHashVerseRef,
   splitSectionsByHashNotes,
+  suppressRepeatedVersePrints,
   type DisplayEntry,
   type DisplaySection,
 } from '@/lib/bible-v205/index';
@@ -688,8 +689,17 @@ export function ChapterPageView(props: ChapterPageProps) {
   // entries themselves are never re-spanned, so every key below is
   // computed from the same spans as before). Read-only sections
   // carry no gapFill flags, so their rows all come back lead-less.
+  // v550: the first-print pass runs over the folded rows — where
+  // his sections overlap, a later row's opening verses already
+  // printed in an earlier section and are suppressed there (the
+  // row's printFrom stamp; its notes render untouched). Read-only
+  // sections tile the chapter without overlap, so every read-only
+  // row's printFrom is its own first verse and nothing changes.
   const foldedSections = useMemo(
-    () => sections.map((section) => ({ section, folded: foldLeadInEntries(section.entries) })),
+    () =>
+      suppressRepeatedVersePrints(
+        sections.map((section) => ({ section, folded: foldLeadInEntries(section.entries) })),
+      ),
     [sections],
   );
   // v507: the margin marker's seat, resolved over the folded rows
@@ -1779,7 +1789,7 @@ export function ChapterPageView(props: ChapterPageProps) {
             onLayout={(e) => yByKey.current.set(`secwrap-${section.start}`, e.nativeEvent.layout.y)}
           >
             <SectionBand start={section.start} end={section.end} title={section.title} palette={palette} tone={tone} />
-            {folded.map(({ entry }) => {
+            {folded.map(({ entry, printFrom }) => {
               // v405: the whole chapter mounts in one commit (no
               // v403 slicing gate) and every entry renders through
               // the memoized EntryView with pre-resolved data +
@@ -1802,6 +1812,7 @@ export function ChapterPageView(props: ChapterPageProps) {
               <EntryView
                 key={entry.start}
                 entry={entry}
+                printFrom={printFrom}
                 stopMark={stopSeat?.mark ?? null}
                 stopMarkRole={stopSeat?.role}
                 onStopMarkPress={handleStopDoor}
@@ -2174,6 +2185,13 @@ export interface EntryActions {
 
 const EntryView = memo(function EntryView(props: {
   entry: V205Entry;
+  /** v550: the first verse of this row's passage that prints —
+   * the page's first-print stamp (suppressRepeatedVersePrints).
+   * Verses before it already printed earlier in the chapter and
+   * are suppressed here; this entry's notes, lines, hearts and
+   * fold render exactly as before. Absent (every pre-v550 caller)
+   * the passage prints from its first verse. */
+  printFrom?: number;
   book: string;
   chapter: number;
   verseText: Map<number, string>;
@@ -2260,6 +2278,13 @@ const EntryView = memo(function EntryView(props: {
     if (!lead) return null;
     return lead.entries.find((le) => v >= le.start && v <= le.end) ?? null;
   };
+  // v550: the passage's first verse, and the first verse of it
+  // that PRINTS in this row. Where an earlier section already
+  // printed this row's opening verses, the print starts later —
+  // the verse text stands at its first print only — while the
+  // entry itself, its notes and its state are untouched.
+  const passageStart = lead?.entries.length ? lead.entries[0].start : entry.start;
+  const printStart = Math.max(passageStart, props.printFrom ?? passageStart);
   // v427: while a line edit is open, the key of the piece it came
   // from (host or lead) — the delete path closes THAT piece's
   // bubble, not blindly the host's.
@@ -2379,7 +2404,12 @@ const EntryView = memo(function EntryView(props: {
     // with room beneath it, so verse and box stay visible together.
     closingRef.current = false;
     setComposerClosing(false);
-    setComposerVerse(verse);
+    // v550: a verse this row no longer prints (it stands at its
+    // first print, in an earlier section) cannot hold the seat —
+    // the composer takes the body seat instead, exactly as a line
+    // edit does. The draft's '#<verse>' prefix is untouched, so a
+    // saved line still addresses the verse itself.
+    setComposerVerse(verse >= printStart ? verse : null);
     actions.verseSeatOpen(entry, versesBoxYRef.current + (verseYRef.current.get(verse) ?? 0));
   };
   // v390: the page routes its chapter prose's Bubble / Note
@@ -2699,7 +2729,9 @@ const EntryView = memo(function EntryView(props: {
   // entry's own. Painting resolves per owning span: lead verses
   // paint from the lead bundle (resolved on the lead spans' own
   // records), host verses from this entry's props, as before.
-  const firstVerse = lead?.entries.length ? lead.entries[0].start : entry.start;
+  // v550: the passage PRINTS from printStart — any verse before it
+  // already stands at its first print earlier in the chapter.
+  const firstVerse = printStart;
   const mergedVerseTints = lead ? { ...props.verseTints, ...lead.verseTints } : props.verseTints;
   const mergedHighlights = lead
     ? [...lead.phraseHighlights, ...props.phraseHighlights]

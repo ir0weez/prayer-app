@@ -463,7 +463,11 @@ describe('v427 — render: Genesis 4 §6–7 is ONE passage with ONE chevron', (
   it('the wiring: folded rows feed the render; Stories still read the unfolded sections', () => {
     expect(page).toContain('foldLeadInEntries(section.entries)');
     expect(page).toContain('lead={leadBundles.get(key)}');
-    expect(page).toContain('folded.map(({ entry })');
+    // RE-BASE (v550, 2026-11-17): the destructure gained printFrom
+    // — the first-print pass stamps each folded row and the render
+    // hands the stamp to EntryView. The v427 contract (folded rows
+    // feed the render, entries never re-spanned) is unchanged.
+    expect(page).toContain('folded.map(({ entry, printFrom })');
     expect(entryView).toContain('actions.phraseTint(leadForVerse(v) ?? entry, v, range, tint)');
     expect(entryView).toContain('leadForVerse(composerVerse) ?? entry');
     expect(page).toContain('const storySections = storySplit.sections;');

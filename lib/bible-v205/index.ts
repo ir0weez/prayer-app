@@ -249,6 +249,61 @@ export function foldLeadInEntries(entries: DisplayEntry[]): FoldedDisplayEntry[]
   return out;
 }
 
+/** One render row of a chapter after the v550 first-print pass. */
+export interface PrintFoldedEntry extends FoldedDisplayEntry {
+  /**
+   * The first verse of this row's passage (its leads plus its
+   * entry) that actually PRINTS. Verses before it already printed
+   * earlier in the chapter — a later section's range reaching back
+   * over an earlier section's — and are suppressed here: the row
+   * still renders its heading's section, its entry, its blocks,
+   * its lines and every keyed state exactly as before; only the
+   * duplicated verse TEXT is skipped. Equals the passage's first
+   * verse when nothing is suppressed, and `entry.end + 1` when the
+   * whole passage already printed.
+   */
+  printFrom: number;
+}
+
+/**
+ * v550 (Jonathan's ruling, 2026-11-17 — "All 7 chapters"): a
+ * verse's text prints AT MOST ONCE per chapter, at its first
+ * rendered occurrence. His sections sometimes overlap — a section
+ * ending on the verse the next begins with (1 Cor 2:10), a section
+ * restarting inside an earlier one (1 Kings 2 §1–12 over §1–9), a
+ * section nested inside an earlier section's fill (Acts 13
+ * §44–45 inside §13–52) — and the reader printed every section's
+ * full range, so the shared verses landed twice. This pass walks
+ * the chapter's folded rows IN RENDER ORDER (sections are never
+ * reordered) and stamps each row with the first verse of its
+ * passage not already printed by an earlier row. NOTHING else
+ * moves: sections, titles, written ranges, heading labels, fold
+ * arrows, note anchoring and every note block stand exactly as
+ * written — the copies in the later sections are often his REVISED
+ * wording (1 Kings 16:4), so only verse text is ever suppressed,
+ * never a note. Verse identity (kept hearts, highlights, tap
+ * targets) stays anchored to the first print, where it already
+ * resolved. Display-only, like the fold: Stories and the PDF never
+ * call this, and the entries themselves are never re-spanned.
+ */
+export function suppressRepeatedVersePrints(
+  foldedSections: { section: DisplaySection; folded: FoldedDisplayEntry[] }[],
+): { section: DisplaySection; folded: PrintFoldedEntry[] }[] {
+  const printed = new Set<number>();
+  return foldedSections.map(({ section, folded }) => ({
+    section,
+    folded: folded.map((row) => {
+      const start = row.leads.length
+        ? Math.min(row.entry.start, ...row.leads.map((l) => l.start))
+        : row.entry.start;
+      let printFrom = start;
+      while (printFrom <= row.entry.end && printed.has(printFrom)) printFrom += 1;
+      for (let v = start; v <= row.entry.end; v++) printed.add(v);
+      return { ...row, printFrom };
+    }),
+  }));
+}
+
 /**
  * Read-only mode sections: the noteless-chapter reader generalized to
  * every chapter. Section breaks follow his txt "Bible Stories"

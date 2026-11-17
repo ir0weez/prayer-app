@@ -141,7 +141,13 @@ describe('v356 — the unfurl', () => {
 describe('v356 — retargeting', () => {
   it('tapping another verse reseats the composer and cancels any collapse', () => {
     const fn = sliceBetween(entryView, 'const openComposerForVerse', 'const finishCloseComposer');
-    expect(fn).toContain('setComposerVerse(verse);');
+    // RE-BASE (v550, 2026-11-17): the seat assignment gained the
+    // first-print clamp — a verse this row no longer prints (it
+    // stands at its first print in an earlier section) takes the
+    // body seat (null) instead of a verse seat that cannot render.
+    // For every verse the row prints, the reseat is byte-identical
+    // to v356: setComposerVerse(verse).
+    expect(fn).toContain('setComposerVerse(verse >= printStart ? verse : null);');
     expect(fn).toContain('setComposerClosing(false);');
     expect(fn).toContain('closingRef.current = false;');
     // v352's contract, still intact inside the same function.

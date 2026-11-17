@@ -370,6 +370,9 @@ const STUDY_STATUSES: StudyStatus[] = [
   'in-progress',
   'write',
   'restudy',
+  // v552: the Edit writing state (types.ts) — accepted at this door
+  // like every other state, so a pack carrying it applies cleanly.
+  'edit',
   'not-started',
   'none',
 ];

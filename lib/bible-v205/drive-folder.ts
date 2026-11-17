@@ -259,6 +259,11 @@ export const STATUS_RANK: Record<string, number> = {
   'in-progress': 2,
   complete: 3,
   restudy: 4,
+  // v552: Edit is a post-Complete stage like ReStudy (a finished
+  // chapter flagged for another pass), so it shares ReStudy's rank —
+  // moving between complete / restudy / edit is never a backward
+  // move, and no state outranks it back down the pipeline.
+  edit: 4,
 };
 
 /** True when moving from `from` to `to` walks a chapter BACKWARD. Equal

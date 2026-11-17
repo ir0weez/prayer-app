@@ -115,6 +115,12 @@ export function chapterIsWritten(
   return (
     status === 'complete' ||
     status === 'restudy' ||
+    // v552: 'edit' joins the written family on the same reasoning
+    // as the v461 restudy arm — Edit is a post-Complete flag (the
+    // chapter's notes exist and are finished; he has marked them
+    // for another pass), never an unwritten state. The XP finish
+    // rules below are still NOT this rule and stay untouched.
+    status === 'edit' ||
     chapterHasNotes(book, chapter, imports)
   );
 }

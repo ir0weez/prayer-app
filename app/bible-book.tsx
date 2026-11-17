@@ -77,14 +77,19 @@ import { BibleTabBar, useTabBarOccupiedHeight } from '@/components/app-tab-bar';
 
 /** v311: the sheet's writing-pipeline chips, in the drawing's order
  * and words. Not Started and None are NOT chips — they are the one
- * unset state, left through the sheet's single Clear state action. */
-const SHEET_STATUS_ORDER = ['in-progress', 'write', 'complete', 'restudy'] as const;
+ * unset state, left through the sheet's single Clear state action.
+ * v552: Edit joins the row (his words, 2026-11-17 — the state he
+ * marks a finished chapter with when its notes need another pass;
+ * it replaces the Complete/Restudy pill, in yellow). It stands
+ * after Restudy, the pipeline's other post-Complete stage. */
+const SHEET_STATUS_ORDER = ['in-progress', 'write', 'complete', 'restudy', 'edit'] as const;
 type SheetStatus = (typeof SHEET_STATUS_ORDER)[number];
 const SHEET_STATUS_LABEL: Record<SheetStatus, string> = {
   'in-progress': 'Writing now',
   write: 'Write next',
   complete: 'Complete',
   restudy: 'Restudy',
+  edit: 'Edit',
 };
 
 /** v265: pane mode (the shell's Study tab) hands this screen its
@@ -449,8 +454,15 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
                     borderColor: cellDressFor(bookPal, selStatus).borderColor ?? 'transparent',
                     borderWidth: cellDressFor(bookPal, selStatus).borderColor ? 1 : 0,
                   },
+                  // v552: the Edit pill carries the pencil glyph
+                  // beside its word (the icon set's 'edit'), the way
+                  // Complete's pill carries its check in the label.
+                  selStatus === 'edit' ? styles.sheetPillWithGlyph : null,
                 ]}
               >
+                {selStatus === 'edit' ? (
+                  <MaterialIcons name="edit" size={13} color={cellDressFor(bookPal, selStatus).color} />
+                ) : null}
                 <Text style={[styles.sheetPillText, { color: cellDressFor(bookPal, selStatus).color }]}>
                   {STATUS_LABEL[selStatus]}
                 </Text>
@@ -521,8 +533,15 @@ function BibleBookContent(props: { pane?: BibleBookPaneProps } = {}) {
                   style={[
                     styles.stateChip,
                     { backgroundColor: cd.backgroundColor, borderColor: cd.borderColor },
+                    // v552: the current Edit chip carries its pencil
+                    // in a row, mirroring the current Complete chip's
+                    // '✓ ' prefix below.
+                    isCurrent && s === 'edit' ? styles.stateChipWithGlyph : null,
                   ]}
                 >
+                  {isCurrent && s === 'edit' ? (
+                    <MaterialIcons name="edit" size={13} color={cd.color} />
+                  ) : null}
                   <Text style={[styles.stateChipText, { color: cd.color }]}>
                     {isCurrent && s === 'complete' ? '✓ ' : ''}
                     {SHEET_STATUS_LABEL[s]}
@@ -628,6 +647,8 @@ const styles = StyleSheet.create({
   sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   sheetTitle: { fontSize: 24, fontWeight: '700' },
   sheetPill: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 13 },
+  // v552: the Edit pill's glyph + word ride in one row.
+  sheetPillWithGlyph: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   sheetPillText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
   readCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginTop: 12 },
   readIconChip: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
@@ -640,6 +661,8 @@ const styles = StyleSheet.create({
   pdfRowBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 10, paddingVertical: 13 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   stateChip: { height: 36, borderRadius: 8, borderWidth: 1.5, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center' },
+  // v552: the current Edit chip's glyph + word ride in one row.
+  stateChipWithGlyph: { flexDirection: 'row', gap: 5 },
   stateChipText: { fontSize: 13, fontWeight: '600' },
   clearRow: { alignSelf: 'flex-end', marginTop: 14, paddingVertical: 4 },
   clearText: { fontSize: 13.5, fontWeight: '600' },

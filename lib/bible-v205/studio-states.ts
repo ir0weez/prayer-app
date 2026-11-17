@@ -33,7 +33,10 @@ export interface StudioStatesSection {
   chapters: StudioStateEntry[];
 }
 
-const NOTES_STATES: StudyStatus[] = ['complete', 'in-progress', 'write', 'restudy', 'not-started', 'none'];
+// v552: 'edit' rides the bridge like every other notes state —
+// without it here, a backup carrying an Edit chapter would fail
+// this door's own validation on restore.
+const NOTES_STATES: StudyStatus[] = ['complete', 'in-progress', 'write', 'restudy', 'edit', 'not-started', 'none'];
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v);

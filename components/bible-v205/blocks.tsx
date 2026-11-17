@@ -838,6 +838,10 @@ export const STATUS_LABEL: Record<StudyStatus, string> = {
   'in-progress': 'In progress',
   write: 'Write',
   restudy: '↻ ReStudy',
+  // v552: plain word — the pill/chip renders the pencil glyph from
+  // the icon set beside it (StatusChip below, the book sheet's
+  // headline pill), the way Complete's check is carried.
+  edit: 'Edit',
   'not-started': 'Not started',
   none: 'None',
 };
@@ -857,6 +861,9 @@ export function StatusChip({ status, palette }: { status: StudyStatus; palette: 
   // v311: the chip families match the drawing's two-channel system —
   // in-progress wears the tonal seed container (it was keeper
   // yellow), ReStudy the teal family, Write the outlined card.
+  // v552: Edit wears the amber family (palette.accentAmber — the
+  // same derived tone cellDressFor seats), with the pencil glyph
+  // from the app's icon set beside the word.
   const style =
     status === 'complete'
       ? { backgroundColor: palette.rasp, borderColor: palette.rasp, color: '#FFFFFF' }
@@ -866,9 +873,18 @@ export function StatusChip({ status, palette }: { status: StudyStatus; palette: 
           ? { backgroundColor: palette.paper2, borderColor: palette.bandBorder, color: palette.raspDeep }
           : status === 'restudy'
             ? { backgroundColor: palette.accentTeal.bg, borderColor: palette.accentTeal.bg, color: palette.accentTeal.deep }
-            : { backgroundColor: palette.greyBg, borderColor: palette.greyBorder, color: palette.greyLabel };
+            : status === 'edit'
+              ? { backgroundColor: palette.accentAmber.bg, borderColor: palette.accentAmber.bg, color: palette.accentAmber.deep }
+              : { backgroundColor: palette.greyBg, borderColor: palette.greyBorder, color: palette.greyLabel };
   return (
-    <View style={[styles.chip, { backgroundColor: style.backgroundColor, borderColor: style.borderColor }]}>
+    <View
+      style={[
+        styles.chip,
+        { backgroundColor: style.backgroundColor, borderColor: style.borderColor },
+        status === 'edit' ? styles.chipWithGlyph : null,
+      ]}
+    >
+      {status === 'edit' ? <MaterialIcons name="edit" size={11} color={style.color} /> : null}
       <Text style={[styles.chipText, { color: style.color }]}>{STATUS_LABEL[status]}</Text>
     </View>
   );
@@ -947,6 +963,8 @@ const styles = StyleSheet.create({
   calloutText: { fontSize: 14.5, lineHeight: 23, fontWeight: '600' },
   calloutTextBig: { fontSize: 20.5, lineHeight: 31, fontWeight: '700' },
   chip: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 9, alignSelf: 'flex-start' },
+  // v552: the Edit chip's glyph + word ride in one row.
+  chipWithGlyph: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   chipText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.7, textTransform: 'uppercase' },
   catTag: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'flex-start' },
   catDot: { width: 8, height: 8, borderRadius: 4 },

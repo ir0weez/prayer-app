@@ -742,13 +742,16 @@ export function statusFromLabel(label: string): StudyStatus {
     case 'in progress': return 'in-progress';
     case 'write': return 'write';
     case 'restudy': return 'restudy';
+    case 'edit': return 'edit';
     case 'not started': return 'not-started';
     default: return 'none';
   }
 }
 
 const STATUS_RANK: Record<StudyStatus, number> = {
-  complete: 5, restudy: 4, 'in-progress': 3, write: 2, 'not-started': 1, none: 0,
+  // v552: 'edit' ranks with 'restudy' — both are post-Complete
+  // stages of the pipeline (drive-folder.ts STATUS_RANK agrees).
+  complete: 5, restudy: 4, edit: 4, 'in-progress': 3, write: 2, 'not-started': 1, none: 0,
 };
 
 /** Parse one book's status CSV (schema Book, Chapter, Status), deduped by

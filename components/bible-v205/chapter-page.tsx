@@ -1290,7 +1290,9 @@ export function ChapterPageView(props: ChapterPageProps) {
           ? `Chapter ${chapter} — on the Next list, waiting to be written.`
           : status === 'restudy'
             ? `Chapter ${chapter} — on the Current list, waiting to be re-studied.`
-            : status === 'not-started'
+            : status === 'edit'
+              ? `Chapter ${chapter} — notes finished, marked for editing.`
+              : status === 'not-started'
               ? `Chapter ${chapter} — marked not started yet.`
               : `Chapter ${chapter} — no notes state recorded yet. It is set from the book grid, not here.`;
 

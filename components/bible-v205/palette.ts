@@ -430,7 +430,7 @@ export interface CellDress {
 /** The chapter grid cell's dress for one writing status. */
 export function cellDressFor(
   palette: BiblePalette,
-  status: 'complete' | 'in-progress' | 'write' | 'restudy' | 'not-started' | 'none',
+  status: 'complete' | 'in-progress' | 'write' | 'restudy' | 'edit' | 'not-started' | 'none',
 ): CellDress {
   switch (status) {
     case 'complete':
@@ -441,6 +441,13 @@ export function cellDressFor(
       return { backgroundColor: palette.paper2, color: palette.raspDeep, borderColor: palette.bandBorder };
     case 'restudy':
       return { backgroundColor: palette.accentTeal.bg, color: palette.accentTeal.deep };
+    case 'edit':
+      // v552: the yellow edit dress — the derived amber family,
+      // seated exactly where ReStudy's teal sits. This one dress
+      // feeds the grid cell AND the book sheet's headline pill
+      // (bible-book.tsx builds the pill from cellDressFor), so the
+      // pill he asked for — "a yellow edit pill" — is this.
+      return { backgroundColor: palette.accentAmber.bg, color: palette.accentAmber.deep };
     default:
       return { backgroundColor: palette.raspTint, color: palette.inkSoft };
   }
@@ -456,7 +463,7 @@ export interface ChipDress {
  * family tint; the CURRENT state deepens (Complete fills solid). */
 export function sheetChipDress(
   palette: BiblePalette,
-  status: 'complete' | 'in-progress' | 'write' | 'restudy',
+  status: 'complete' | 'in-progress' | 'write' | 'restudy' | 'edit',
   current: boolean,
 ): ChipDress {
   switch (status) {
@@ -479,6 +486,15 @@ export function sheetChipDress(
         backgroundColor: palette.accentTeal.bg,
         color: palette.accentTeal.deep,
         borderColor: current ? palette.accentTeal.deep : palette.accentTeal.bg,
+      };
+    case 'edit':
+      // v552: the Edit chip mirrors the ReStudy chip's mechanics in
+      // the amber family — resting in its tint, the current state
+      // deepens its border to the family's deep step.
+      return {
+        backgroundColor: palette.accentAmber.bg,
+        color: palette.accentAmber.deep,
+        borderColor: current ? palette.accentAmber.deep : palette.accentAmber.bg,
       };
   }
 }

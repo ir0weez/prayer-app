@@ -105,6 +105,19 @@ export type StudyStatus =
   | 'in-progress'
   | 'write'
   | 'restudy'
+  // v552 — HIS WORDS (2026-11-17): he has to go back and edit some
+  // of his notes, and needs to remind himself which chapters by
+  // marking them: "I want it to replace the 'Complete' or 'Restudy'
+  // pill with 'Edit' — same way it works now, but it will be a
+  // yellow edit pill instead." Edit is a writing state like the
+  // others — a post-Complete flag for rework, set from the chapter
+  // sheet's MY WRITING chips, stored as an override (no queue backs
+  // it, exactly like Complete / In-progress). It counts as WRITTEN
+  // everywhere the written family is counted (rewards.ts
+  // chapterIsWritten, the ReStudy precedent of v461); the XP finish
+  // rules keep their literal-'complete' test, untouched, exactly as
+  // they treat ReStudy.
+  | 'edit'
   | 'not-started'
   | 'none';
 

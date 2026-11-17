@@ -81,8 +81,11 @@ afterEach(() => {
 // ─── The revision and the names it makes ────────────────────────────────────
 
 describe('the painter revision', () => {
-  it('is one named constant, at 2 — the first revision ever marked', () => {
-    expect(SHARE_RENDER_REVISION).toBe(2);
+  // RE-BASE (v548, 2026-11-17): the constant moved 2 → 3 when
+  // the painter's drawing changed again (the bar's end dot
+  // became a tick). The one-named-constant claim is unchanged.
+  it('is one named constant, at 3 — v547 first marked it at 2', () => {
+    expect(SHARE_RENDER_REVISION).toBe(3);
     const shareTs = readFileSync(join(__dirname, '..', 'devotional-share.ts'), 'utf8');
     // Declared exactly once; everything else derives from it.
     expect(shareTs.match(/export const SHARE_RENDER_REVISION/g)).toHaveLength(1);
@@ -96,20 +99,20 @@ describe('the painter revision', () => {
 
   it('every rendered kind carries the revision in its file name', () => {
     expect(shareArtifactFileName('square-card', james1)).toBe(
-      'prayercircle-james-1-square-card-r2.png',
+      'prayercircle-james-1-square-card-r3.png',
     );
     expect(shareArtifactFileName('story-card', james1)).toBe(
-      'prayercircle-james-1-story-card-r2.png',
+      'prayercircle-james-1-story-card-r3.png',
     );
     expect(shareArtifactFileName('square-video', james1)).toBe(
-      'prayercircle-james-1-square-video-r2.mp4',
+      'prayercircle-james-1-square-video-r3.mp4',
     );
     expect(shareArtifactFileName('story-video', peter3)).toBe(
-      'prayercircle-1-peter-3-story-video-r2.mp4',
+      'prayercircle-1-peter-3-story-video-r3.mp4',
     );
     // The device case: the chapter whose v545 video outlived its painter.
     expect(shareArtifactFileName('story-video', corinthians1)).toBe(
-      'prayercircle-2-corinthians-1-story-video-r2.mp4',
+      'prayercircle-2-corinthians-1-story-video-r3.mp4',
     );
     for (const kind of RENDERED_KINDS) {
       expect(shareArtifactFileName(kind, james1)).toContain(`-r${SHARE_RENDER_REVISION}.`);
@@ -150,7 +153,10 @@ describe('the painter revision', () => {
     expect(staleShareArtifactCachePaths('file:///cache/', 'audio', james1)).toEqual([]);
   });
 
-  it('the cache paths carry the revision; the stale set names revision 1 exactly', () => {
+  // RE-BASE (v548, 2026-11-17): at revision 3 the stale set
+  // names BOTH older revisions (1 and 2), oldest first — the
+  // claim (every older painter's file, and only those) stands.
+  it('the cache paths carry the revision; the stale set names every older revision, oldest first', () => {
     for (const kind of RENDERED_KINDS) {
       const current = shareArtifactCachePath('file:///cache/', kind, james1) as string;
       expect(current).toContain(`-r${SHARE_RENDER_REVISION}.`);
@@ -159,13 +165,15 @@ describe('the painter revision', () => {
       );
       expect(staleShareArtifactCachePaths('file:///cache/', kind, james1)).toEqual([
         shareArtifactCachePathForRevision('file:///cache/', kind, james1, 1),
+        shareArtifactCachePathForRevision('file:///cache/', kind, james1, 2),
       ]);
     }
     expect(shareArtifactCachePath('file:///cache/', 'story-video', corinthians1)).toBe(
-      'file:///cache/devotional-share/prayercircle-2-corinthians-1-story-video-r2.mp4',
+      'file:///cache/devotional-share/prayercircle-2-corinthians-1-story-video-r3.mp4',
     );
     expect(staleShareArtifactCachePaths('file:///cache/', 'story-video', corinthians1)).toEqual([
       'file:///cache/devotional-share/prayercircle-2-corinthians-1-story-video.mp4',
+      'file:///cache/devotional-share/prayercircle-2-corinthians-1-story-video-r2.mp4',
     ]);
     // No cache directory, no paths — current or stale.
     expect(shareArtifactCachePath(null, 'square-card', james1)).toBeNull();
@@ -223,9 +231,14 @@ function fakeDeps(
 }
 
 const LEGACY_VIDEO = 'file:///cache/devotional-share/prayercircle-james-1-story-video.mp4';
-const CURRENT_VIDEO = 'file:///cache/devotional-share/prayercircle-james-1-story-video-r2.mp4';
+const CURRENT_VIDEO = 'file:///cache/devotional-share/prayercircle-james-1-story-video-r3.mp4';
 const LEGACY_CARD = 'file:///cache/devotional-share/prayercircle-james-1-square-card.png';
-const CURRENT_CARD = 'file:///cache/devotional-share/prayercircle-james-1-square-card-r2.png';
+const CURRENT_CARD = 'file:///cache/devotional-share/prayercircle-james-1-square-card-r3.png';
+// RE-BASE (v548, 2026-11-17): revision 2's paths are stale
+// too now — the sweep names them alongside the legacy ones,
+// oldest first, so the sweep expectations below carry both.
+const R2_VIDEO = 'file:///cache/devotional-share/prayercircle-james-1-story-video-r2.mp4';
+const R2_CARD = 'file:///cache/devotional-share/prayercircle-james-1-square-card-r2.png';
 
 describe('an older painter’s file is never served', () => {
   it('a video existing only at the revision-1 path is re-rendered, not probed, not shared', async () => {
@@ -242,7 +255,7 @@ describe('an older painter’s file is never served', () => {
     expect(out.uri).toBe(CURRENT_VIDEO);
     expect(calls.shareFile).toEqual([{ uri: CURRENT_VIDEO, mimeType: 'video/mp4' }]);
     // And the old painter's file was swept once the new one landed.
-    expect(calls.deleteFile).toEqual([LEGACY_VIDEO]);
+    expect(calls.deleteFile).toEqual([LEGACY_VIDEO, R2_VIDEO]);
     expect(files.has(LEGACY_VIDEO)).toBe(false);
     expect(files.has(CURRENT_VIDEO)).toBe(true);
   });
@@ -255,7 +268,7 @@ describe('an older painter’s file is never served', () => {
     expect(calls.renderCardPng).toHaveLength(1);
     expect(out.uri).toBe(CURRENT_CARD);
     expect(calls.shareFile).toEqual([{ uri: CURRENT_CARD, mimeType: 'image/png' }]);
-    expect(calls.deleteFile).toEqual([LEGACY_CARD]);
+    expect(calls.deleteFile).toEqual([LEGACY_CARD, R2_CARD]);
     expect(files.has(LEGACY_CARD)).toBe(false);
   });
 
@@ -267,7 +280,7 @@ describe('an older painter’s file is never served', () => {
     await generateAndShareDevotionalArtifact('square-card', james1);
     expect(calls.renderCardPng).toHaveLength(0);
     expect(calls.shareFile).toEqual([{ uri: CURRENT_CARD, mimeType: 'image/png' }]);
-    expect(calls.deleteFile).toEqual([LEGACY_CARD]);
+    expect(calls.deleteFile).toEqual([LEGACY_CARD, R2_CARD]);
     expect(files.has(LEGACY_CARD)).toBe(false);
     expect(files.has(CURRENT_CARD)).toBe(true);
   });
@@ -279,11 +292,11 @@ describe('an older painter’s file is never served', () => {
     setDevotionalShareDepsForTests(deps);
     await generateAndShareDevotionalArtifact('story-video', james1);
     expect(calls.probeVideoAudio).toEqual([
-      '/cache/devotional-share/prayercircle-james-1-story-video-r2.mp4',
+      '/cache/devotional-share/prayercircle-james-1-story-video-r3.mp4',
     ]);
     expect(calls.renderVideo).toHaveLength(0);
     expect(calls.shareFile).toEqual([{ uri: CURRENT_VIDEO, mimeType: 'video/mp4' }]);
-    expect(calls.deleteFile).toEqual([LEGACY_VIDEO]);
+    expect(calls.deleteFile).toEqual([LEGACY_VIDEO, R2_VIDEO]);
   });
 
   it('a sweep that fails never blocks the share', async () => {

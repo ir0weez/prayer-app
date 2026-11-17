@@ -246,6 +246,51 @@
 // seek + one deliberate seat when the panel is on, never
 // engaging follow, and in OFF they never mount the panel.
 // The chapter sessions are untouched entirely.
+//
+// v548: the collapse could FAIL outright (Jonathan's
+// recording, Nov 17, on v547 — 2 Corinthians 5: swipe down,
+// the surface hangs oversized for over two seconds, then the
+// whole sheet vanishes and NO pill stands, the session live;
+// his pattern report: "the pill disappears after the second
+// or third audio file swipe down"). The audit, from code:
+//  · The route's close hung on ONE signal — the settle
+//    animation's completion callback. Nothing else closed
+//    the route: lose that callback and the surface freezes
+//    mid-morph indefinitely (the hanging slab in the
+//    recording is a 500ms settle that never landed).
+//  · The close was not idempotent and the epoch guard had a
+//    hole: Android back handed off directly WITHOUT bumping
+//    the epoch or cancelling the in-flight settle, and
+//    unmount never invalidated the epoch either — so a
+//    settle completing after a back-driven pop fired its
+//    callback into an unmoved epoch and handed off a SECOND
+//    time, popping a route that was not the player's. Every
+//    door pushes and every close must pop exactly once; one
+//    extra pop corrupts the stack the next cycles stand on,
+//    and a later open/close can then strand a player route
+//    mounted but buried — view-open stuck true, no surface
+//    on screen, no pill, live session.
+//  · The lag had a proven per-frame tenant: the wavy seek
+//    bar's value sweep. Position ticks land every 250ms and
+//    each restarts the bar's 600ms JS-driven sweep, whose
+//    listener re-renders the bar and rebuilds its SVG path
+//    on every animation frame — during playback the sweep
+//    effectively never rests, morph included — alongside
+//    the travel loop's wide sliding SVG layer, all under a
+//    morph that re-lays-out the whole page every frame.
+// The fixes, in the morph code below: the hand-off is
+// IDEMPOTENT (a per-view latch — any number of signals close
+// the route exactly once) and BACKED BY A FALLBACK TIMER
+// (a collapse settle arms a JS timer a breath past its own
+// duration; if the animation's callback never arrives, the
+// timer hands off — the settled end state no longer depends
+// on the animation completing cleanly); back and unmount
+// both invalidate in-flight settle callbacks (epoch bump,
+// the back path also cancels the animation); and while a
+// morph is in flight the seek bar stands STILL (his call:
+// "maybe it needs to go flat as you swipe down") — flat,
+// no sweep listener, no travel — resuming its wave the
+// moment the morph settles with the view open.
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -316,6 +361,7 @@ import {
 import {
   DEVOTIONAL_COLLAPSE_CONTENT_OUT_END,
   DEVOTIONAL_COLLAPSE_CONTENT_TRAVEL_PX,
+  DEVOTIONAL_COLLAPSE_HANDOFF_FALLBACK_MS,
   DEVOTIONAL_COLLAPSE_PILL_IN_START,
   DEVOTIONAL_COLLAPSE_SETTLE_MS,
   DEVOTIONAL_COLLAPSE_THRESHOLD,
@@ -1655,9 +1701,19 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   // chapter door it mounts as the plain page.
   const expandMorph = useMemo(() => consumeDevotionalExpandMorph(), []);
   const collapseP = useSharedValue(expandMorph ? 1 : 0);
+  // v548: a morph is in flight — the seek bar stands still
+  // (flat, no sweep, no travel) for exactly this span. Set by
+  // every morph driver (the expand's mount settle, a drag
+  // grabbing the surface, either settle) and cleared when a
+  // timing lands the view OPEN; a collapse that lands hands
+  // off and unmounts, so its clearing never renders.
+  const [morphing, setMorphing] = useState(expandMorph);
+  const morphSettledOpen = useCallback(() => setMorphing(false), []);
   useEffect(() => {
     if (expandMorph && reduceMotionKnown) {
-      collapseP.value = withTiming(0, { duration: settleMs(), easing: EMPHASIZED });
+      collapseP.value = withTiming(0, { duration: settleMs(), easing: EMPHASIZED }, (finished) => {
+        if (finished) runOnJS(morphSettledOpen)();
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reduceMotionKnown]);
@@ -1680,10 +1736,29 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   // reader's finger.
   const morphEpochRef = useRef(0);
 
+  // v548: the hand-off is LATCHED — this view closes its route
+  // exactly once, however many signals ask (the settle's
+  // callback, the fallback timer below, Android back). Before
+  // v548 the latch was missing and the back path could be
+  // followed by a late settle callback handing off a second
+  // time, popping a route that was not the player's.
+  const handedOffRef = useRef(false);
+  // v548: the collapse's fallback timer (armed by settleCollapse).
+  const handoffTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearHandoffFallback = () => {
+    if (handoffTimerRef.current !== null) {
+      clearTimeout(handoffTimerRef.current);
+      handoffTimerRef.current = null;
+    }
+  };
+
   // The hand-off: raise the flag BEFORE the route closes, so the
   // root pill mounts already settled in the seat the morph landed
   // in — the swap is invisible.
   const handOffAndBack = () => {
+    if (handedOffRef.current) return;
+    handedOffRef.current = true;
+    clearHandoffFallback();
     requestDevotionalPillHandoff();
     onBackRef.current();
   };
@@ -1695,9 +1770,34 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const settleCollapse = useCallback((toPill: boolean) => {
     const epoch = ++morphEpochRef.current;
     setClosing(toPill);
+    setMorphing(true);
+    clearHandoffFallback();
+    const duration = settleMs();
+    // v548: the FALLBACK. The settle's completion callback was
+    // the ONLY signal that closed this route — lose it (an
+    // animation cancelled by a path that restarts nothing, a
+    // callback dropped across a navigation race) and the
+    // surface froze mid-morph forever, the sheet hanging
+    // oversized on Jonathan's phone until it vanished with no
+    // pill standing. A collapse now also arms a plain JS timer
+    // a breath past the settle's own duration: if the epoch is
+    // still this settle's, the view has not handed off, and
+    // the Stop sequence does not own the exit, the timer hands
+    // off itself. Whichever signal arrives first wins; the
+    // latch makes the other a no-op. The end state — route
+    // closed, pill standing — no longer depends on the
+    // animation completing cleanly.
+    if (toPill) {
+      handoffTimerRef.current = setTimeout(() => {
+        handoffTimerRef.current = null;
+        if (morphEpochRef.current === epoch && !handedOffRef.current && !stoppingRef.current) {
+          handOffAndBack();
+        }
+      }, duration + DEVOTIONAL_COLLAPSE_HANDOFF_FALLBACK_MS);
+    }
     collapseP.value = withTiming(
       toPill ? 1 : 0,
-      { duration: settleMs(), easing: EMPHASIZED },
+      { duration, easing: EMPHASIZED },
       (finished) => {
         // v510: an interrupted settle into the pill still
         // completes the close — a frozen half-shrunk surface is
@@ -1708,6 +1808,11 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
         if (toPill && (finished || morphEpochRef.current === epoch)) {
           runOnJS(handOffAndBack)();
         }
+        // v548: a settle that lands the view OPEN ends the
+        // morph — the seek bar's wave resumes.
+        if (!toPill && finished) {
+          runOnJS(morphSettledOpen)();
+        }
       },
     );
     // settleMs / handOffAndBack read only refs (reducedMotion,
@@ -1716,6 +1821,20 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   }, []);
 
   const minimize = useCallback(() => settleCollapse(true), [settleCollapse]);
+
+  // v548: unmount invalidates every in-flight morph signal —
+  // the epoch moves on (a settle callback arriving late, after
+  // this view is gone, reads a stale epoch and stands down)
+  // and the fallback timer dies with the view. Before v548 a
+  // late callback could hand off from beyond the grave and
+  // pop a second route.
+  useEffect(() => {
+    return () => {
+      morphEpochRef.current += 1;
+      clearHandoffFallback();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Dragging down scrubs the morph with the finger (the demo:
   // p = start + dy / 300). Only a clear downward drag AT THE TOP of
@@ -1734,6 +1853,12 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
           // finger) and the page is the reader's again.
           morphEpochRef.current += 1;
           setClosing(false);
+          // v548: the reader's hand on the surface is a morph
+          // driver too — the seek bar stills, and any fallback
+          // the superseded settle armed is disarmed (the epoch
+          // check would catch it; this keeps the timer honest).
+          setMorphing(true);
+          clearHandoffFallback();
           cancelAnimation(collapseP);
           dragStartP.current = collapseP.value;
         },
@@ -1762,6 +1887,17 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
   const backCloseRef = useRef<() => void>(() => undefined);
   backCloseRef.current = () => {
     if (stoppingRef.current) return;
+    // v548: back supersedes any settle in flight BEFORE it
+    // hands off — the epoch moves on and the animation is
+    // cancelled, so the settle's callback (whenever it is
+    // delivered) cannot hand off a second time behind this
+    // one and pop a route that is not the player's. Before
+    // v548 this path did neither, and the hand-off latch did
+    // not exist: a completed-after-pop settle closed a second
+    // route, corrupting the push/back balance later cycles
+    // stand on.
+    morphEpochRef.current += 1;
+    cancelAnimation(collapseP);
     handOffAndBack();
   };
   useEffect(() => {
@@ -1936,7 +2072,14 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
           />
 
           {/* The Material wavy seek, in the book colour (the app's
-              wavy-progress family, v339). Tap to seek, as before. */}
+              wavy-progress family, v339). Tap to seek, as before.
+              v548: while a collapse/expand morph is in flight the
+              bar stands still — flat at the current fraction, no
+              sweep, no travel (his call) — and resumes its wave
+              when the morph settles with the view open. Its tip
+              wears a slim vertical tick, not the round dot (his
+              other call of the same morning: the wavy line
+              running into a circular head "looks like a sperm"). */}
           <Pressable
             style={styles.seekTouch}
             onPress={(e) => {
@@ -1947,7 +2090,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
             }}
             accessibilityLabel="Seek"
           >
-            <WavyProgress value={duration > 0 ? position / duration : 0} color={theme.primary} trackColor={theme.track} height={14} />
+            <WavyProgress value={duration > 0 ? position / duration : 0} color={theme.primary} trackColor={theme.track} height={14} still={morphing} tipTick />
           </Pressable>
           <View style={styles.times}>
             <Text style={[styles.time, { color: theme.inkSoft }]}>{formatClock(position)}</Text>

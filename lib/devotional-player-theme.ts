@@ -41,6 +41,14 @@ export const DEVOTIONAL_COLLAPSE_THRESHOLD = 0.35;
 /** Collapse/expand settle duration — Material emphasized,
  * cubic-bezier(0.2, 0, 0, 1) (the demo's 500ms tween). */
 export const DEVOTIONAL_COLLAPSE_SETTLE_MS = 500;
+/** Collapse (v548): the hand-off fallback's margin past the
+ * settle's own duration. A collapse arms a JS timer at
+ * duration + this margin; if the animation's completion
+ * callback never arrives, the timer hands off itself, so the
+ * route still closes and the pill still stands. A breath, not
+ * a second settle: on a healthy phone the callback always
+ * wins the race and the timer is cleared unspent. */
+export const DEVOTIONAL_COLLAPSE_HANDOFF_FALLBACK_MS = 450;
 /** Collapse: the page content is fully out by this fraction of the
  * morph (the v5 demo's render(): content left over p 0 → 0.45 —
  * a fade in the demo, position-only travel since v512). */

@@ -159,7 +159,8 @@ class ShareCardPainter(private val spec: ShareSpec) {
   private val waveAmplitude = wave?.dbl("amplitude") ?: 0.0
   private val waveStrokeWidth = wave?.dbl("strokeWidth") ?: 0.0
   private val waveTrackThickness = wave?.dbl("trackThickness") ?: 0.0
-  private val waveStopDotRadius = wave?.dbl("stopDotRadius") ?: 0.0
+  private val waveStopTickWidth = wave?.dbl("stopTickWidth") ?: 0.0
+  private val waveStopTickHeight = wave?.dbl("stopTickHeight") ?: 0.0
 
   private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
     style = Paint.Style.STROKE
@@ -179,7 +180,14 @@ class ShareCardPainter(private val spec: ShareSpec) {
     strokeCap = Paint.Cap.ROUND
     strokeWidth = waveStrokeWidth.toFloat()
   }
-  private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = paleColor }
+  // v548: the bar's end mark — a slim vertical tick in the pale
+  // colour the end dot wore, drawn as a round-capped stroke.
+  private val tickPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.STROKE
+    color = paleColor
+    strokeCap = Paint.Cap.ROUND
+    strokeWidth = waveStopTickWidth.toFloat()
+  }
   private val sweepPaint = Paint()
 
   private val titleLayout: StaticLayout by lazy {
@@ -420,7 +428,7 @@ class ShareCardPainter(private val spec: ShareSpec) {
     val barRight = width - padSide
     val cy = barTop + (barCanvasHeight / 2).toFloat()
 
-    // The straight track at 22% white, with the end dot.
+    // The straight track at 22% white, with the end tick.
     val trackThickness = waveTrackThickness.toFloat()
     canvas.drawRoundRect(
       RectF(barLeft, cy - trackThickness / 2, barRight, cy + trackThickness / 2),
@@ -459,7 +467,12 @@ class ShareCardPainter(private val spec: ShareSpec) {
       canvas.restore()
     }
 
-    val dotR = waveStopDotRadius.toFloat()
-    canvas.drawCircle(barRight - dotR, cy, dotR, dotPaint)
+    // v548: the end mark is a slim vertical tick, not a dot —
+    // centred where the dot's centre sat (its height is the
+    // dot's diameter, so its centre is half that in from the
+    // track's end), round-capped, in the dot's pale colour.
+    val tickH = waveStopTickHeight.toFloat()
+    val tickCx = barRight - tickH / 2
+    canvas.drawLine(tickCx, cy - tickH / 2, tickCx, cy + tickH / 2, tickPaint)
   }
 }

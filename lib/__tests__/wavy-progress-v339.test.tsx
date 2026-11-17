@@ -140,7 +140,10 @@ describe("v339 wavy progress — geometry", () => {
     // transform sliding that layer 0 → −1 wavelength (seamless by
     // the periodicity proven above). The rendered geometry is
     // always the phase-0 frame.
-    expect(component).toContain("phase: 0 })");
+    // RE-BASED (v548): the phase-0 call now also passes the
+    // seat's flat dress (`flat: !!still` — the devotional
+    // player's still-during-morph). The phase claim is unchanged.
+    expect(component).toContain("phase: 0, flat: !!still })");
     expect(component).toContain("outputRange: [0, -wavelength]");
   });
 
@@ -172,7 +175,11 @@ describe("v339 wavy progress — the motion contract", () => {
   });
 
   it("the travel stills under reduce-motion", () => {
-    expect(component).toContain("if (!measured || reduceMotion)");
+    // RE-BASED (v548): the still condition gains the seat's
+    // own `still` (the devotional player stills the bar while
+    // its morph is in flight — flat, no sweep, no travel).
+    // The reduce-motion stilling claim is unchanged.
+    expect(component).toContain("if (!measured || reduceMotion || still)");
   });
 
   it("mounting never sweeps: the frame starts at the prop values", () => {

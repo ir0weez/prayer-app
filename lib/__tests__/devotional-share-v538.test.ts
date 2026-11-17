@@ -214,8 +214,12 @@ describe('the spec the model builds is JSON-carryable, whole', () => {
         'footerPlayGlyphSize',
       ].sort(),
     );
+    // RE-BASE (v548, 2026-11-17): the wave model dropped
+    // stopDotRadius — the bar's end mark is a tick now, sized
+    // by stopTickWidth / stopTickHeight. The exact-key-set
+    // claim is unchanged.
     expect([...waveKeys].sort()).toEqual(
-      ['canvasHeight', 'wavelength', 'amplitude', 'strokeWidth', 'trackThickness', 'stopDotRadius'].sort(),
+      ['canvasHeight', 'wavelength', 'amplitude', 'strokeWidth', 'trackThickness', 'stopTickWidth', 'stopTickHeight'].sort(),
     );
   });
 

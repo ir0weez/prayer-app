@@ -84,20 +84,22 @@ describe('the five shares', () => {
     // painter revision (-r2) — the claim is unchanged (each
     // kind named for what it is); the revision mark is v547's
     // subject, pinned in devotional-share-v547.test.ts.
-    expect(shareArtifactFileName('square-card', james1)).toBe('prayercircle-james-1-square-card-r2.png');
-    expect(shareArtifactFileName('story-card', james1)).toBe('prayercircle-james-1-story-card-r2.png');
-    expect(shareArtifactFileName('square-video', james1)).toBe('prayercircle-james-1-square-video-r2.mp4');
-    expect(shareArtifactFileName('story-video', peter3)).toBe('prayercircle-1-peter-3-story-video-r2.mp4');
+    // RE-BASE (v548, 2026-11-17): the painter revision moved to 3 (the bar's end dot became a tick) — the name carries -r3 now; the claim is unchanged.
+    expect(shareArtifactFileName('square-card', james1)).toBe('prayercircle-james-1-square-card-r3.png');
+    expect(shareArtifactFileName('story-card', james1)).toBe('prayercircle-james-1-story-card-r3.png');
+    expect(shareArtifactFileName('square-video', james1)).toBe('prayercircle-james-1-square-video-r3.mp4');
+    expect(shareArtifactFileName('story-video', peter3)).toBe('prayercircle-1-peter-3-story-video-r3.mp4');
   });
 
   it('seats generated artifacts in the cache, never the downloads folder', () => {
     // RE-BASE (v547): the seated names carry the painter
     // revision (-r2); the seat itself is unchanged.
+    // RE-BASE (v548, 2026-11-17): the painter revision moved to 3 (the bar's end dot became a tick) — the name carries -r3 now; the claim is unchanged.
     const path = shareArtifactCachePath('file:///data/cache/', 'square-card', james1);
-    expect(path).toBe('file:///data/cache/devotional-share/prayercircle-james-1-square-card-r2.png');
+    expect(path).toBe('file:///data/cache/devotional-share/prayercircle-james-1-square-card-r3.png');
     expect(path).not.toContain('/devotionals/');
     expect(shareArtifactCachePath('file:///data/cache', 'story-video', james1)).toBe(
-      'file:///data/cache/devotional-share/prayercircle-james-1-story-video-r2.mp4',
+      'file:///data/cache/devotional-share/prayercircle-james-1-story-video-r3.mp4',
     );
     // The audio share is never a cache artifact.
     expect(shareArtifactCachePath('file:///data/cache/', 'audio', james1)).toBeNull();
@@ -285,10 +287,11 @@ describe('generate and share', () => {
     const out = await generateAndShareDevotionalArtifact('square-card', james1);
     // RE-BASE (v547): the shared name carries the painter
     // revision (-r2); the render-then-share claim is unchanged.
-    expect(out.uri).toBe('file:///cache/devotional-share/prayercircle-james-1-square-card-r2.png');
+    // RE-BASE (v548, 2026-11-17): the painter revision moved to 3 (the bar's end dot became a tick) — the name carries -r3 now; the claim is unchanged.
+    expect(out.uri).toBe('file:///cache/devotional-share/prayercircle-james-1-square-card-r3.png');
     expect(calls.renderCardPng).toHaveLength(1);
     const spec = calls.renderCardPng[0] as { outPath: string; format: string };
-    expect(spec.outPath).toBe('/cache/devotional-share/prayercircle-james-1-square-card-r2.png');
+    expect(spec.outPath).toBe('/cache/devotional-share/prayercircle-james-1-square-card-r3.png');
     expect(spec.format).toBe('square');
     expect(calls.ensureDirectory).toEqual(['file:///cache/devotional-share/']);
     expect(calls.shareFile).toEqual([{ uri: out.uri, mimeType: 'image/png' }]);

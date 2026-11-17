@@ -111,8 +111,9 @@ const james1 = getDevotional('James', 1) as Devotional;
 // "not cached" instead of the probe. The probe claims below
 // are unchanged; the revision rule itself is pinned in
 // devotional-share-v547.test.ts.
-const VIDEO_OUT = 'file:///cache/devotional-share/prayercircle-james-1-story-video-r2.mp4';
-const VIDEO_PATH = '/cache/devotional-share/prayercircle-james-1-story-video-r2.mp4';
+// RE-BASE (v548, 2026-11-17): the painter revision moved to 3 (the bar's end dot became a tick) — the name carries -r3 now; the claim is unchanged.
+const VIDEO_OUT = 'file:///cache/devotional-share/prayercircle-james-1-story-video-r3.mp4';
+const VIDEO_PATH = '/cache/devotional-share/prayercircle-james-1-story-video-r3.mp4';
 
 // ─── The flow, behind fake doors (the v536 fake, extended) ──────────────────
 
@@ -249,7 +250,8 @@ describe('the cached video is probed before it is trusted', () => {
     // RE-BASE (v547): seeded at the current revision's path
     // (-r2) so the card genuinely stands in the cache the
     // flow consults; the never-probed claim is unchanged.
-    files.add('file:///cache/devotional-share/prayercircle-james-1-square-card-r2.png');
+    // RE-BASE (v548, 2026-11-17): the painter revision moved to 3 (the bar's end dot became a tick) — the name carries -r3 now; the claim is unchanged.
+    files.add('file:///cache/devotional-share/prayercircle-james-1-square-card-r3.png');
     setDevotionalShareDepsForTests(deps);
     await generateAndShareDevotionalArtifact('square-card', james1);
     expect(calls.probeVideoAudio).toEqual([]);

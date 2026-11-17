@@ -243,7 +243,8 @@ describe('the shares themselves — the chips’ own doors', () => {
       {
         // RE-BASE (v547): the shared name carries the painter
         // revision (-r2); the door claim stands.
-        uri: 'file:///cache/devotional-share/prayercircle-james-1-square-card-r2.png',
+        // RE-BASE (v548, 2026-11-17): the painter revision moved to 3 (the bar's end dot became a tick) — the name carries -r3 now; the claim is unchanged.
+        uri: 'file:///cache/devotional-share/prayercircle-james-1-square-card-r3.png',
         mimeType: 'image/png',
       },
     ]);
@@ -263,7 +264,8 @@ describe('the shares themselves — the chips’ own doors', () => {
       {
         // RE-BASE (v547): the shared name carries the painter
         // revision (-r2); the door claim stands.
-        uri: 'file:///cache/devotional-share/prayercircle-james-1-story-video-r2.mp4',
+        // RE-BASE (v548, 2026-11-17): the painter revision moved to 3 (the bar's end dot became a tick) — the name carries -r3 now; the claim is unchanged.
+        uri: 'file:///cache/devotional-share/prayercircle-james-1-story-video-r3.mp4',
         mimeType: 'video/mp4',
       },
     ]);
@@ -327,7 +329,8 @@ describe('a render in flight', () => {
       {
         // RE-BASE (v547): the shared name carries the painter
         // revision (-r2); the mid-render claim stands.
-        uri: 'file:///cache/devotional-share/prayercircle-james-1-story-video-r2.mp4',
+        // RE-BASE (v548, 2026-11-17): the painter revision moved to 3 (the bar's end dot became a tick) — the name carries -r3 now; the claim is unchanged.
+        uri: 'file:///cache/devotional-share/prayercircle-james-1-story-video-r3.mp4',
         mimeType: 'video/mp4',
       },
     ]);

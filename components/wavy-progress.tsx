@@ -61,6 +61,13 @@ export interface WavyGeometry {
   tipCx: number;
   /** The tip dot's radius. */
   dotR: number;
+  /** v548: the tip TICK's size, for seats that wear the tick
+   *  instead of the dot (the devotional player — Jonathan: the
+   *  wavy line running into a round head "looks like a sperm").
+   *  Its height is the dot's diameter; its width a slim
+   *  fraction of the radius, rounded caps carrying the rest. */
+  tipTickWidth: number;
+  tipTickHeight: number;
   /** The sine centreline path across the whole bar (clipped by the
    *  caller to the filled / trailing widths). */
   path: string;
@@ -87,6 +94,8 @@ export function wavyCanvasHeight(height: number): number {
  * along x (px); a phase of exactly one wavelength renders identical
  * to phase 0, which is what makes the v342 travel loop seamless.
  * The centreline is sampled every 3px — smooth at these heights.
+ * `flat` (v548) zeroes the amplitude: the same path machinery
+ * drawing a straight centreline — the bar's stilled dress, below.
  */
 export function wavyProgressGeometry(args: {
   width: number;
@@ -94,6 +103,7 @@ export function wavyProgressGeometry(args: {
   value: number;
   trailingValue?: number;
   phase?: number;
+  flat?: boolean;
 }): WavyGeometry {
   const { width } = args;
   const canvasHeight = wavyCanvasHeight(args.height);
@@ -102,7 +112,7 @@ export function wavyProgressGeometry(args: {
   const phase = args.phase ?? 0;
   const wavelength = wavyWavelength(canvasHeight);
   const strokeWidth = Math.max(2, canvasHeight * 0.55);
-  const amplitude = Math.max(0, canvasHeight / 2 - strokeWidth / 2);
+  const amplitude = args.flat ? 0 : Math.max(0, canvasHeight / 2 - strokeWidth / 2);
   const cy = canvasHeight / 2;
   const fillWidth = value * width;
   const trailingWidth = Math.min(trailing * width, Math.max(0, width - fillWidth));
@@ -120,7 +130,17 @@ export function wavyProgressGeometry(args: {
     const y = cy + amplitude * Math.sin(((x + phase) / wavelength) * Math.PI * 2);
     d += d === "" ? `M ${r2(x)} ${r2(y)}` : ` L ${r2(x)} ${r2(y)}`;
   }
-  return { canvasHeight, fillWidth, trailingWidth, tipCx: fillWidth + trailingWidth, dotR, path: d, wavelength };
+  return {
+    canvasHeight,
+    fillWidth,
+    trailingWidth,
+    tipCx: fillWidth + trailingWidth,
+    dotR,
+    tipTickWidth: Math.max(2.5, dotR * 0.62),
+    tipTickHeight: dotR * 2,
+    path: d,
+    wavelength,
+  };
 }
 
 export interface WavyProgressProps {
@@ -146,9 +166,32 @@ export interface WavyProgressProps {
   /** Hide the tip dot (a seat that carries its own tip element —
    *  the schedule bar's day cap rides the same tip). */
   hideTipDot?: boolean;
+  /** v548: the tip wears a slim VERTICAL TICK instead of the
+   *  round dot — same colour role, same seat riding the fill's
+   *  end, the tick's height the dot's diameter. The devotional
+   *  player's seat asked (Jonathan, Nov 17: the wavy line
+   *  running into a circular head "looks like a sperm… can
+   *  that little dot be a line instead"). Every other seat
+   *  keeps the dot it has always worn. The flat (stilled)
+   *  dress carries the tick too — it is the tip's shape, not
+   *  a motion state. */
+  tipTick?: boolean;
   /** Hide the track's end stop dot (seats whose track end is not
    *  the Pixel's stop — most in-card threads). */
   hideStopDot?: boolean;
+  /** v548: STILL — the bar rests flat while its seat is busy
+   *  elsewhere. The devotional player's collapse/expand morph is
+   *  the seat that asked (Jonathan, Nov 17, on v547: the collapse
+   *  was "still extremely laggy — is it because of the wavy line?
+   *  Maybe it needs to go flat as you swipe down?"): while a
+   *  morph is in flight the fill renders as a STRAIGHT line at
+   *  the current fraction (the geometry's flat dress), the travel
+   *  loop does not run, and value changes apply instantly — no
+   *  600ms sweep listener re-rendering per frame under the
+   *  morph's own per-frame layout. Progress stays truthful (a
+   *  position tick moves the flat line at once); when the seat
+   *  settles, the wave and its travel resume exactly as before. */
+  still?: boolean;
   style?: ViewStyle | ViewStyle[];
   testID?: string;
 }
@@ -162,7 +205,9 @@ export function WavyProgress({
   trailingValue = 0,
   trailingColor,
   hideTipDot,
+  tipTick,
   hideStopDot,
+  still,
   style,
   testID,
 }: WavyProgressProps) {
@@ -205,6 +250,13 @@ export function WavyProgress({
     const from = frameRef.current.v;
     const fromTrailing = frameRef.current.t;
     if (from === target && fromTrailing === trailingTarget) return; // at rest: start nothing
+    // v548: stilled, a value change applies instantly — the sweep's
+    // per-frame listener is exactly the JS load the morph cannot
+    // afford, and a flat line has nothing to sweep between.
+    if (still) {
+      setFrame({ v: target, t: trailingTarget });
+      return;
+    }
     if (reducedRef.current) {
       setFrame({ v: target, t: trailingTarget });
       return;
@@ -235,7 +287,7 @@ export function WavyProgress({
       anim.removeListener(listener);
       if (animRef.current === anim) animRef.current = null;
     };
-  }, [target, trailingTarget, height]);
+  }, [target, trailingTarget, height, still]);
 
   const canvasHeight = wavyCanvasHeight(height);
   const wavelength = wavyWavelength(canvasHeight);
@@ -243,7 +295,9 @@ export function WavyProgress({
   // v342: the continuous travel — one native-driver loop sliding
   // the wave layer 0 → −1 wavelength, linear, seamless (a full
   // wavelength of phase is the same picture). Stilled under
-  // reduce-motion and before the bar has measured a width.
+  // reduce-motion, before the bar has measured a width, and
+  // (v548) while the seat's `still` stands — the layer parks at
+  // phase 0 and the flat fill below is what shows.
   const travel = useRef(new Animated.Value(0)).current;
   const travelX = travel.interpolate({
     inputRange: [0, 1],
@@ -251,7 +305,7 @@ export function WavyProgress({
   });
   const measured = barWidth > 0;
   useEffect(() => {
-    if (!measured || reduceMotion) {
+    if (!measured || reduceMotion || still) {
       travel.setValue(0);
       return;
     }
@@ -269,13 +323,13 @@ export function WavyProgress({
       loop.stop();
       travel.setValue(0);
     };
-  }, [measured, reduceMotion, wavelength, travel]);
+  }, [measured, reduceMotion, wavelength, travel, still]);
 
   const cy = canvasHeight / 2;
   const trackThickness = Math.max(2, canvasHeight * 0.45);
   const strokeWidth = Math.max(2, canvasHeight * 0.55);
   const geo = measured
-    ? wavyProgressGeometry({ width: barWidth, height, value: frame.v, trailingValue: frame.t, phase: 0 })
+    ? wavyProgressGeometry({ width: barWidth, height, value: frame.v, trailingValue: frame.t, phase: 0, flat: !!still })
     : null;
   const stopDotR = Math.max(1.6, canvasHeight * 0.26);
   const waveStroke = colorEnd ? `url(#${gradId})` : color;
@@ -371,16 +425,31 @@ export function WavyProgress({
               </Animated.View>
             </View>
           ) : null}
-          {/* The tip dot rides the fill's end, over the wave
+          {/* The tip rides the fill's end, over the wave
               (hidden at 0 — there is no tip yet — and in seats
-              carrying their own tip). */}
+              carrying their own tip). Its shape is the seat's:
+              the round dot, or (v548, the devotional player) a
+              slim vertical tick of the dot's own height and
+              colour, centred where the dot's centre rode and
+              clamped inside the bar's right edge like it was. */}
           {!hideTipDot && geo.tipCx > 0 ? (
             <Svg
               width={barWidth}
               height={canvasHeight}
               style={{ position: "absolute", left: 0, top: layerTop, overflow: "visible" }}
             >
-              <Circle cx={Math.min(geo.tipCx, barWidth - geo.dotR)} cy={cy} r={geo.dotR} fill={dotFill} />
+              {tipTick ? (
+                <Rect
+                  x={Math.min(geo.tipCx, barWidth - geo.tipTickWidth / 2) - geo.tipTickWidth / 2}
+                  y={cy - geo.tipTickHeight / 2}
+                  width={geo.tipTickWidth}
+                  height={geo.tipTickHeight}
+                  rx={geo.tipTickWidth / 2}
+                  fill={dotFill}
+                />
+              ) : (
+                <Circle cx={Math.min(geo.tipCx, barWidth - geo.dotR)} cy={cy} r={geo.dotR} fill={dotFill} />
+              )}
             </Svg>
           ) : null}
         </>

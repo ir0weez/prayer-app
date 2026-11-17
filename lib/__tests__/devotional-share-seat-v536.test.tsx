@@ -209,7 +209,8 @@ describe('the seat', () => {
       {
         // RE-BASE (v547): the shared name carries the painter
         // revision (-r2); the generate-then-share claim stands.
-        uri: 'file:///cache/devotional-share/prayercircle-james-1-square-card-r2.png',
+        // RE-BASE (v548, 2026-11-17): the painter revision moved to 3 (the bar's end dot became a tick) — the name carries -r3 now; the claim is unchanged.
+        uri: 'file:///cache/devotional-share/prayercircle-james-1-square-card-r3.png',
         mimeType: 'image/png',
       },
     ]);

@@ -179,8 +179,12 @@ function bookSlug(book: string): string {
 // (v536–v546) wrote — no mark at all; it is never written
 // again, only recognised so it can be swept as stale.
 // Bump this number whenever the painter's drawing changes.
+// v548 bumped it to 3: the bar's end dot became a slim
+// vertical tick (Jonathan: the wavy line running into a
+// round head "looks like a sperm"), so revision-2 art — the
+// fitted-kicker drawing with the dot — re-makes once too.
 
-export const SHARE_RENDER_REVISION = 2;
+export const SHARE_RENDER_REVISION = 3;
 
 /** The file name a share artifact carries under one painter
  * revision. The audio share is the chapter's own downloaded
@@ -321,14 +325,23 @@ export interface DevotionalShareWaveModel {
   amplitude: number;
   strokeWidth: number;
   trackThickness: number;
-  stopDotRadius: number;
+  /** v548: the track's end mark is a slim vertical TICK now,
+   * not a dot (Jonathan: the wavy line running into a round
+   * head "looks like a sperm"). Its height is the old dot's
+   * diameter, its width a slim fraction of it; the painter
+   * seats it where the dot's centre sat, in the dot's pale
+   * colour. */
+  stopTickWidth: number;
+  stopTickHeight: number;
 }
 
 /** The bar's wave, in the app's own wavy family numbers
  * (components/wavy-progress.tsx, v339/v342): wavelength
  * max(20, canvasHeight × 3.5), stroke canvasHeight × 0.55,
  * amplitude what remains of the half-canvas, track
- * canvasHeight × 0.45, stop dot canvasHeight × 0.26. */
+ * canvasHeight × 0.45, end tick canvasHeight × 0.52 tall (the
+ * old end dot's diameter, canvasHeight × 0.26 of radius) and
+ * canvasHeight × 0.16 wide. */
 export function devotionalShareWaveModel(canvasHeight: number): DevotionalShareWaveModel {
   const wavelength = Math.max(20, canvasHeight * 3.5);
   const strokeWidth = Math.max(2, canvasHeight * 0.55);
@@ -338,7 +351,8 @@ export function devotionalShareWaveModel(canvasHeight: number): DevotionalShareW
     amplitude: Math.max(0, canvasHeight / 2 - strokeWidth / 2),
     strokeWidth,
     trackThickness: Math.max(2, canvasHeight * 0.45),
-    stopDotRadius: Math.max(1.6, canvasHeight * 0.26),
+    stopTickWidth: Math.max(2, canvasHeight * 0.16),
+    stopTickHeight: Math.max(3.2, canvasHeight * 0.52),
   };
 }
 

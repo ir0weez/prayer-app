@@ -235,7 +235,14 @@ interface BChapter {
 
 /** Split one verse-block's text into per-verse segments by sequence. */
 export function splitVerseBlock(blockText: string, firstVerse: number): { verse: number; text: string }[] {
-  const text = blockText.replace(/\s+/g, ' ').trim();
+  // A verse run is a single line in the txt. Anything on later lines of
+  // the block is commentary written straight after the verses with no
+  // blank line — it must never be swallowed into the last verse's text
+  // (v551: 1 Cor 7:14, Isa 6:3, 19:10 and 21:12 shipped with note prose
+  // fused onto the verse this way). The caller re-queues those lines as
+  // a commentary block; here they are simply not verse text.
+  const firstLine = blockText.split('\n')[0];
+  const text = firstLine.replace(/\s+/g, ' ').trim();
   const cuts: number[] = [];
   let exp = firstVerse + 1;
   const re = /(\s)(\d+)\s+/g;
@@ -390,6 +397,11 @@ export function parseTxtFormatB(text: string): V205BookData[] {
           pendingVerses.push(s);
           ch.verses[s.verse] = s.text;
         }
+        // Lines glued under the verse run in the same block are the
+        // entry's commentary, not verse text — re-queue them so they
+        // land as note blocks on the verses just read (v551).
+        const rest = blines.slice(1).join('\n');
+        if (rest) queue.splice(qi + 1, 0, rest);
         continue;
       }
     }

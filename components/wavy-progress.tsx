@@ -179,6 +179,17 @@ export interface WavyProgressProps {
   /** Hide the track's end stop dot (seats whose track end is not
    *  the Pixel's stop — most in-card threads). */
   hideStopDot?: boolean;
+  /** v549: the track's end stop mark wears the same slim
+   *  VERTICAL TICK as the tip instead of its round dot — same
+   *  track colour role, the tick's height the stop dot's
+   *  diameter, centred where the dot's centre sat at the
+   *  track's end. The devotional player's seat asked, an hour
+   *  after v548 ticked the tip (Jonathan, Nov 17: "I'd like it
+   *  to be a line as well"). Every other seat keeps the stop
+   *  dot it has always worn, and the flat (stilled) dress
+   *  carries the tick too — it is the stop mark's shape in
+   *  this seat, not a motion state. */
+  stopTick?: boolean;
   /** v548: STILL — the bar rests flat while its seat is busy
    *  elsewhere. The devotional player's collapse/expand morph is
    *  the seat that asked (Jonathan, Nov 17, on v547: the collapse
@@ -207,6 +218,7 @@ export function WavyProgress({
   hideTipDot,
   tipTick,
   hideStopDot,
+  stopTick,
   still,
   style,
   testID,
@@ -332,6 +344,11 @@ export function WavyProgress({
     ? wavyProgressGeometry({ width: barWidth, height, value: frame.v, trailingValue: frame.t, phase: 0, flat: !!still })
     : null;
   const stopDotR = Math.max(1.6, canvasHeight * 0.26);
+  // v549: the stop tick's family, from the stop dot's own
+  // measures — height the dot's diameter, width the tip
+  // tick's slim fraction (0.62) of the radius.
+  const stopTickWidth = Math.max(2.5, stopDotR * 0.62);
+  const stopTickHeight = stopDotR * 2;
   const waveStroke = colorEnd ? `url(#${gradId})` : color;
   const dotFill = trailingColor && geo && geo.trailingWidth > 0 ? trailingColor : colorEnd ?? color;
   // The sliding wave layer is one wavelength wider than the bar, so
@@ -353,10 +370,15 @@ export function WavyProgress({
     >
       {measured && geo ? (
         <>
-          {/* The straight track, centred, with its stop dot. (The
-              tip dot paints in its own overlay AFTER the wave
+          {/* The straight track, centred, with its stop mark.
+              (The tip paints in its own overlay AFTER the wave
               windows below — it rides on top of the wave, as it
-              did before v342.) */}
+              did before v342.) The stop mark's shape is the
+              seat's: the round dot, or (v549, the devotional
+              player) a slim vertical tick of the dot's own
+              height and colour, centred where the dot's centre
+              sat — barWidth − stopDotR, the inset that kept
+              the dot inside the bar's right edge. */}
           <Svg
             width={barWidth}
             height={canvasHeight}
@@ -370,7 +392,20 @@ export function WavyProgress({
               rx={trackThickness / 2}
               fill={trackColor}
             />
-            {!hideStopDot ? <Circle cx={barWidth - stopDotR} cy={cy} r={stopDotR} fill={trackColor} /> : null}
+            {!hideStopDot ? (
+              stopTick ? (
+                <Rect
+                  x={barWidth - stopDotR - stopTickWidth / 2}
+                  y={cy - stopTickHeight / 2}
+                  width={stopTickWidth}
+                  height={stopTickHeight}
+                  rx={stopTickWidth / 2}
+                  fill={trackColor}
+                />
+              ) : (
+                <Circle cx={barWidth - stopDotR} cy={cy} r={stopDotR} fill={trackColor} />
+              )
+            ) : null}
           </Svg>
           {/* The trailing share's wave, in its own window directly
               behind the fill. Its sliding layer is offset by the

@@ -137,7 +137,13 @@ describe("v548 wavy progress — the still contract (source)", () => {
   });
 
   it("the seat: the listen view stills the bar with its morph state", () => {
-    expect(listen).toContain("still={morphing}");
+    // v549 RE-BASE (Nov 17): the seat's still expression grew
+    // a second term — the bar is also stilled whenever the
+    // audio is not playing (his "wavy only while playing"
+    // call). The morph term this pin was written for stands
+    // first, unchanged; the playing rule is pinned in
+    // wavy-progress-v549.test.tsx.
+    expect(listen).toContain("still={morphing || !playing}");
   });
 });
 
@@ -149,6 +155,12 @@ describe("v548 wavy progress — the still contract (source)", () => {
 // The track's end stop dot is a different glyph in a different
 // seat and is NOT indicted — it stays a dot, here and in the
 // render pins below (exactly one circle survives: the stop).
+// v549 note (Nov 17, later that morning): Jonathan then
+// indicted the stop dot too — "I'd like it to be a line as
+// well" — for the PLAYER's seat only, via the new stopTick
+// prop. These pins render seats WITHOUT stopTick, so the stop
+// dot survives here exactly as pinned; the player seat's tick
+// is pinned in wavy-progress-v549.test.tsx. No pin moved.
 
 describe("v548 wavy progress — the tip tick (geometry)", () => {
   it("the tick's height is the dot's diameter; its width is slim", () => {

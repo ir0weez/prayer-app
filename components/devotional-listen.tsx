@@ -2079,7 +2079,16 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
               when the morph settles with the view open. Its tip
               wears a slim vertical tick, not the round dot (his
               other call of the same morning: the wavy line
-              running into a circular head "looks like a sperm"). */}
+              running into a circular head "looks like a sperm").
+              v549: the track's end stop dot is a tick in this
+              seat too ("I'd like it to be a line as well"), and
+              the bar is wavy ONLY while the audio is playing —
+              paused, or finished with the view still open at the
+              end (the ended state, Play again offered), it wears
+              the same still dress: flat at its current fraction,
+              value changes applied instantly, travel parked.
+              Wavy ⟺ playing; live things animate, static things
+              stay straight and still. */}
           <Pressable
             style={styles.seekTouch}
             onPress={(e) => {
@@ -2090,7 +2099,7 @@ export function DevotionalListenView(props: { devotional: Devotional; onBack: ()
             }}
             accessibilityLabel="Seek"
           >
-            <WavyProgress value={duration > 0 ? position / duration : 0} color={theme.primary} trackColor={theme.track} height={14} still={morphing} tipTick />
+            <WavyProgress value={duration > 0 ? position / duration : 0} color={theme.primary} trackColor={theme.track} height={14} still={morphing || !playing} tipTick stopTick />
           </Pressable>
           <View style={styles.times}>
             <Text style={[styles.time, { color: theme.inkSoft }]}>{formatClock(position)}</Text>

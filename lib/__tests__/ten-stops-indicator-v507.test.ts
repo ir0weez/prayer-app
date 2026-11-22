@@ -240,7 +240,10 @@ describe('v507 model — only registered books carry an indicator', () => {
     // v518 RE-BASE (2026-11-12): 1 Samuel and 2 Samuel are
     // registered now too. 1 Kings — commentary complete, no
     // tour — carries the unregistered case.
-    expect(getTenStops('1 Kings')).toBeNull();
+    // v555 RE-BASE (2026-11-22): 1 Kings is registered now
+    // too. 2 Kings — no tour yet, his study of it still in
+    // progress — carries the unregistered case.
+    expect(getTenStops('2 Kings')).toBeNull();
     expect(getTenStops('Hebrews')).not.toBeNull();
     expect(getTenStops('Genesis')).not.toBeNull();
   });

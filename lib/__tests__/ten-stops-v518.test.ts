@@ -88,8 +88,13 @@ const SECOND_SAMUEL_STOPS = [
 
 describe('v518 Ten Stops registry — seven tours', () => {
   it('exactly seven, 1 Samuel and 2 Samuel appended after Ruth, Hebrews still first', () => {
+    // v555 RE-BASE (2026-11-22): 1 Kings was generated,
+    // verified and hosted the same way and registered in
+    // v555, appended after 2 Samuel — the registry now holds
+    // eight; the seven tours of v518 still lead in the same
+    // order.
     const all = tenStopsRegistry();
-    expect(all.length).toBe(7);
+    expect(all.length).toBe(8);
     expect(all.map((e) => e.book)).toEqual([
       'Hebrews',
       'Genesis',
@@ -98,6 +103,7 @@ describe('v518 Ten Stops registry — seven tours', () => {
       'Ruth',
       '1 Samuel',
       '2 Samuel',
+      '1 Kings',
     ]);
     expect(all[0].book).toBe('Hebrews');
   });

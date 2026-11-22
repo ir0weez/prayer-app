@@ -253,6 +253,42 @@ const REGISTRY: TenStops[] = [
       { title: 'A Worthy Sacrifice', passage: '2 Samuel 24:18-25', startSec: 776.6 },
     ],
   },
+  {
+    book: '1 Kings',
+    title: 'Ten Stops in 1 Kings',
+    // The shown duration: 21:29 = 1289s. The file itself probes
+    // at 1289.7s; the registry carries 1289 so every surface
+    // says 21:29 (NotebookLM's own shown length for the tour),
+    // as above.
+    durationSec: 1289,
+    sizeBytes: 6808339,
+    url: 'https://github.com/ir0weez/prayer-app/releases/download/ten-stops-library/1kings-ten-stops.m4a',
+    fileName: '1kings-ten-stops.m4a',
+    // The ten stops (v555), from the tour's own transcript (local
+    // faster-whisper run over the phone copy, 2026-11-22): each
+    // startSec is the announcement moment, verified in order.
+    // The stops are Jonathan's session-verdict list, locked by
+    // him 2026-11-22 — all ten earned their seats on session
+    // singling-out, no fill picks needed. Two steering calls were
+    // made in the generation prompt and named to him (Stop 7
+    // centred provision as God's gift, not a wage for
+    // faithfulness; Stop 8 kept the church as the people — a
+    // hospital for spirits — not a building), both verified in
+    // the audio; his notes themselves went in whole and
+    // unedited.
+    movements: [
+      { title: "David's Death", passage: '1 Kings 2:10-12', startSec: 112.2 },
+      { title: 'A Long Time Coming', passage: '1 Kings 6:1', startSec: 205.2 },
+      { title: 'Forgive', passage: '1 Kings 8:27-30', startSec: 337.7 },
+      { title: 'Bad Leadership', passage: '1 Kings 12:6-11', startSec: 437.2 },
+      { title: 'Back to Sin', passage: '1 Kings 13:33-34', startSec: 566.8 },
+      { title: 'War Continues', passage: '1 Kings 15:1-6', startSec: 636.3 },
+      { title: 'Refined Faith', passage: '1 Kings 17:8-16', startSec: 768.9 },
+      { title: "Elijah and Ahab's Meeting", passage: '1 Kings 18:16-19', startSec: 857.2 },
+      { title: 'A Little Comfort', passage: '1 Kings 19:4-8', startSec: 994.4 },
+      { title: 'False Victory', passage: '1 Kings 22:5-12', startSec: 1096.3 },
+    ],
+  },
 ];
 
 /** Every Ten Stops tour the app knows about (a copy — callers

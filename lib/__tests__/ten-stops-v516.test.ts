@@ -76,8 +76,13 @@ describe('v516 Ten Stops registry — five tours', () => {
     // registered together in v518, appended after Ruth — the
     // registry now holds seven; the five tours of v516 still
     // lead in the same order.
+    // v555 RE-BASE (2026-11-22): 1 Kings was generated,
+    // verified and hosted the same way and registered in
+    // v555, appended after 2 Samuel — the registry now holds
+    // eight; the five tours of v516 still lead in the same
+    // order.
     const all = tenStopsRegistry();
-    expect(all.length).toBe(7);
+    expect(all.length).toBe(8);
     expect(all.map((e) => e.book)).toEqual([
       'Hebrews',
       'Genesis',
@@ -86,6 +91,7 @@ describe('v516 Ten Stops registry — five tours', () => {
       'Ruth',
       '1 Samuel',
       '2 Samuel',
+      '1 Kings',
     ]);
     expect(all[0].book).toBe('Hebrews');
   });

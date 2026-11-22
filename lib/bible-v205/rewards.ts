@@ -30,6 +30,8 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDateLocal } from '../date-utils';
+import { addReadJournalEntry, normalizePrayerJournalEntries, type PrayerJournalEntry } from '../prayer-journal';
+import { JOURNAL_STORAGE_KEY } from '../prayercircle-storage';
 import { awardXP, XP_AWARDS_STORAGE_KEY, type XpGainPosition } from '../xp-engine';
 import { CHAPTER_COUNTS, chapterCountFor } from './index';
 import {
@@ -511,6 +513,36 @@ export async function transitionChapterStatus(
 }
 
 /**
+ * v554 — the read line's storage door. A chapter's first-ever
+ * mark leaves its quiet line in the Journal (his Nov 21 ask),
+ * written through the same AsyncStorage read-modify-write the
+ * answered write-in uses (person.tsx): the journal is re-read
+ * fresh at mark time, the line appended to THAT list, and the
+ * list written back only when it changed. The pure creation
+ * path is lib/prayer-journal's addReadJournalEntry — the stable
+ * id makes a re-mark a no-op here. A journal that cannot be read
+ * is never written over, and no failure in here ever breaks the
+ * mark itself: the read is the record; the line is its echo.
+ */
+async function writeReadJournalLine(book: string, chapter: number, date: string): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(JOURNAL_STORAGE_KEY);
+    let entries: PrayerJournalEntry[];
+    try {
+      entries = raw ? normalizePrayerJournalEntries(JSON.parse(raw)) : [];
+    } catch {
+      return;
+    }
+    const next = addReadJournalEntry(entries, book, chapter, date);
+    if (next !== entries) {
+      await AsyncStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(next));
+    }
+  } catch {
+    // Losing the Journal line must never break marking read.
+  }
+}
+
+/**
  * v228 — the READ door. Marking a chapter read stamps today's date on
  * the read track (first mark wins: an existing date stands) and pays
  * the chapter's +25 reading XP exactly once across the whole ledger's
@@ -549,6 +581,14 @@ export async function markChapterRead(
       if (!ledger.includes(colonKey)) await stampLedgerKey(colonKey);
       if (!ledger.includes(dashKey)) await stampLedgerKey(dashKey);
     }
+
+    // v554: the first-ever mark also leaves the chapter's line in
+    // the Journal, under the date just stamped. This branch is
+    // the ONLY place the line is minted — the studio import writes
+    // reads through setChapterRead directly and never comes here,
+    // and unmarkChapterRead never removes the line (the answered
+    // rule: the moment stands).
+    await writeReadJournalLine(book, chapter, today);
   }
   const result: ReadMarkResult = {
     state: next,

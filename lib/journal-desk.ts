@@ -1,4 +1,5 @@
 import { countFastDayEntryKinds, getFastDayEntries, type FastDayEntryKind } from "./fast-day-entries";
+import { BIBLE_BOOKS } from "./bible-books";
 import { addDaysToIso, isoDateOf, parseIsoDate } from "./journal-moments";
 import {
   createPrayerJournalEntry,
@@ -90,8 +91,10 @@ export function rankedTaggedPeopleIds(entries: PrayerJournalEntry[], limit = 5):
 /** The feed format an entry renders in on the Desk. Fast-day
  *  entries never reach this — the feed groups them into the day's
  *  log (deskFeedItems). Absence of kind is the plain Entry, as it
- *  has been since v281. */
-export type DeskEntryFormat = "entry" | "prayer" | "gratitude" | "verse" | "answered" | "praise" | "answer" | "reached";
+ *  has been since v281. v554: "read" joins the set — the feed
+ *  groups a day's read lines into one group (deskFeedItems), and
+ *  the format names the standalone seat's dress. */
+export type DeskEntryFormat = "entry" | "prayer" | "gratitude" | "verse" | "answered" | "praise" | "answer" | "reached" | "read";
 
 export function deskEntryFormat(entry: PrayerJournalEntry): DeskEntryFormat {
   switch (entry.kind) {
@@ -102,6 +105,7 @@ export function deskEntryFormat(entry: PrayerJournalEntry): DeskEntryFormat {
     case "praise":
     case "answer":
     case "reached":
+    case "read":
       return entry.kind;
     default:
       return "entry";
@@ -353,11 +357,21 @@ export type DeskFeedItem =
   | { type: "todayLabel"; key: string }
   | { type: "post"; key: string; entry: PrayerJournalEntry }
   | { type: "reachedGroup"; key: string; date: string; entries: PrayerJournalEntry[] }
+  | { type: "readGroup"; key: string; date: string; entries: PrayerJournalEntry[] }
   | { type: "fastLog"; key: string; date: string; fast: PersonalFast; dayNumber: number; entries: PrayerJournalEntry[] }
   | { type: "carried"; key: string; people: PrayerJournalTaggedPerson[] }
   | { type: "memory"; key: string; memory: DeskMemory }
   | { type: "yesterdayHead"; key: string; date: string; dayNumber?: number; kept: boolean }
   | { type: "dayHead"; key: string; date: string; dayNumber?: number; count: number };
+
+/** v554: a book's place in the canon, for the read group's
+ *  in-group order. A name outside the canon (a payload a pack
+ *  mangled) files after every real book, never first. */
+function bookOrderIndex(book: string | undefined): number {
+  if (!book) return BIBLE_BOOKS.length;
+  const index = BIBLE_BOOKS.indexOf(book);
+  return index >= 0 ? index : BIBLE_BOOKS.length;
+}
 
 function dayItemsFor(
   entries: PrayerJournalEntry[],
@@ -370,7 +384,24 @@ function dayItemsFor(
   // group (Concept 3), the way the day's fast entries stand as
   // one log — never scattered among the cards.
   const reachedEntries = dayEntries.filter((entry) => !entry.fastDay && entry.kind === "reached");
-  const plainEntries = dayEntries.filter((entry) => !entry.fastDay && entry.kind !== "reached");
+  // v554: the day's read lines stand together the same way — ONE
+  // group per day, under one seal head (the approved drawing,
+  // journal-read-lines-v3, touches A + C). The group takes the
+  // day's NEWEST read's place in the day's order (the stamp is
+  // captured here, while the day set still reads newest-first);
+  // inside the group the lines read in CANON order (book, then
+  // chapter) — the drawing's order — not in mark order: a chapter
+  // read at night still files beside its book, and two chapters
+  // of one book never stand upside down.
+  const readDayEntries = dayEntries.filter((entry) => !entry.fastDay && entry.kind === "read");
+  const readStamp = readDayEntries.length > 0 ? readDayEntries[0].createdAt : null;
+  const readEntries = [...readDayEntries].sort(
+    (a, b) =>
+      bookOrderIndex(a.read?.book) - bookOrderIndex(b.read?.book) ||
+      (a.read?.chapter ?? 0) - (b.read?.chapter ?? 0) ||
+      a.createdAt.localeCompare(b.createdAt),
+  );
+  const plainEntries = dayEntries.filter((entry) => !entry.fastDay && entry.kind !== "reached" && entry.kind !== "read");
 
   // Group the day's fast entries by fast — one log per fast per day.
   const fastGroups = new Map<string, PrayerJournalEntry[]>();
@@ -392,6 +423,12 @@ function dayItemsFor(
     stamped.push({
       stamp: reachedEntries[0].createdAt,
       item: { type: "reachedGroup", key: `reached-${date}`, date, entries: reachedEntries },
+    });
+  }
+  if (readEntries.length > 0 && readStamp) {
+    stamped.push({
+      stamp: readStamp,
+      item: { type: "readGroup", key: `read-${date}`, date, entries: readEntries },
     });
   }
   for (const [fastId, group] of fastGroups) {

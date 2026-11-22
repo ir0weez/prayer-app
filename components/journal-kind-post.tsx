@@ -8,6 +8,7 @@ import { MoodFaceChip } from "@/components/mood-face";
 import type { JournalMood } from "@/components/mood-picker";
 import { WavyProgress } from "@/components/wavy-progress";
 import { hexToRgba } from "@/lib/bible-v205/palette-accents";
+import { bookColorsFor } from "@/lib/bible-v205/book-colors";
 import { FAST_DAY_ENTRY_KIND_LABELS, type FastDayEntryKind } from "@/lib/fast-day-entries";
 import type { JournalMaterialFamily } from "@/lib/journal-material";
 import { deskEntryFormat } from "@/lib/journal-desk";
@@ -32,6 +33,12 @@ import type { PersonalFast } from "@/lib/prayercircle-fasting";
 //               words, the time), and in the feed the day's lines
 //               group together (ReachedLinesGroup below), the
 //               way the fast entries group into their log
+//   Read      — no card either: the day's lines group under one
+//               gilt seal head (ReadLinesGroup below, v554 — the
+//               approved drawing journal-read-lines-v3, touches
+//               A + C combined: the gold seal and READING label
+//               from C, each line's book icon and chapter name in
+//               that book's own deep ROYGBIV colour from A)
 //   Fast      — never a single post: the day's entries group into
 //               ONE log (FastLogCard below)
 // Surfaces derive from the Journal family (seed × appearance);
@@ -186,6 +193,71 @@ export function ReachedLinesGroup({
           ]}
         >
           <ReachedLineContent entry={entry} jm={jm} />
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+/** v554 — one read line's content: the small book icon and the
+ *  chapter name in THAT BOOK's deep family colour (touch A — the
+ *  v420 ROYGBIV derivation for the family's appearance, never a
+ *  pinned hex), "Read" itself in the quiet ink. The words are
+ *  the payload's, composed here — the entry carries no body. */
+function ReadLineContent({ entry, jm }: { entry: PrayerJournalEntry; jm: JournalMaterialFamily }) {
+  const read = entry.read;
+  if (!read) return null;
+  const deep = bookColorsFor(read.book, jm.isDark)?.deep ?? jm.deep;
+  return (
+    <>
+      <MaterialIcons name="menu-book" size={16} color={deep} />
+      <Text style={[styles.readText, { color: jm.inkSoft }]}>
+        Read <Text style={{ color: deep, fontWeight: "600" }}>{read.book} {read.chapter}</Text>
+      </Text>
+    </>
+  );
+}
+
+/** v554 — the day's read lines as one quiet group (the approved
+ *  drawing, touches A + C): no card, no border, no shadow — a
+ *  head row with the small GOLD seal disc (the praise gold, the
+ *  family's meaning constant; a white book glyph inside) and the
+ *  letterspaced READING label in gold-deep, then the day's lines
+ *  indented under the seal, in the canon order the Desk hands
+ *  them over. Quiet lines, like the reached lines: no tap of
+ *  their own; the long-press keeps the entry's actions. Shared
+ *  by the feed's group seat and the standalone seat (a group of
+ *  one — search, Memories). */
+export function ReadLinesGroup({
+  entries,
+  jm,
+  bare,
+  onShowActions,
+}: {
+  entries: PrayerJournalEntry[];
+  jm: JournalMaterialFamily;
+  /** Rendered without the feed's outer margins (the Memories seat). */
+  bare?: boolean;
+  onShowActions: (entry: PrayerJournalEntry) => void;
+}) {
+  const lines = entries.filter((entry) => entry.read);
+  if (lines.length === 0) return null;
+  return (
+    <View style={[styles.readGroup, bare && styles.readGroupBare]}>
+      <View style={styles.readHead}>
+        <View style={[styles.readSeal, { backgroundColor: jm.gold }]}>
+          <MaterialIcons name="menu-book" size={14} color="#FFFFFF" />
+        </View>
+        <Text style={[styles.readLabel, { color: jm.goldDeep }]}>READING</Text>
+      </View>
+      {lines.map((entry) => (
+        <Pressable
+          key={entry.id}
+          delayLongPress={500}
+          onLongPress={() => onShowActions(entry)}
+          style={({ pressed }) => [styles.readRow, pressed && styles.pressed]}
+        >
+          <ReadLineContent entry={entry} jm={jm} />
         </Pressable>
       ))}
     </View>
@@ -395,6 +467,13 @@ export function JournalKindPost({ entry, jm, bare, ...callbacks }: KindPostProps
         <ReachedLineContent entry={entry} jm={jm} />
       </Pressable>
     );
+  }
+
+  if (format === "read" && entry.read) {
+    // The read line on its own is its group of one — the seal
+    // head over the single line (the feed groups a day's lines
+    // into one ReadLinesGroup instead). No card, no footer.
+    return <ReadLinesGroup entries={[entry]} jm={jm} bare={bare} onShowActions={callbacks.onShowActions} />;
   }
 
   // Entry — the one true card (also the fallback for any kind the
@@ -706,6 +785,20 @@ const styles = StyleSheet.create({
   },
   reachedDot: { width: 9, height: 9, borderRadius: 4.5 },
   reachedText: { flex: 1, fontSize: 13.5, lineHeight: 19, marginLeft: 9, marginRight: 9 },
+
+  // Read (v554) — the drawing's measures (journal-read-lines-v3,
+  // touches A + C): the group sits in the feed's margins with no
+  // surface of its own; the seal is a 26px gold disc, the label
+  // letterspaced beside it; the lines indent 36px — the seal's
+  // width plus its gap — each a 16px book icon, an 11px gap, and
+  // the 14px line.
+  readGroup: { marginHorizontal: 14, marginTop: 10, paddingHorizontal: 4 },
+  readGroupBare: { marginHorizontal: 0, marginTop: 0 },
+  readHead: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 4, paddingBottom: 2 },
+  readSeal: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  readLabel: { fontSize: 11.5, fontWeight: "800", letterSpacing: 1.4 },
+  readRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 6, paddingLeft: 36 },
+  readText: { fontSize: 14, lineHeight: 19 },
 
   // Fast log
   fastLog: { borderRadius: 28, paddingHorizontal: 15, paddingTop: 14, paddingBottom: 12 },

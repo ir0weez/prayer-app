@@ -42,6 +42,13 @@ export type PrayerJournalReply = {
 // reached stamp leaves in the day's flow (Concept 3, his Nov 5
 // pick). It is never composed; the stamp sync at the bottom of
 // this file writes it, one per person per stamp date.
+// v554: "read" — the quiet line a chapter READ leaves in the
+// Journal (his Nov 21 ask: "When you complete a chapter (reading)
+// can it show up in the journal somehow?"). It is never composed
+// either; the read door (lib/bible-v205/rewards' markChapterRead)
+// writes it on a chapter's first-ever mark, one per book+chapter,
+// and the line renders from its `read` payload, the way the
+// reached line renders from its stamp.
 export type PrayerJournalEntryKind =
   | "praise"
   | "answered"
@@ -50,7 +57,8 @@ export type PrayerJournalEntryKind =
   | "gratitude"
   | "verse"
   | "answer"
-  | "reached";
+  | "reached"
+  | "read";
 
 /** v411: a verse post's reference — the book by its reader name
  *  ("Isaiah"), chapter and verse numbers, and the verse's own
@@ -72,6 +80,15 @@ export type PrayerJournalQuestionRef = {
   weekStart: string;
 };
 
+/** v554: a read line's payload — the book by its reader name
+ *  ("2 Kings") and the chapter number. The line's words and its
+ *  book colour both render from this record; the entry's `date`
+ *  is the day the chapter was marked read. */
+export type PrayerJournalReadRef = {
+  book: string;
+  chapter: number;
+};
+
 const PRAYER_JOURNAL_ENTRY_KINDS: readonly PrayerJournalEntryKind[] = [
   "praise",
   "answered",
@@ -81,6 +98,7 @@ const PRAYER_JOURNAL_ENTRY_KINDS: readonly PrayerJournalEntryKind[] = [
   "verse",
   "answer",
   "reached",
+  "read",
 ];
 
 function normalizeVerseRef(value: unknown): PrayerJournalVerseRef | undefined {
@@ -101,6 +119,15 @@ function normalizeQuestionRef(value: unknown): PrayerJournalQuestionRef | undefi
   const weekStart = typeof candidate.weekStart === "string" ? candidate.weekStart.trim() : "";
   if (!text || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) return undefined;
   return { text, weekStart };
+}
+
+function normalizeReadRef(value: unknown): PrayerJournalReadRef | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = value as Partial<PrayerJournalReadRef>;
+  const book = typeof candidate.book === "string" ? candidate.book.trim() : "";
+  const chapter = typeof candidate.chapter === "number" && Number.isFinite(candidate.chapter) ? Math.max(1, Math.floor(candidate.chapter)) : 0;
+  if (!book || chapter < 1) return undefined;
+  return { book, chapter };
 }
 
 // v410 (Journal/Fast Rework, Part 1 — Jonathan's Nov 1 build word):
@@ -145,6 +172,8 @@ export type PrayerJournalEntry = {
   verse?: PrayerJournalVerseRef;
   /** v411: the week's question this post answers, on kind "answer". */
   question?: PrayerJournalQuestionRef;
+  /** v554: the chapter this line records, on kind "read". */
+  read?: PrayerJournalReadRef;
   date: string;
   taggedPeople: PrayerJournalTaggedPerson[];
   places?: PrayerJournalTaggedPlace[];
@@ -270,6 +299,7 @@ type PrayerJournalEntryInput = {
   fastDay?: PrayerJournalFastDayLink;
   verse?: PrayerJournalVerseRef;
   question?: PrayerJournalQuestionRef;
+  read?: PrayerJournalReadRef;
   date?: string;
   taggedPeople?: Person[];
   places?: PrayerJournalTaggedPlace[];
@@ -326,7 +356,9 @@ export function createPrayerJournalEntry(
   // v440: a reached entry may carry no words at all — a quick-tap
   // mark has no note; the reach itself (person + stamp date) is
   // the content, the same standing the v194 note gives a mood.
-  if (!body && !hasStandaloneContent({ mood: input.mood, photos }) && input.kind !== "reached") return entries;
+  // v554: a read entry stands the same way — it carries no words;
+  // the chapter it records (its `read` payload) is the content.
+  if (!body && !hasStandaloneContent({ mood: input.mood, photos }) && input.kind !== "reached" && input.kind !== "read") return entries;
   const createdAt = now.toISOString();
   const fallbackDate = formatLocalIsoDate(now);
   const entry: PrayerJournalEntry = {
@@ -349,6 +381,7 @@ export function createPrayerJournalEntry(
     ...(input.fastDay ? { fastDay: input.fastDay } : {}),
     ...(normalizeVerseRef(input.verse) ? { verse: normalizeVerseRef(input.verse) } : {}),
     ...(normalizeQuestionRef(input.question) ? { question: normalizeQuestionRef(input.question) } : {}),
+    ...(normalizeReadRef(input.read) ? { read: normalizeReadRef(input.read) } : {}),
   };
   return sortPrayerJournalEntries([entry, ...entries]);
 }
@@ -381,6 +414,8 @@ export function updatePrayerJournalEntry(
             // keeps the entry's.
             verse: input.verse !== undefined ? normalizeVerseRef(input.verse) : entry.verse,
             question: input.question !== undefined ? normalizeQuestionRef(input.question) : entry.question,
+            // v554: and the same for the read payload.
+            read: input.read !== undefined ? normalizeReadRef(input.read) : entry.read,
             updatedAt,
             color: input.color,
             location: input.location,
@@ -519,11 +554,18 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
       candidate.mood && typeof candidate.mood === "object" && typeof (candidate.mood as { id?: unknown }).id === "string"
         ? candidate.mood
         : undefined;
+    // v554: the read payload is read before the wordless guard —
+    // a read line survives on its payload, and ONLY on it: a
+    // "read" entry whose payload a pack mangled has nothing left
+    // to render and drops like any other empty entry.
+    const candidateReadRef = normalizeReadRef(candidate.read);
     // v194: mood-only and photo-only entries (no words) are real
     // entries now — they survive normalization alongside text ones.
     // v440: a reached line survives on the same standing — a
     // quick-tap mark carries no words, and the line is the record.
-    if (!body && !candidateMood && !candidatePhotos && candidate.kind !== "reached") return [];
+    // v554: a read line survives on the same standing, by its
+    // payload (the chapter it records is the content).
+    if (!body && !candidateMood && !candidatePhotos && candidate.kind !== "reached" && !(candidate.kind === "read" && candidateReadRef)) return [];
     const date = normalizeDate(candidate.date, fallbackDate);
     const createdAt =
       typeof candidate.createdAt === "string" && !Number.isNaN(new Date(candidate.createdAt).getTime())
@@ -570,6 +612,9 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
     // orphans the entry it rode on.
     const verse = normalizeVerseRef(candidate.verse);
     const question = normalizeQuestionRef(candidate.question);
+    // v554: the read payload round-trips the same way (already
+    // normalized above, where the wordless guard needed it).
+    const read = candidateReadRef;
     // v410: the fast-day linkage round-trips with the same
     // tolerance — a pack written before the field existed (or by
     // the Studio) loads its fast entries as ordinary moments only
@@ -608,6 +653,7 @@ export function normalizePrayerJournalEntries(value: unknown, now = new Date()):
         ...(fastDay ? { fastDay } : {}),
         ...(verse ? { verse } : {}),
         ...(question ? { question } : {}),
+        ...(read ? { read } : {}),
       } satisfies PrayerJournalEntry,
     ];
   });
@@ -888,4 +934,60 @@ export function reconcileReachedJournalEntries(
     );
   }
   return next;
+}
+
+// ─── v554: the read line — a chapter read's quiet post in the Journal ──────
+
+/** The stable Journal id for a chapter's read line — one line
+ *  per book+chapter, ever (the answered discipline). The book
+ *  name rides verbatim; only the creation path mints these ids,
+ *  and fate is decided by the id itself, never by parsing it. */
+export function readJournalId(book: string, chapter: number): string {
+  return `journal-read-${book}-${chapter}`;
+}
+
+/** The line as one string — "Read 2 Kings 17" — for tests and
+ *  any surface that needs the words whole. The feed renders the
+ *  same words from the payload, dressed (journal-kind-post). */
+export function formatReadLine(book: string, chapter: number): string {
+  return `Read ${book} ${chapter}`;
+}
+
+/**
+ * The read write-in (his Nov 21 ask: a finished chapter reading
+ * should show up in the Journal somehow). The read door
+ * (markChapterRead) calls this on a chapter's FIRST-EVER mark,
+ * under the date the mark stamped — the line belongs to the day
+ * he read the chapter. One line per book+chapter: the stable id
+ * means an un-mark followed by a re-mark can never stack a second
+ * line (the first line, and its date, stand — the read track's
+ * own first-mark-wins rule), and un-marking never deletes the
+ * line: he did read it; it is a moment in the story now (the
+ * answered-prayer rule, not the reached rule).
+ *
+ * This is the ONE creation path for read lines — a future
+ * backfill reconcile over the standing reads record calls it per
+ * read, exactly the way reconcileReachedJournalEntries drives
+ * the reached upsert per stamp.
+ */
+export function addReadJournalEntry(
+  entries: PrayerJournalEntry[],
+  book: string,
+  chapter: number,
+  date: string,
+  now = new Date(),
+): PrayerJournalEntry[] {
+  const id = readJournalId(book, chapter);
+  if (entries.some((entry) => entry.id === id)) return entries;
+  return createPrayerJournalEntry(
+    entries,
+    {
+      body: "",
+      kind: "read",
+      read: { book, chapter },
+      date,
+    },
+    id,
+    now,
+  );
 }

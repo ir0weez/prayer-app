@@ -66,6 +66,11 @@ export type JournalPaletteTokens = {
 };
 
 export interface JournalMaterialFamily {
+  /** v554: the appearance this family was derived for — the same
+   *  flag the derivation itself reads — exposed so a kind post
+   *  can derive appearance-paired colours (the books' ROYGBIV
+   *  sets) on the family's own word, not a second guess. */
+  isDark: boolean;
   /** The screen ground: the palette background with a breath of the seed. */
   ground: string;
   /** A feed card's surface (the palette surface token, dressed). */
@@ -190,6 +195,7 @@ export function deriveJournalMaterial(primary: string, tokens: JournalPaletteTok
   const reachedTone = kindTone(JOURNAL_KIND_HUES.reached);
   const verseContainer = mix(card, primary, dark ? 0.34 : 0.26);
   return {
+    isDark: dark,
     // v281 (D1): the ground step deepens — v252's 4% wash left
     // card and ground nearly one tone, and the page read flat.
     // The filled tonal chrome (Today strip, Yesterday peek, the

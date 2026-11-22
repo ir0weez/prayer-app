@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AvatarImage } from "@/components/avatar-system";
 import { DateTimePicker } from "@/components/date-time-picker";
 import { JournalDay } from "@/components/journal-day";
-import { FastLogCard, JournalKindPost, ReachedLinesGroup, timeLabel12 } from "@/components/journal-kind-post";
+import { FastLogCard, JournalKindPost, ReadLinesGroup, ReachedLinesGroup, timeLabel12 } from "@/components/journal-kind-post";
 import { JournalPost, type JournalAuthor } from "@/components/journal-post";
 import { CalendarSheet, PersonSheet, TagSheet } from "@/components/journal-sheets";
 import { JournalWrite } from "@/components/journal-write";
@@ -750,6 +750,10 @@ export function PrayerJournalTab({ entries, people, onChange, onComposeChange, h
       case "reachedGroup":
         return (
           <ReachedLinesGroup entries={item.entries} jm={jm} onShowActions={sheetCallbacks.onShowActions} />
+        );
+      case "readGroup":
+        return (
+          <ReadLinesGroup entries={item.entries} jm={jm} onShowActions={sheetCallbacks.onShowActions} />
         );
       case "fastLog":
         return (

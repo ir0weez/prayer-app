@@ -58,6 +58,8 @@ import { scheduleMaterialTones, schedulePanelStep } from "@/lib/schedule-materia
 import { deriveBibleMaterial } from "@/lib/bible-v205/palette-accents";
 import { mix } from "@/lib/color-themes";
 import { buildWeekDots, checkInStatus, countPrayedThisMonth, daysUntilBirthday, meanReachedGapDays } from "@/lib/person-page-facts";
+import { PunchCard } from "@/components/punch-card";
+import { buildPunchCard, punchCardFirstName } from "@/lib/punch-card";
 import { getPraiseDisplay } from "@/lib/praise-display";
 import { PeopleEntrance } from "@/components/people-entrance";
 import { JOURNAL_STORAGE_KEY, PEOPLE_STORAGE_KEY, REACHED_STAMPS_STORAGE_KEY } from "@/lib/prayercircle-storage";
@@ -485,6 +487,10 @@ export default function PersonScreen() {
   const leadItem = currentPerson?.prayerItems.find((item) => item.isUrgent && !item.isDone && !item.isEmergency);
   const birthdayDays = currentPerson ? daysUntilBirthday(currentPerson.birthday, getTodayISOString()) : null;
   const weekDots = currentPerson ? buildWeekDots(currentPerson.prayedDates, currentPerson.lastPrayerCompletedDate, getTodayISOString()) : [];
+  // v556: the Punch Card's model — the same weekDots THIS WEEK
+  // renders, so the card and the dots can never disagree.
+  const punchCardModel = buildPunchCard(weekDots);
+  const punchCardScheme: "light" | "dark" = hexLuminance(colors.background) < 0.5 ? "dark" : "light";
   const monthPrayedCount = currentPerson ? countPrayedThisMonth(currentPerson.prayedDates, currentPerson.lastPrayerCompletedDate, getTodayISOString()) : 0;
   const meanGapDays = meanReachedGapDays(personStamps.map((stamp) => stamp.date));
   const checkIn = currentPerson && currentPerson.showInPrayerCheckIns !== false
@@ -1211,6 +1217,26 @@ export default function PersonScreen() {
               <Text style={{ fontSize: 14.5, fontWeight: "800", color: "#FFFFFF" }}>{editorSelectedStamp ? "Save stamp" : "Add stamp"}</Text>
             </Pressable>
           </View>
+        ) : null}
+
+        {/* v556: the Punch Card — the approved ticket (mockup
+            punch-card-person-v3, stamp-in Treatment 2 "The Punch"
+            from punch-card-person-v4) seated directly under the
+            hero, above the Emergency/Praise tiles. It reads the
+            same weekDots as THIS WEEK below; at 7/7 its aim line
+            becomes the reach-out door on the standing
+            handleMarkReachedToday write path. The Mark Reached
+            editor above keeps its own adjacency to the blue box —
+            the ticket stands between it and the tiles. */}
+        {currentPerson ? (
+          <PunchCard
+            accentColor={currentPerson.accentColor}
+            scheme={punchCardScheme}
+            groundColor={colors.background}
+            model={punchCardModel}
+            firstName={punchCardFirstName(currentPerson.name)}
+            onReachOut={(event) => handleMarkReachedToday({ x: event.nativeEvent.pageX, y: event.nativeEvent.pageY })}
+          />
         ) : null}
 
         <View style={!isSkinned ? { flexDirection: "row", gap: 9, marginHorizontal: 16 } : undefined}>

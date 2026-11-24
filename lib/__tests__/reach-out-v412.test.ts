@@ -212,7 +212,13 @@ describe("v412 source pins — person page button (Variant 2) + editor section",
     expect(person).toContain("setShowReachedEditor(true)");
     expect(person).not.toContain("/mark-reached");
     // The row and the pill share the ONE quick-stamp handler.
-    expect(person.split("handleMarkReachedToday({").length - 1).toBe(2);
+    // v556 RE-BASE (2026-11-23): the count is 3, not 2 — the
+    // Punch Card's 7/7 aim line is a third door onto the SAME
+    // handler (Jonathan's approved punch-card-person-v3: a full
+    // card's aim line becomes the reach-out row). The pin's point
+    // stands: every door still writes through the one
+    // handleMarkReachedToday → markReachedOnDate path.
+    expect(person.split("handleMarkReachedToday({").length - 1).toBe(3);
     expect(person).toContain("markReachedOnDate(people, reachedStamps, personId, currentPerson.name, getTodayISOString())");
   });
 

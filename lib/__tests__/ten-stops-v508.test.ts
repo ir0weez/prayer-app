@@ -90,8 +90,12 @@ describe('v508 Ten Stops registry — three tours', () => {
     // verified and hosted the same way and registered in
     // v555, appended after 2 Samuel — the registry now holds
     // eight; the v508 three still lead in the same order.
+    // v557 RE-BASE (2026-11-23): 2 Kings was generated,
+    // verified and hosted the same way and registered in
+    // v557, appended after 1 Kings — the registry now holds
+    // nine; the v508 three still lead in the same order.
     const all = tenStopsRegistry();
-    expect(all.length).toBe(8);
+    expect(all.length).toBe(9);
     expect(all.map((e) => e.book)).toEqual([
       'Hebrews',
       'Genesis',
@@ -101,6 +105,7 @@ describe('v508 Ten Stops registry — three tours', () => {
       '1 Samuel',
       '2 Samuel',
       '1 Kings',
+      '2 Kings',
     ]);
   });
 
@@ -286,12 +291,17 @@ describe('v508 transcripts — the tours’ own words, at segment level', () => 
     // with its tour in v555 (227 segments; pinned in
     // ten-stops-v555.test.ts). 2 Kings — no tour — carries
     // the null case instead.
+    // v557 RE-BASE (2026-11-23): 2 Kings' transcript landed
+    // with its tour in v557 (273 segments; pinned in
+    // ten-stops-v557.test.ts). Proverbs — no tour — carries
+    // the null case instead.
     expect(tenStopsTranscript('Joshua')).toHaveLength(289);
     expect(tenStopsTranscript('Ruth')).toHaveLength(226);
     expect(tenStopsTranscript('1 Samuel')).toHaveLength(326);
     expect(tenStopsTranscript('2 Samuel')).toHaveLength(388);
     expect(tenStopsTranscript('1 Kings')).toHaveLength(227);
-    expect(tenStopsTranscript('2 Kings')).toBeNull();
+    expect(tenStopsTranscript('2 Kings')).toHaveLength(273);
+    expect(tenStopsTranscript('Proverbs')).toBeNull();
   });
 
   it('segments open at 0 and stay in spoken order for every tour', () => {

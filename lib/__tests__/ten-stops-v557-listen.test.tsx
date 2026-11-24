@@ -1,0 +1,331 @@
+/**
+ * v557 — the 2 Kings tour's transcript follow-along, rendered
+ * in the real player. Same rig as ten-stops-v518-listen.test.tsx
+ * (string host components + react-test-renderer; the player's
+ * native and animated neighbours are doubles, and the controller
+ * is a spy-backed stand-in whose state the test seats before
+ * render) — here the 2 Kings session is the one under the
+ * light: its TRANSCRIPT panel stands with its own stop grouping,
+ * the segment being spoken is lit in 2 Kings' orange family,
+ * and every segment is a door that seeks through the
+ * controller's own seek path. The model is pinned in
+ * ten-stops-v557.test.ts.
+ */
+import React from 'react';
+import TestRenderer, { act, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// ─── The controller stand-in ────────────────────────────────────────────────
+// The view reads its session through useDevotionalPlayerState and
+// drives it through the exported functions; the doubles record
+// the drives, and the state is seated per render.
+
+const player = vi.hoisted(() => ({
+  state: {
+    devotional: null as unknown,
+    playing: false,
+    positionSec: 0,
+    durationSec: 0,
+  },
+  openDevotional: vi.fn(() => true),
+  seekDevotional: vi.fn(),
+  toggleDevotionalPlayback: vi.fn(),
+  stopDevotionalNow: vi.fn(),
+}));
+
+vi.mock('@/lib/devotional-player', () => ({
+  openDevotional: player.openDevotional,
+  seekDevotional: player.seekDevotional,
+  toggleDevotionalPlayback: player.toggleDevotionalPlayback,
+  stopDevotionalNow: player.stopDevotionalNow,
+  devotionalEnded: (s: typeof player.state) =>
+    !!s.devotional && !s.playing && s.durationSec > 0 && s.positionSec >= s.durationSec - 0.25,
+  consumeDevotionalExpandMorph: () => false,
+  requestDevotionalPillHandoff: () => undefined,
+  useDevotionalPlayerState: () => player.state,
+  // v527 RE-BASE (2026-11-14): the listen view asks the
+  // controller for its live snapshot on mount — a chapter's
+  // download-then-play leaves a live session untouched.
+  getDevotionalPlayerSnapshot: () => player.state,
+  // v512: the listen view registers its openness with the
+  // controller on mount/unmount (Fix 1).
+  setDevotionalPlayerViewOpen: () => undefined,
+}));
+
+// ─── The native / animated neighbours ───────────────────────────────────────
+
+vi.mock('react-native', () => ({
+  View: 'View',
+  Text: 'Text',
+  Pressable: 'Pressable',
+  ScrollView: 'ScrollView',
+  StyleSheet: {
+    create: (styles: Record<string, unknown>) => styles,
+    hairlineWidth: 0.5,
+    absoluteFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+    absoluteFillObject: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+  },
+  Platform: { OS: 'android', select: (o: any) => o.android ?? o.default },
+  AccessibilityInfo: {
+    isReduceMotionEnabled: async () => false,
+    addEventListener: () => ({ remove: () => undefined }),
+  },
+  PanResponder: { create: () => ({ panHandlers: {} }) },
+  // v510 rig: the listen view registers a hardware-back close as
+  // well; the rig doubles it inertly.
+  BackHandler: {
+    addEventListener: () => ({ remove: () => undefined }),
+  },
+  useWindowDimensions: () => ({ width: 390, height: 844 }),
+}));
+
+vi.mock('react-native-reanimated', () => ({
+  default: { View: 'AnimatedView' },
+  Easing: { bezier: () => ({}) },
+  cancelAnimation: () => undefined,
+  interpolate: () => 0,
+  interpolateColor: () => '#000000',
+  runOnJS: (fn: (...a: unknown[]) => unknown) => (...a: unknown[]) => fn(...a),
+  useAnimatedStyle: (fn: () => unknown) => {
+    try {
+      return fn();
+    } catch {
+      return {};
+    }
+  },
+  useSharedValue: (v: unknown) => ({ value: v }),
+  withDelay: (_d: unknown, v: unknown) => v,
+  withTiming: (v: unknown) => v,
+}));
+
+vi.mock('react-native-svg', () => ({
+  default: 'Svg',
+  Svg: 'Svg',
+  Defs: 'Defs',
+  LinearGradient: 'LinearGradient',
+  Rect: 'Rect',
+  Stop: 'Stop',
+}));
+
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+
+vi.mock('@expo/vector-icons/MaterialIcons', () => ({ default: 'MaterialIcons' }));
+
+vi.mock('expo-keep-awake', () => ({
+  activateKeepAwakeAsync: async () => undefined,
+  deactivateKeepAwake: () => undefined,
+}));
+
+// v527 RE-BASE (2026-11-14): chapter audio is a download now —
+// the listen view resolves a chapter through
+// lib/devotional-download, not the deleted bundled map. The seam
+// stands at "already on this phone": the disk check finds the
+// file and the local source is ready, so the view opens the
+// session exactly as it did from the bundle.
+vi.mock('@/lib/devotional-download', () => ({
+  useDevotionalDownloadState: () => ({ status: 'ready' }),
+  refreshDevotionalDownload: async () => ({ status: 'ready' }),
+  startDevotionalDownload: async () => undefined,
+  cancelDevotionalDownload: async () => undefined,
+  devotionalLocalSource: () => ({ uri: 'file:///docs/devotionals/chapter.m4a' }),
+}));
+
+vi.mock('@/lib/bible-v205/verses', () => ({
+  loadChapterVerses: async () => [],
+}));
+
+vi.mock('../../components/bible-v205/palette', () => ({
+  useBiblePalette: () => ({ isDark: false }),
+}));
+
+vi.mock('../../components/app-tab-bar', () => ({
+  useTabBarOccupiedHeight: () => 0,
+}));
+
+vi.mock('../../components/wavy-progress', () => ({
+  WavyProgress: 'WavyProgress',
+}));
+
+import { DevotionalListenView } from '../../components/devotional-listen';
+import { formatClock, getDevotional, type Devotional } from '../devotionals';
+import { devotionalPlayerTheme } from '../devotional-player-theme';
+import { getTenStops, tenStopsAsDevotional } from '../ten-stops';
+import { activeTenStopsTranscriptSegment, tenStopsTranscript } from '../ten-stops-transcripts';
+
+const SECOND_KINGS = getTenStops('2 Kings')!;
+
+// v515: timers are faked (setTimeout / clearTimeout only) so the
+// render helper can step over the player's panel-hydration tick
+// deterministically. Nothing else in this rig runs on a timer.
+vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+function render(devotional: Devotional, positionSec: number) {
+  player.state = {
+    devotional,
+    playing: false,
+    positionSec,
+    durationSec: devotional.durationSec,
+  };
+  let renderer!: ReactTestRenderer;
+  act(() => {
+    renderer = TestRenderer.create(
+      <DevotionalListenView devotional={devotional} onBack={() => undefined} />,
+    );
+  });
+  // v515: the player's heavy panels (the transcript among them)
+  // hydrate one tick AFTER the first paint — the expand-lag
+  // fix — so this rig advances past the hydration tick before
+  // asserting on the panels, exactly as a reader's screen does
+  // a frame later. The phase boundary itself is pinned in
+  // devotional-player-v515.test.tsx.
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
+  return renderer.root;
+}
+
+const texts = (root: ReactTestInstance): string[] =>
+  root.findAllByType('Text' as any).map((t) => {
+    const kids = t.props.children;
+    return Array.isArray(kids) ? kids.join('') : String(kids ?? '');
+  });
+
+const flat = (style: unknown): Record<string, unknown> => {
+  if (Array.isArray(style)) return Object.assign({}, ...style.map(flat));
+  return (style as Record<string, unknown>) ?? {};
+};
+
+const segmentDoor = (root: ReactTestInstance, startSec: number) =>
+  root
+    .findAllByType('Pressable' as any)
+    .find((p) => p.props.accessibilityLabel === `Play from ${formatClock(startSec)}`);
+
+// v522 RE-BASE (2026-11-13): the transcript panel is behind
+// the Transcript toggle now (Apple Music lyrics model — see
+// devotional-player-v522.test.tsx). It stands only once the
+// reader toggles it on; these pins exercise the standing
+// panel, so the rig presses the toggle after render. The
+// press lands the view FOLLOWING (window on the voice) —
+// the grouping, doors, dress and seek pinned below are the
+// mounted panel's, unchanged.
+const toggleTranscriptOn = (root: ReactTestInstance) => {
+  const btn = root
+    .findAllByType('Pressable' as any)
+    .find((p) => p.props.accessibilityLabel === 'Transcript');
+  expect(btn).toBeDefined();
+  act(() => {
+    btn!.props.onPress();
+  });
+};
+
+beforeEach(() => {
+  player.openDevotional.mockClear();
+  player.seekDevotional.mockClear();
+  player.toggleDevotionalPlayback.mockClear();
+  player.stopDevotionalNow.mockClear();
+});
+
+// ─── A Ten Stops session: the transcript stands ─────────────────────────────
+
+describe('v557 player — the 2 Kings session carries its transcript', () => {
+  const session = tenStopsAsDevotional(SECOND_KINGS);
+  const segs = tenStopsTranscript('2 Kings')!;
+
+  it('renders the TRANSCRIPT panel with its stop grouping', () => {
+    const root = render(session, 0);
+    toggleTranscriptOn(root);
+    const all = texts(root);
+    expect(all).toContain('TRANSCRIPT');
+    // The words before Stop 1 sit under Introduction; the stops
+    // stand over their own words, passages included.
+    expect(all).toContain('Introduction');
+    expect(all).toContain('A Test of Faith');
+    expect(all).toContain('2 Kings 2:1-8');
+    // v519 RE-BASE (2026-11-13): the panel mounts a WINDOW of
+    // its rows now (the performance cleanup), so at rest only
+    // the window's grouping stands here — the Introduction and
+    // Stop 1. The later stops' headers ('Just As God Said',
+    // "Hezekiah's Prayer", 'A Man Named Evil') and words mount when the
+    // window reaches them — pinned in
+    // devotional-player-v519.test.tsx. v520: the window is
+    // carried there by the reader's scroll or a deliberate
+    // seat, never by the playhead.
+    // And the words themselves are there — the tour's first and
+    // a further in-window segment, verbatim from its transcript.
+    expect(all).toContain(segs[0].text);
+    expect(all).toContain(segs[30].text);
+  });
+
+  it('every segment is a seek door labelled by its own start', () => {
+    const root = render(session, 0);
+    toggleTranscriptOn(root);
+    // v519 RE-BASE (2026-11-13): in-window segments at rest;
+    // out-of-window segments mount when the window arrives —
+    // pinned in devotional-player-v519.test.tsx.
+    for (const i of [0, 12]) {
+      expect(segmentDoor(root, segs[i].startSec)).toBeDefined();
+    }
+  });
+
+  it('the segment being spoken is lit in the book’s family; the rest are not', () => {
+    // v520 RE-BASE (2026-11-13): the window no longer travels
+    // to the voice (Jonathan's directed design — automatic
+    // follow removed; Catch up is the only follow), so a
+    // playhead seated deep in the tour leaves its spoken
+    // segment unmounted at rest. The lit dress itself is
+    // unchanged; it is pinned here on a spoken segment inside
+    // the standing window, and the deep-tour dress is pinned in
+    // devotional-player-v520.test.tsx.
+    const at = segs[5].startSec + 0.05;
+    const root = render(session, at);
+    toggleTranscriptOn(root);
+    const theme = devotionalPlayerTheme('2 Kings', false);
+    const activeIdx = activeTenStopsTranscriptSegment(segs, at);
+    const activeDoor = segmentDoor(root, segs[activeIdx].startSec);
+    expect(activeDoor).toBeDefined();
+    const activeStyle = flat(activeDoor!.props.style);
+    expect(activeStyle.backgroundColor).toBe(theme.stopSeat);
+    expect(activeStyle.borderLeftColor).toBe(theme.primary);
+    // A segment near the playhead but not on it carries no
+    // seat. v519 RE-BASE (2026-11-13): far segments are
+    // unmounted at this seat under the window; the no-seat
+    // dress is pinned on a mounted neighbour.
+    const nearDoor = segmentDoor(root, segs[activeIdx + 12].startSec);
+    expect(nearDoor).toBeDefined();
+    expect(flat(nearDoor!.props.style).backgroundColor).toBeUndefined();
+  });
+
+  it('tapping a segment seeks the controller to its start', () => {
+    const root = render(session, 0);
+    toggleTranscriptOn(root);
+    // v519 RE-BASE (2026-11-13): the tap target sits inside
+    // the standing window (a deeper segment's row mounts when
+    // the window travels to it; the door-and-seek behaviour it
+    // pins is the same).
+    const target = segs[30];
+    const door = segmentDoor(root, target.startSec);
+    expect(door).toBeDefined();
+    act(() => {
+      door!.props.onPress();
+    });
+    expect(player.seekDevotional).toHaveBeenCalledTimes(1);
+    expect(player.seekDevotional).toHaveBeenCalledWith(target.startSec);
+  });
+});
+
+// ─── A chapter session: no transcript anywhere ──────────────────────────────
+
+describe('v557 player — a chapter devotional renders NO transcript section', () => {
+  it('2 Kings 1’s narration session shows no TRANSCRIPT panel and no tour words', () => {
+    const chapter = getDevotional('2 Kings', 1)!;
+    const root = render(chapter, 0);
+    const all = texts(root);
+    expect(all).not.toContain('TRANSCRIPT');
+    expect(all).not.toContain('Introduction');
+    expect(all).not.toContain(tenStopsTranscript('2 Kings')![0].text);
+  });
+});

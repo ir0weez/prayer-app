@@ -289,6 +289,40 @@ const REGISTRY: TenStops[] = [
       { title: 'False Victory', passage: '1 Kings 22:5-12', startSec: 1096.3 },
     ],
   },
+  {
+    book: '2 Kings',
+    title: 'Ten Stops in 2 Kings',
+    // The shown duration: 25:33 = 1533s. The file itself probes
+    // at 1533.9s; the registry carries 1533 so every surface
+    // says 25:33 (NotebookLM's own shown length for the tour),
+    // as above. The tour stands 33 seconds past the ~25-minute
+    // rich-book ceiling — the same overage as Joshua; nothing
+    // was trimmed, and it stands as generated.
+    durationSec: 1533,
+    sizeBytes: 8101694,
+    url: 'https://github.com/ir0weez/prayer-app/releases/download/ten-stops-library/2kings-ten-stops.m4a',
+    fileName: '2kings-ten-stops.m4a',
+    // The ten stops (v557), from the tour's own transcript (local
+    // faster-whisper run over the phone copy, 2026-11-23): each
+    // startSec is the announcement moment, verified in order.
+    // The stops are Jonathan's session-verdict list, locked by
+    // him 2026-11-23 — all ten earned their seats on session
+    // singling-out, no fill picks needed. No steering calls
+    // were needed: the list carries none of his superseded
+    // positions, and his notes went in whole and unedited.
+    movements: [
+      { title: 'A Test of Faith', passage: '2 Kings 2:1-8', startSec: 95.0 },
+      { title: 'Fill The Pots', passage: '2 Kings 4:1-7', startSec: 216.7 },
+      { title: 'A Gift For Ministry', passage: '2 Kings 5:15-19', startSec: 354.2 },
+      { title: 'Open Eyes', passage: '2 Kings 6:14-19', startSec: 524.5 },
+      { title: 'Just As God Said', passage: '2 Kings 7:16-20', startSec: 738.7 },
+      { title: "The North's Defeat", passage: '2 Kings 13:1-9', startSec: 844.2 },
+      { title: 'A Reminder We Miss', passage: '2 Kings 17:34-41', startSec: 1015.1 },
+      { title: "Hezekiah's Prayer", passage: '2 Kings 19:14-19', startSec: 1121.7 },
+      { title: 'The Law of God', passage: '2 Kings 22:8-13', startSec: 1227.1 },
+      { title: 'A Man Named Evil', passage: '2 Kings 25:27-30', startSec: 1354.1 },
+    ],
+  },
 ];
 
 /** Every Ten Stops tour the app knows about (a copy — callers

@@ -991,3 +991,63 @@ export function addReadJournalEntry(
     now,
   );
 }
+
+/**
+ * v558: the read backfill — the reconcile the v554 note above
+ * promised, and the twin of reconcileReachedJournalEntries.
+ * v554's door only ever minted lines for chapters marked from
+ * that build on; his whole earlier history (Genesis onward)
+ * stood in the study store's read track with no line at all.
+ * His ruling (Nov 24): backfill the whole history. So the sync
+ * works from the record itself, the v452 way:
+ *
+ * - EVERY standing read has its line, filed under its SAVED
+ *   date — the day he actually read the chapter, never today.
+ *   A line already minted by the v554 door is left untouched
+ *   (the stable id is the dedupe; its date stands).
+ * - NOTHING is ever pruned. The reached reconcile prunes lines
+ *   whose stamp is gone; the read track follows the answered
+ *   rule instead — un-marking a chapter keeps its line, here
+ *   and at the door alike: he did read it; it is a moment in
+ *   the story now.
+ * - nothing missing → the SAME array comes back, so the caller
+ *   can set state by reference diff and no save churns. The
+ *   scan itself is one pass over the entries to build the id
+ *   set, then only the missing reads are minted — a settled
+ *   journal costs one Set and a record walk per run.
+ *
+ * The record is the study store's read track ("Book|chapter"
+ * -> ISO date, study.ts normalizeReads' shape). A key that
+ * does not parse, or a value that is not a plain ISO date, is
+ * skipped — a mangled record mints no garbage lines.
+ * Missing lines are minted oldest day first, so the Journal
+ * grows in the order he lived it; the Desk feed re-sorts each
+ * day's group into canon order itself.
+ */
+export function reconcileReadJournalEntries(
+  entries: PrayerJournalEntry[],
+  reads: Record<string, string>,
+  now = new Date(),
+): PrayerJournalEntry[] {
+  const lined = new Set(entries.map((entry) => entry.id));
+  const missing: { book: string; chapter: number; date: string }[] = [];
+  for (const [key, date] of Object.entries(reads)) {
+    if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    const cut = key.lastIndexOf("|");
+    if (cut <= 0) continue;
+    const chapter = Number(key.slice(cut + 1));
+    if (!Number.isInteger(chapter) || chapter < 1) continue;
+    const book = key.slice(0, cut);
+    if (lined.has(readJournalId(book, chapter))) continue;
+    missing.push({ book, chapter, date });
+  }
+  if (missing.length === 0) return entries;
+  missing.sort(
+    (a, b) => a.date.localeCompare(b.date) || a.book.localeCompare(b.book) || a.chapter - b.chapter,
+  );
+  let next = entries;
+  for (const read of missing) {
+    next = addReadJournalEntry(next, read.book, read.chapter, read.date, now);
+  }
+  return next;
+}

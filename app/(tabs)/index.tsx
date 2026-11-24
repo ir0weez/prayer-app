@@ -202,7 +202,7 @@ import { APP_SETTINGS_STORAGE_KEY, FASTS_STORAGE_KEY, JOURNAL_STORAGE_KEY, LAST_
 import { refreshAndPushWidgets } from "@/lib/widget-push";
 import { parseWidgetPrayParams } from "@/lib/widget-snapshots";
 import { normalizeReachedStamps, upsertReachedStamp, type ReachedStamp } from "@/lib/reached-stamps";
-import { loadStudyState, saveStudyState } from "@/lib/bible-v205/study";
+import { loadStudyState, normalizeReads, saveStudyState, STUDY_KEY } from "@/lib/bible-v205/study";
 import { applyStudioStatesReads } from "@/lib/bible-v205/studio-states";
 import { transitionChapterStatus } from "@/lib/bible-v205/rewards";
 import {
@@ -266,7 +266,7 @@ import {
 import { syncAutoExportRegistration } from "@/lib/bible-v205/auto-export-task";
 import type { ScheduleEvent, ScheduleMinistry, ScheduleTodo } from "@/lib/schedule-data";
 import { getReadingPosition, readingPositionDisplay } from "@/lib/bible-v205/position";
-import { createPrayerJournalEntry, normalizePrayerJournalEntries, reconcileReachedJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
+import { createPrayerJournalEntry, normalizePrayerJournalEntries, reconcileReadJournalEntries, reconcileReachedJournalEntries, type PrayerJournalEntry } from "@/lib/prayer-journal";
 import { advancePrayerStreak, getPreviousDate, normalizePrayerStreakRecord, type PrayerStreakRecord } from "@/lib/prayer-streak";
 import { MONUMENT_STORAGE_KEY, parseMonuments, pickRandomMonument } from "@/lib/monuments";
 import { COINS_STORAGE_KEY, parseCoins, applyCoinsDelta } from "@/lib/hometown";
@@ -1535,6 +1535,11 @@ export default function HomeScreen() {
   const [avatarComposerText, setAvatarComposerText] = useState("");
   const [scheduleTodos, setScheduleTodos] = useState<any[]>([]);
   const [reachedStamps, setReachedStamps] = useState<ReachedStamp[]>([]);
+  // v558: the study store's read track, held the way the stamps
+  // are held — hydrated with the rest, re-read from storage on
+  // focus — so the Journal's read reconcile below works over the
+  // record, exactly as the reached reconcile works over stamps.
+  const [studyReads, setStudyReads] = useState<Record<string, string>>({});
   const [reachedStampEditor, setReachedStampEditor] = useState<{ personId: string; personName: string; date: string; stampId?: string } | null>(null);
   const [reachedStampNote, setReachedStampNote] = useState("");
 
@@ -1619,8 +1624,8 @@ export default function HomeScreen() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY), AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY), AsyncStorage.getItem(SCHEDULE_TODOS_KEY), AsyncStorage.getItem(JOURNAL_STORAGE_KEY), AsyncStorage.getItem(REACHED_STAMPS_STORAGE_KEY)])
-      .then(([storedPeople, storedStreak, storedSettings, storedProfile, storedFasts, storedScheduleTodos, storedJournal, storedReachedStamps]) => {
+    Promise.all([AsyncStorage.getItem(PEOPLE_STORAGE_KEY), AsyncStorage.getItem(PRAYER_STREAK_STORAGE_KEY), AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY), AsyncStorage.getItem(PROFILE_STORAGE_KEY), AsyncStorage.getItem(FASTS_STORAGE_KEY), AsyncStorage.getItem(SCHEDULE_TODOS_KEY), AsyncStorage.getItem(JOURNAL_STORAGE_KEY), AsyncStorage.getItem(REACHED_STAMPS_STORAGE_KEY), AsyncStorage.getItem(STUDY_KEY)])
+      .then(([storedPeople, storedStreak, storedSettings, storedProfile, storedFasts, storedScheduleTodos, storedJournal, storedReachedStamps, storedStudy]) => {
         if (!isMounted) return;
         if (storedPeople) {
           const parsedPeople = JSON.parse(storedPeople) as Person[];
@@ -1645,6 +1650,7 @@ export default function HomeScreen() {
         if (storedScheduleTodos) setScheduleTodos(JSON.parse(storedScheduleTodos));
         if (storedJournal) setJournal(normalizePrayerJournalEntries(JSON.parse(storedJournal)));
         if (storedReachedStamps) setReachedStamps(normalizeReachedStamps(JSON.parse(storedReachedStamps)));
+        if (storedStudy) setStudyReads(normalizeReads((JSON.parse(storedStudy) as { reads?: unknown } | null)?.reads));
       })
       .catch(() => {
         if (isMounted) setPeople(resetDailyPrayerCompletionsIfNeeded(initialState.people, today));
@@ -1714,6 +1720,19 @@ export default function HomeScreen() {
       AsyncStorage.getItem(REACHED_STAMPS_STORAGE_KEY)
         .then((stored) => {
           if (stored) setReachedStamps(normalizeReachedStamps(JSON.parse(stored)));
+        })
+        .catch(() => undefined);
+    }, []),
+  );
+
+  // v558: the read track's focus re-read, the stamps' twin — the
+  // read doors (book page, chapter page) write the study store
+  // from their own screens, so the shell's copy converges here.
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem(STUDY_KEY)
+        .then((stored) => {
+          if (stored) setStudyReads(normalizeReads((JSON.parse(stored) as { reads?: unknown } | null)?.reads));
         })
         .catch(() => undefined);
     }, []),
@@ -2574,6 +2593,21 @@ export default function HomeScreen() {
     const next = reconcileReachedJournalEntries(journal, reachedStamps, people);
     if (next !== journal) setJournal(next);
   }, [hasHydratedPeople, journal, people, reachedStamps]);
+
+  // v558: the Journal's read lines get the same ensure over
+  // THEIR record — the study store's read track, held in state
+  // above and re-read on focus, the stamps pattern exactly.
+  // v554's door minted lines only for chapters marked from that
+  // build on; this reconcile backfills the whole standing
+  // history onto its saved days (his Nov 24 ruling). It never
+  // prunes: un-marking a chapter keeps its line (the answered
+  // rule), so a settled journal returns by reference and the
+  // effect goes quiet.
+  useEffect(() => {
+    if (!hasHydratedPeople) return;
+    const next = reconcileReadJournalEntries(journal, studyReads);
+    if (next !== journal) setJournal(next);
+  }, [hasHydratedPeople, journal, studyReads]);
 
   const handlePraise = (personId: string, note = "") => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
